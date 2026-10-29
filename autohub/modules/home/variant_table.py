@@ -1,6 +1,6 @@
 """Editable variant table: displays rows, tracks their sheet row numbers and detects user edits.
 
-Clipboard, search, the context menu and the frozen leading columns are separate classes wired up here.
+Clipboard, search, column filters, the context menu and the frozen leading columns are separate classes wired up here.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDE
 from autohub.modules.home.frozen_columns import FrozenColumns
 from autohub.modules.home.table_actions import TableActions
 from autohub.modules.home.table_clipboard import TableClipboard
+from autohub.modules.home.table_filter import TableFilter
 from autohub.modules.home.table_search import TableSearch
 
 # "No." + "Part Number" stay visible while the other columns scroll horizontally.
@@ -35,12 +36,14 @@ class VariantTable(QTableWidget):
         self._frozen = FrozenColumns(self, _FROZEN_COLUMNS)
         self._clipboard = TableClipboard(self)
         self._search = TableSearch(self, self._clipboard.set_cell_text)
+        self._filter = TableFilter(self, (self._frozen.view,))
         self._find_dialog = None
         self._actions = TableActions(self, self._clipboard, self.show_find_dialog, (self._frozen.view,))
 
     # -- Rows ------------------------------------------------------------------
 
     def populate(self, variants: list[dict]) -> None:
+        self._filter.reset()
         self._row_numbers = [variant.get("_row") for variant in variants]
         self.blockSignals(True)
         self.setRowCount(len(variants))
@@ -59,6 +62,7 @@ class VariantTable(QTableWidget):
         self._frozen.update_geometry()
 
     def clear_rows(self) -> None:
+        self._filter.reset()
         self._row_numbers = []
         self.blockSignals(True)
         self.setRowCount(0)
@@ -74,6 +78,9 @@ class VariantTable(QTableWidget):
                 values[column_name] = item.text() if item else ""
             variants.append(values)
         return variants
+
+    def set_column_filter(self, column: int, column_filter) -> None:
+        self._filter.set_column_filter(column, column_filter)
 
     # -- Editing operations, delegated -------------------------------------------
 
