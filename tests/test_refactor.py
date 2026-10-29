@@ -73,3 +73,23 @@ def test_progress_dialog_can_only_be_closed_after_the_action_finished():
     dialog.closeEvent(event)
     assert event.isAccepted()
     dialog.reject()
+
+
+def test_file_form_dialog_needs_the_required_files(tmp_path):
+    from PySide6.QtWidgets import QApplication, QDialogButtonBox
+
+    from autohub.core.file_fields import FileField
+    from autohub.core.file_form_dialog import FileFormDialog
+
+    QApplication.instance() or QApplication([])
+    real = tmp_path / "a.xlsx"
+    real.write_bytes(b"x")
+    dialog = FileFormDialog("New variant", [FileField("ECU", "*"), FileField("HW", "*", required=False)], {})
+    ok = dialog._buttons.button(QDialogButtonBox.Ok)
+    assert not ok.isEnabled()
+    dialog._edits["ECU"].setText(str(real))
+    assert ok.isEnabled()
+    dialog._edits["HW"].setText(str(tmp_path / "missing.eml"))
+    assert not ok.isEnabled() and "not found" in dialog._message.text()
+    dialog._edits["HW"].setText("")
+    assert ok.isEnabled() and dialog.values() == {"ECU": str(real), "HW": ""}
