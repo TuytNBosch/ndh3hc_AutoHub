@@ -235,15 +235,20 @@ def test_new_variant_can_discard_the_rows_or_be_cancelled(tmp_path):
 
 
 def test_saved_rows_only_need_clearing_and_an_empty_table_asks_nothing(tmp_path):
-    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx"], table_answer=True)
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx"])
     presenter, view, _, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
     view.rows = [{"J": "saved", "_row": 8}]
+    dialogs.confirm_answer = False  # a plain Yes/No question: no second Cancel button
     presenter.new_variant()
-    assert dialogs.asked_labels == ("Clear", "Cancel") and view.rows == []
+    assert dialogs.asked == [] and view.rows == [{"J": "saved", "_row": 8}]
 
-    dialogs.asked.clear()
+    dialogs.confirm_answer = True
     presenter.new_variant()
-    assert dialogs.asked == []
+    assert dialogs.confirmed[-1][0] == "New variants" and view.rows == []
+
+    dialogs.confirmed.clear()
+    presenter.new_variant()
+    assert dialogs.confirmed == []
 
 
 def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):
