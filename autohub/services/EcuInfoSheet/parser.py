@@ -139,3 +139,31 @@ def parse_ecu_info(grid: SheetGrid) -> dict:
         "Main": main,
         "Boot": boot,
     }
+
+
+_ENGINE_FAMILY_LABEL = "engine family"
+_CR_END_LABEL = "confirm at project kickoff"
+
+
+def parse_engine_family(grid: SheetGrid) -> str:
+    """Engine family of the "Issue CR" sheet: the entry whose YES flag sits under an "Engine family" header."""
+    headers = [
+        (row, col)
+        for row in range(grid.first_row, grid.last_row + 1)
+        for col in range(grid.first_col, grid.last_col + 1)
+        if normalize(grid.value(row, col)) == _ENGINE_FAMILY_LABEL
+    ]
+    if not headers:
+        raise LayoutError("Engine family header not found")
+    header_columns = {col for _, col in headers}
+    for row in range(headers[0][0] + 1, grid.last_row + 1):
+        if any(normalize(grid.value(row, col)).startswith(_CR_END_LABEL) for col in range(grid.first_col, grid.last_col + 1)):
+            break
+        for col in header_columns:
+            if normalize(grid.value(row, col)) != "yes":
+                continue
+            for next_col in range(col + 1, grid.last_col + 1):
+                lines = grid.text(row, next_col).splitlines()
+                if lines:
+                    return lines[0].strip()
+    raise LayoutError("no engine family is marked YES")

@@ -1,6 +1,6 @@
-from autohub.services.common.sheet_grid import normalize
+from autohub.services.common.sheet_grid import SheetGrid, normalize
 from autohub.services.common.workbook import ExcelDocument
-from autohub.services.EcuInfoSheet.parser import SHEET_NAME, parse_ecu_info
+from autohub.services.EcuInfoSheet.parser import SHEET_NAME, parse_ecu_info, parse_engine_family
 
 
 class EcuInfoSheet(ExcelDocument):
@@ -14,5 +14,18 @@ class EcuInfoSheet(ExcelDocument):
         info = self._parse(lambda name: normalize(name) == SHEET_NAME, parse_ecu_info)
         if info is None:
             return False
+        engine_family = self._read_engine_family()
+        if engine_family:
+            for general in info.get("GeneralInfo", []):
+                general["EngineFamily"] = engine_family
         self.ecu_info = info
         return True
+
+    def _read_engine_family(self) -> str:
+        """Engine family from the workbook's "Issue CR" sheet; blank when there is none."""
+        for sheet in self.workbook.Worksheets:
+            try:
+                return parse_engine_family(SheetGrid.from_com(sheet))
+            except Exception:
+                continue
+        return ""

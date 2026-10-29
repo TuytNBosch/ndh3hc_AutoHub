@@ -34,11 +34,11 @@ def _rule(
 RULES: tuple[Rule, ...] = (
     _rule("power_kw", r"^(maximum\s+)?power\b", r"(\d+(?:\.\d+)?)\s*kW"),
     _rule("cylinders", r"^engine\s+type\b", r"\bL(\d{1,2})\b"),
+    _rule("cylinders", r"\bequipped\s+with\b", r"(\d{1,2})-cylinder", same_cell=True),
     _rule("displacement_l", r"^displacement\b", r"(\d[\d,]*)\s*cc", displacement_litres),
     _rule("emission", r"^em\s+category$", r"^(.+)$", tidy_emission),
     _rule("immobilizer", r"^immobilizer\b", r"generation\s*(\d+)", immobilizer_label, same_cell=True),
     _rule("engine_family", r"-kai\s+engine", r"^([A-Z0-9]{2,5})-kai\s+engine", same_cell=True),
-    _rule("ecu_hw_name", r"^ecu$", r"^(MG1\s*[A-Z]{2}\d{3}|MED?17(?:\.\d+)*)$", lambda text: re.sub(r"\s+", "", text)),
 )
 
 
