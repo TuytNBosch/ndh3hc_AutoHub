@@ -19,7 +19,7 @@ class WebFlowDefaults:
     ecu_default_id: str = "FFFFEFFFFFEE00000000"
     ecu_rewriting_id: str = "00000000"
     sw_version: str = "01"
-    sw_version_hardware: str = "MG1CS020"  # the only ECU type that has a SW version
+    sw_version_hardware: str = "MG1CS022"  # the only ECU type that has a SW version
     no_sw_version: str = "-"
     component_id: str = "-"
     indi_spec_template: str = "Honda_{hardware}{type}_IndiSpec_01"
