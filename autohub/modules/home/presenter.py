@@ -252,13 +252,11 @@ class HomePresenter:
             if answer is None:
                 return None
             return _SAVE_THEN_CLEAR if answer else _CLEAR
-        answer = self._dialogs.ask_yes_no_cancel(
+        cleared = self._dialogs.confirm(
             NEW_VARIANT_TEXT,
             f"The table still contains {count} variant{plural}. Clear the table before creating new variants?",
-            yes_text="Clear",
-            no_text="Cancel",
         )
-        return _CLEAR if answer else None
+        return _CLEAR if cleared else None
 
     def _saved_before_new_variant(self, result, window: ProgressWindow, paths: tuple) -> None:
         saved, _rows, available = result
