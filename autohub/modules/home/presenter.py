@@ -19,14 +19,8 @@ UPDATE_TEXT = "Update Master Sheet"
 LOAD_TEXT = "Load variants"
 NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Matrix CR."
 
-# Field label -> settings.json key (matches the legacy OnlineTool app).
-SETTINGS_KEYS = {
-    "Master Sheet": "master_sheet_path",
-    "ECU Info Sheet": "ecu_info_path",
-    "System Matrix": "system_matrix_path",
-    "HW Info": "hw_info_path",
-    "Kick Off": "kick_off_path",
-}
+# Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
+SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
@@ -168,8 +162,8 @@ class HomePresenter:
     # -- New variant (compute only, nothing written yet) -------------------------------
 
     def new_variant(self) -> None:
-        keep_rows = self._ask_keep_rows(NEW_VARIANT_TEXT)
-        if keep_rows is None:
+        if self._view.row_count() > 0:
+            self._dialogs.info(NEW_VARIANT_TEXT, self._table_not_empty_text())
             return
         master_sheet_path = self._valid_master_sheet("AutoHub")
         if master_sheet_path is None:
@@ -188,27 +182,32 @@ class HomePresenter:
         window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
         self._start_task(
             lambda: self._service.compute_new_variants(*paths, progress=window.step),
-            lambda new_variants: self._finish_new_variant(new_variants, window, keep_rows),
+            lambda new_variants: self._finish_new_variant(new_variants, window),
             lambda error: self._fail_new_variant(error, window),
         )
 
+    def _table_not_empty_text(self) -> str:
+        unsaved = self._edited or any(row.get("_row") is None for row in self._view.read_rows())
+        if unsaved:
+            return (
+                "The table has variants that are not in the Master Sheet yet.\n\n"
+                f"Click '{UPDATE_TEXT}' to save them, then 'Clear' to empty the table, before creating new variants."
+            )
+        return "Click 'Clear' to empty the table before creating new variants."
+
     def _ask_sources(self) -> dict[str, str] | None:
-        """The source file paths from one dialog (remembered ones prefilled), or None when cancelled."""
-        initial = {field.name: self._paths.get(field.name, "") for field in _SOURCE_FIELDS}
-        chosen = self._dialogs.ask_files(NEW_VARIANT_TEXT, _SOURCE_FIELDS, initial)
+        """The source file paths from one dialog (always empty at first, nothing is remembered), or None when cancelled."""
+        chosen = self._dialogs.ask_files(NEW_VARIANT_TEXT, _SOURCE_FIELDS, {})
         if chosen is None:
             return None
         for field in _SOURCE_FIELDS:
-            path = chosen.get(field.name, "")
-            if path:
-                self._set_path(field.name, path)
-                self._settings.update(**{SETTINGS_KEYS[field.name]: path})
-                _logger.info("%s file selected: %s", field.name, path)
+            if chosen.get(field.name):
+                _logger.info("%s file selected: %s", field.name, chosen[field.name])
         return {field.name: chosen.get(field.name, "") for field in _SOURCE_FIELDS}
 
-    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow, keep_rows: bool) -> None:
+    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
-        self._show_added_rows(new_variants, keep_rows)
+        self._show_rows(new_variants)
         count = len(new_variants)
         if count > 0:
             self._view.set_update_state(True, UPDATE_TEXT)  # new rows can be written as they are
