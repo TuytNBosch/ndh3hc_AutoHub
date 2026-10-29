@@ -7,6 +7,7 @@ from autohub.core.normalizers import (
     ascii_hex,
     clean_text,
     customer_hardware_part_number,
+    hex_text,
     normalize_displacement,
     normalize_emission,
     normalize_key_text,
@@ -58,7 +59,7 @@ def index_system_variants(system_info: SystemMatrixData) -> dict[str, dict]:
 
 def security_type_1_value(boot: BootRow) -> str:
     """SecuAcs_CustTypeI: the Boot row's Security Type Ⅰ SK1, SK2 and SK3 values joined in order."""
-    return "".join(clean_text(boot.get(field)) for field in _SECURITY_KEY_FIELDS)
+    return "".join(hex_text(boot.get(field)) for field in _SECURITY_KEY_FIELDS)
 
 
 def ecu_for_variant(ecu_info: EcuInfoData, main: dict) -> EcuGroup:

@@ -63,6 +63,11 @@ def test_security_type_1_joins_sk1_sk2_sk3():
     assert security_type_1_value({}) == ""
 
 
+def test_security_type_1_drops_the_excel_float_suffix():
+    assert security_type_1_value({"SK1": 20250901.0, "SK2": "20250901.0", "SK3": "1A2B"}) == "20250901202509011A2B"
+    assert n.hex_text(3670.0) == "3670" and n.hex_text("ABC.0") == "ABC.0"
+
+
 def test_hw_info_fills_hw_columns_but_not_over_the_system_matrix():
     hw = {"hw_ident": "0261S10A2Y", "b_number": "0261B00CE7-00", "eu_mark": "ZZZ", "ss_id": "YYY"}
     values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM, hw)
