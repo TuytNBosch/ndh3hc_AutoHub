@@ -28,6 +28,18 @@ def _columns(row: tuple, last_index: int) -> dict[str, Any]:
 class Mx17MasterSheet(MasterSheet):
     sheet_name = layout.MAIN_SHEET_NAME
 
+    def _open_workbook(self, path: str):
+        """Opens past a "read-only recommended" flag; a really locked file can still be read, but not written."""
+        self.excel_app.DisplayAlerts = False
+        self.workbook = self.excel_app.Workbooks.Open(
+            path, UpdateLinks=0, ReadOnly=False, IgnoreReadOnlyRecommended=True
+        )
+        return self.workbook
+
+    def _require_writable(self) -> None:
+        if self.workbook.ReadOnly:
+            raise PermissionError(f"Workbook is locked or read-only (close it in Excel first): {self.file_path}")
+
     # -- Reading ---------------------------------------------------------------------
 
     def _last_used_row(self, worksheet) -> int:
@@ -109,6 +121,7 @@ class Mx17MasterSheet(MasterSheet):
 
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]:
         """A "_row" entry updates that main sheet row (and its Info row); otherwise a row is appended to both."""
+        self._require_writable()
         worksheet = self._worksheet()
         info = self._info_rows()
         saved = []
@@ -132,6 +145,7 @@ class Mx17MasterSheet(MasterSheet):
 
     def delete_variant_rows(self, request_rows: list[int], save: bool = True) -> int:
         """Delete the main sheet rows (one per variant), bottom up; a row without a part number is skipped."""
+        self._require_writable()
         worksheet = self._worksheet()
         deleted = 0
         for row in sorted({int(row) for row in request_rows}, reverse=True):
