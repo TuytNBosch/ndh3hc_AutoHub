@@ -18,7 +18,6 @@ class WebFlowDefaults:
     tp_level: str = "3"
     ecu_default_id: str = "FFFFEFFFFFEE00000000"
     ecu_rewriting_id: str = "00000000"
-    security_coefficient: str = "FFFFFFFFFFFF"
     sw_version: str = "01"
     component_id: str = "-"
     indi_spec_template: str = "Honda_{hardware}{type}_IndiSpec_01"

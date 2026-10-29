@@ -10,6 +10,7 @@ from autohub.services.MasterSheet.variant_builder import (
     compute_new_variant_rows,
     ecu_for_variant,
     index_system_variants,
+    security_type_1_value,
     variant_key,
 )
 from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
@@ -55,8 +56,11 @@ def test_request_values_for_a_variant():
     assert "CN" not in values
 
 
-def test_security_coefficient_only_when_boot_has_keys():
-    assert build_request_values(GENERAL, ECU, MAIN, {"SK1": "3670"}, SYSTEM)["CN"] == WEBFLOW_DEFAULTS.security_coefficient
+def test_security_type_1_joins_sk1_sk2_sk3():
+    boot = {"SK1": "3670", "SK2": " 1A2B ", "SK3": None}
+    assert security_type_1_value(boot) == "36701A2B"
+    assert build_request_values(GENERAL, ECU, MAIN, {**boot, "SK3": "FF"}, SYSTEM)["CN"] == "36701A2BFF"
+    assert security_type_1_value({}) == ""
 
 
 def test_hw_info_fills_hw_columns_but_not_over_the_system_matrix():
