@@ -5,8 +5,6 @@ import os
 from typing import Iterator
 
 import msoffcrypto
-from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 from autohub.core.records import KickOffInfo
 from autohub.services.KickOff.parser import parse_kick_off
@@ -39,7 +37,7 @@ def _decrypt(path: str, passwords: tuple[str, ...]) -> io.BytesIO | None:
 def _shape_rows(shapes) -> Iterator[list[str]]:
     """Table rows as their cell texts; every text-box line as a one-cell row."""
     for shape in shapes:
-        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+        if hasattr(shape, "shapes"):
             yield from _shape_rows(shape.shapes)
         elif getattr(shape, "has_table", False) and shape.has_table:
             for row in shape.table.rows:
@@ -69,7 +67,12 @@ class KickOffMeeting:
             if deck is None:
                 self.last_error = f"Could not open Kick Off Meeting '{name}': none of the known passwords works."
                 return False
+            from pptx import Presentation  # imported lazily so the app starts without python-pptx
+
             self.info = parse_kick_off(_table_rows(Presentation(deck)))
+        except ImportError:
+            self.last_error = "python-pptx is not installed. Run: pip install python-pptx"
+            return False
         except Exception as error:
             self.last_error = f"Could not read Kick Off Meeting '{name}': {error}"
             _logger.error(self.last_error)
