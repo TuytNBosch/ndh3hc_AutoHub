@@ -12,14 +12,14 @@ from autohub.modules.home.service import VariantService
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
 from autohub.services.HWInfo.HWInfo import HWInfo
 from autohub.services.KickOff.KickOff import KickOffMeeting
-from autohub.services.MasterSheet.MasterSheet import MasterSheet
+from autohub.services.MasterSheet.master_sheet_factory import open_master_sheet
 from autohub.services.SystemMatrix.SystemMatrix import SystemMatrix
 from autohub.services.WebFlow.WebFlow import WebFlow
 
 
 def build_variant_service() -> VariantService:
     return VariantService(
-        master_sheet_factory=MasterSheet,
+        master_sheet_factory=open_master_sheet,
         ecu_info_factory=EcuInfoSheet,
         system_matrix_factory=SystemMatrix,
         hw_info_factory=HWInfo,
