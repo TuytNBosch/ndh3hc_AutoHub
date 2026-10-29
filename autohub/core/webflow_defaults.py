@@ -19,6 +19,8 @@ class WebFlowDefaults:
     ecu_default_id: str = "FFFFEFFFFFEE00000000"
     ecu_rewriting_id: str = "00000000"
     sw_version: str = "01"
+    sw_version_hardware: str = "MG1CS020"  # the only ECU type that has a SW version
+    no_sw_version: str = "-"
     component_id: str = "-"
     indi_spec_template: str = "Honda_{hardware}{type}_IndiSpec_01"
 
@@ -33,6 +35,9 @@ class WebFlowDefaults:
             "calibration": self.calibration,
             "data_integration": self.data_integration,
         }
+
+    def sw_version_for(self, hardware: str) -> str:
+        return self.sw_version if hardware.strip().upper() == self.sw_version_hardware else self.no_sw_version
 
     def indi_spec(self, hardware: str) -> str:
         ecu_type = "_CS" if hardware.find("CS") != -1 else ""
