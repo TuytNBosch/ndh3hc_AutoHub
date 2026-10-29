@@ -20,8 +20,10 @@ class Dialogs(Protocol):
 
     def error(self, title: str, text: str) -> None: ...
 
-    def ask_yes_no_cancel(self, title: str, text: str) -> bool | None:
-        """True for Yes, False for No, None for Cancel."""
+    def ask_yes_no_cancel(
+        self, title: str, text: str, yes_text: str | None = None, no_text: str | None = None
+    ) -> bool | None:
+        """True for Yes, False for No, None for Cancel; the optional texts relabel the Yes / No buttons."""
         ...
 
     def open_progress(self, title: str) -> ProgressWindow: ...
@@ -45,10 +47,16 @@ class QtDialogs:
     def error(self, title: str, text: str) -> None:
         QMessageBox.critical(self._parent, title, text)
 
-    def ask_yes_no_cancel(self, title: str, text: str) -> bool | None:
-        answer = QMessageBox.question(
-            self._parent, title, text, QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.No
-        )
+    def ask_yes_no_cancel(
+        self, title: str, text: str, yes_text: str | None = None, no_text: str | None = None
+    ) -> bool | None:
+        box = QMessageBox(QMessageBox.Question, title, text, QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, self._parent)
+        box.setDefaultButton(QMessageBox.No)
+        if yes_text:
+            box.button(QMessageBox.Yes).setText(yes_text)
+        if no_text:
+            box.button(QMessageBox.No).setText(no_text)
+        answer = box.exec()
         if answer == QMessageBox.Cancel:
             return None
         return answer == QMessageBox.Yes

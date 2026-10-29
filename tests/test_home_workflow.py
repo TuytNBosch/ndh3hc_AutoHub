@@ -203,3 +203,15 @@ def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_them
     assert settings.data["ecu_info_path"] == "e.xlsx" and settings.data["hw_info_path"] == "hw.eml"
     presenter.new_variant()
     assert dialogs.initial["System Matrix"] == "m.xlsx"  # the dialog is prefilled with the last choice
+
+
+def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):
+    failing = FakeDocument(ok=False, error="boom")
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=True)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(matrix=failing), dialogs)
+    view.rows = [{"J": "mine", "_row": None}]
+
+    presenter.new_variant()
+
+    assert dialogs.asked_labels == ("Clear", "Keep")
+    assert [r["J"] for r in view.rows] == ["mine"] and dialogs.errors  # a failed action keeps the table
