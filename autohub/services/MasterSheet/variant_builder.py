@@ -112,6 +112,7 @@ def build_request_values(
         "CO": clean_text(ecu.get("SecurityKey")),
         "CP": clean_text(ecu.get("SecurityKeyIdentifier")),
         "CS": part_number,
+        "CX": customer_hardware_part_number(part_number),
         "CT": clean_text(main.get("NumReWrecuid")),
         "CU": clean_text(main.get("CALIBID")),
         "CV": program_id,
