@@ -188,3 +188,10 @@ def test_engine_family_is_read_from_the_issue_cr_sheet():
         warnings.simplefilter("ignore")
         sheet = openpyxl.load_workbook(buffer, data_only=True)["1) Issue CR"]
     assert parse_engine_family(SheetGrid.from_openpyxl(sheet)) == "NP1"
+
+
+def test_placeholder_rows_below_the_last_variant_are_not_variants():
+    sheet = _embedded_workbook(str(DATAS / "6WZX_MP0" / "CR-GDI-HG28B-SY014-0.xlsx"))["Factory_event"]
+    ecu_info = parse_ecu_info(SheetGrid.from_openpyxl(sheet))
+    assert [m["NumCompID"] for m in ecu_info["Main"]] == ["37820-6WZ-M610-M6", "37820-6WZ-M710-M6"]
+    assert len(ecu_info["Boot"]) == len(ecu_info["Container"]) == 2

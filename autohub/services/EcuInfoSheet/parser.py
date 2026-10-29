@@ -104,6 +104,10 @@ def parse_ecu_info(grid: SheetGrid) -> dict:
     while row <= grid.last_row and any(has_value(grid.value(row, c)) for c in section_cols):
         rows.append(row)
         row += 1
+    # Trailing rows holding only "-" placeholders (e.g. in the Boot columns) are not variants.
+    part_col = main_cols["NumCompID"]
+    while rows and not has_value(grid.value(rows[-1], part_col)):
+        rows.pop()
     if not rows:
         raise LayoutError("no variant rows found below the header row")
 
