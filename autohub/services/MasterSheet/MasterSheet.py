@@ -1,7 +1,7 @@
 """Master Sheet workbook session: opens the workbook and delegates row reading, writing and value building."""
 import os
 
-from autohub.core.records import EcuInfoData, HWLookup, SystemMatrixData
+from autohub.core.records import EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
 from autohub.services.common.workbook import ExcelDocument
 from autohub.services.MasterSheet.row_reader import VariantRowReader
 from autohub.services.MasterSheet.row_writer import LAST_DATA_COLUMN, VariantRowWriter
@@ -43,14 +43,19 @@ class MasterSheet(ExcelDocument):
         return saved_path
 
     def compute_new_variants(
-        self, system_info: SystemMatrixData, ecu_info: EcuInfoData, hw_info: HWLookup | None = None
+        self,
+        system_info: SystemMatrixData,
+        ecu_info: EcuInfoData,
+        hw_info: HWLookup | None = None,
+        kick_off: KickOffInfo | None = None,
     ) -> list[dict]:
         """REQ-row values (keyed by column letter) for variants not yet in the sheet; nothing is written.
 
-        `hw_info` fills the Bosch HW columns and any blank SS-ID / EU-mark.
+        `hw_info` fills the Bosch HW columns and any blank SS-ID / EU-mark; `kick_off` fills power, cylinders
+        and ECU HW name.
         """
         existing_keys = VariantRowReader(self._worksheet()).existing_variant_keys()
-        return compute_new_variant_rows(ecu_info, system_info, existing_keys, hw_info)
+        return compute_new_variant_rows(ecu_info, system_info, existing_keys, hw_info, kick_off=kick_off)
 
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]:
         """Write each (possibly user-edited) row: a "_row" entry updates that row, otherwise one is inserted."""

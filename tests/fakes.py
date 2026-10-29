@@ -59,8 +59,8 @@ class FakeMasterSheet(FakeDocument):
         self.saved = None
         self.compute_args = None
 
-    def compute_new_variants(self, system_info, ecu_info, hw_info=None):
-        self.compute_args = (system_info, ecu_info, hw_info)
+    def compute_new_variants(self, system_info, ecu_info, hw_info=None, kick_off=None):
+        self.compute_args = (system_info, ecu_info, hw_info, kick_off)
         return self.new_rows
 
     def save_variant_rows(self, variants, save=True):
@@ -79,20 +79,22 @@ def no_session():
     yield
 
 
-def build_service(master=None, ecu=None, matrix=None, hw=None) -> VariantService:
+def build_service(master=None, ecu=None, matrix=None, hw=None, kick_off=None) -> VariantService:
     return VariantService(
         master_sheet_factory=lambda path: master or FakeMasterSheet(path),
         ecu_info_factory=lambda path: ecu or FakeDocument(path, ecu_info={"Main": []}),
         system_matrix_factory=lambda path: matrix or FakeDocument(path, system_info={"GeneralInfo": []}),
         hw_info_factory=lambda path: hw or FakeDocument(path),
         session_factory=no_session,
+        kick_off_factory=lambda path: kick_off or FakeDocument(path, info={}),
     )
 
 
 class FakeDialogs:
-    def __init__(self, files=(), hw_answer=False):
+    def __init__(self, files=(), hw_answer=False, kick_off_answer=False):
         self.files = list(files)
         self.hw_answer = hw_answer
+        self.kick_off_answer = kick_off_answer
         self.infos: list = []
         self.errors: list = []
         self.picked: list = []
@@ -108,7 +110,7 @@ class FakeDialogs:
         self.errors.append((title, text))
 
     def ask_yes_no_cancel(self, title, text):
-        return self.hw_answer
+        return self.kick_off_answer if "Kick Off" in text else self.hw_answer
 
 
 class FakeView:

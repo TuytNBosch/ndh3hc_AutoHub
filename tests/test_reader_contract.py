@@ -4,6 +4,7 @@ import pytest
 from autohub.core.records import DocumentReader
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
 from autohub.services.HWInfo.HWInfo import HWInfo
+from autohub.services.KickOff.KickOff import KickOffMeeting
 from autohub.services.SystemMatrix.SystemMatrix import SystemMatrix
 from tests.fakes import FakeDocument
 
@@ -32,8 +33,13 @@ def test_hw_info_reports_unreadable_and_unsupported_files(tmp_path):
     assert unsupported.load_data() is False and ".txt" in unsupported.last_error
 
 
+def test_kick_off_reports_an_unreadable_file_instead_of_raising(tmp_path):
+    reader = KickOffMeeting(_unreadable(tmp_path))
+    assert reader.load_data() is False and reader.last_error
+
+
 def test_readers_and_fakes_satisfy_the_same_protocol(tmp_path):
-    readers = [EcuInfoSheet("x"), SystemMatrix("x"), HWInfo("x"), FakeDocument()]
+    readers = [EcuInfoSheet("x"), SystemMatrix("x"), HWInfo("x"), KickOffMeeting("x"), FakeDocument()]
     for reader in readers:
         assert hasattr(reader, "load_data") and hasattr(reader, "last_error")
     # runtime check of the structural type

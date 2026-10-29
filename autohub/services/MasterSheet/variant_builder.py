@@ -18,7 +18,7 @@ from autohub.core.normalizers import (
     normalize_program_version,
     title_status,
 )
-from autohub.core.records import BootRow, EcuGroup, EcuInfoData, HWLookup, HWRecord, SystemMatrixData
+from autohub.core.records import BootRow, EcuGroup, EcuInfoData, HWLookup, HWRecord, KickOffInfo, SystemMatrixData
 from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS
 
 _SECURITY_KEY_FIELDS = ("SK1", "SK2", "SK3")
@@ -84,6 +84,13 @@ def _apply_hw_info(request_values: dict, hw: HWRecord) -> None:
             request_values[column] = hw[field]
 
 
+def _apply_kick_off_info(request_values: dict, kick_off: KickOffInfo) -> None:
+    """Project facts from the Kick Off Meeting fill columns the other documents leave blank."""
+    for column, field in (("AC", "power_kw"), ("AK", "cylinders"), ("AP", "ecu_hw_name")):
+        if not request_values.get(column) and kick_off.get(field):
+            request_values[column] = kick_off[field]
+
+
 def build_request_values(
     general: dict,
     ecu: EcuGroup,
@@ -92,6 +99,7 @@ def build_request_values(
     system_variant: dict,
     hw: HWRecord | None = None,
     now: datetime | None = None,
+    kick_off: KickOffInfo | None = None,
 ) -> dict:
     """Column-letter -> value for one variant's REQ row (including the created date "C")."""
     defaults = WEBFLOW_DEFAULTS
@@ -145,6 +153,8 @@ def build_request_values(
         request_values["CN"] = security_type_1
     if hw:
         _apply_hw_info(request_values, hw)
+    if kick_off:
+        _apply_kick_off_info(request_values, kick_off)
     return request_values
 
 
@@ -154,6 +164,7 @@ def compute_new_variant_rows(
     existing_keys: set[tuple[str, str, str]],
     hw: HWLookup | None = None,
     now: datetime | None = None,
+    kick_off: KickOffInfo | None = None,
 ) -> list[dict]:
     """REQ-row values for the variants not yet in the sheet (keys in `existing_keys`)."""
     main_variants = ecu_info.get("Main", [])
@@ -186,6 +197,7 @@ def compute_new_variant_rows(
             system_variant,
             hw.find(part_number) if hw else None,
             now,
+            kick_off,
         )
         key = variant_key_from_values(values)
         if key in seen:
