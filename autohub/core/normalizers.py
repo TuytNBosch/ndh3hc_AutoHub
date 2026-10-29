@@ -54,6 +54,13 @@ def ascii_hex(value) -> str:
     return "".join(f"{ord(character):02X}" for character in clean_text(value))
 
 
+def hex_text(value) -> str:
+    """A hex value read from a cell as text; drops the ".0" Excel adds to numbers (2025.0 -> 2025)."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return re.sub(r"^([0-9A-Fa-f]+)\.0+$", r"\1", clean_text(value))
+
+
 def parse_event(project_purpose) -> str:
     """Extract the event name out of '{project} for {event}/{milestone} event'."""
     text = clean_text(project_purpose)
