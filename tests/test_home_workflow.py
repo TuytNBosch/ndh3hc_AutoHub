@@ -259,3 +259,19 @@ def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):
     master.load_variant_rows = lambda: [{"J": "a", "_row": 8}]
     presenter.load_variants()
     assert dialogs.asked_labels == ("Clear", "Keep") and [r["J"] for r in view.rows] == ["a"]
+
+
+def test_clear_and_update_buttons_ask_for_confirmation(tmp_path):
+    master = FakeMasterSheet(rows=[{"_row": 11}])
+    dialogs = FakeDialogs(confirm_answer=False)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    view.rows = [{"J": "a", "_row": 11}]
+
+    presenter.clear_table()
+    presenter.update_master_sheet()
+    assert [title for title, _ in dialogs.confirmed] == ["Clear table", "Update variants"]
+    assert view.rows == [{"J": "a", "_row": 11}] and master.saved is None and dialogs.windows == []
+
+    dialogs.confirm_answer = True
+    presenter.clear_table()
+    assert view.rows == []

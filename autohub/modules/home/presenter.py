@@ -155,6 +155,15 @@ class HomePresenter:
         self._view.set_update_state(True, UPDATE_TEXT)
 
     def clear_table(self) -> None:
+        """The Clear button: asks for confirmation first when the table holds variants."""
+        count = self._view.row_count()
+        if count and not self._dialogs.confirm(
+            "Clear table", f"Are you sure you want to clear the table ({count} variant{'s' if count != 1 else ''})?"
+        ):
+            return
+        self._clear_rows()
+
+    def _clear_rows(self) -> None:
         self._edited = False
         self._view.clear_rows()
         self._view.set_update_state(False, UPDATE_TEXT)
@@ -191,7 +200,7 @@ class HomePresenter:
             )
             return
         if before == _CLEAR:
-            self.clear_table()
+            self._clear_rows()
         self._compute_new_variants(paths, window)
 
     def _ask_before_new_variant(self) -> str | None:
@@ -225,7 +234,7 @@ class HomePresenter:
         saved, _rows, available = result
         _logger.info("Updated %d variant(s) before creating new ones", len(saved))
         self._view.publish_variants(available)
-        self.clear_table()
+        self._clear_rows()
         self._compute_new_variants(paths, window)
 
     def _compute_new_variants(self, paths: tuple, window: ProgressWindow) -> None:
@@ -274,6 +283,10 @@ class HomePresenter:
         if master_sheet_path is None:
             return
 
+        if not self._dialogs.confirm(
+            "Update variants", f"Are you sure you want to update the Master Sheet with {self._view.row_count()} variant(s)?"
+        ):
+            return
         variants = self._view.read_rows()
         _logger.info("Update variants clicked (%d variant(s))", len(variants))
         self._view.set_update_state(False, "Updating...")

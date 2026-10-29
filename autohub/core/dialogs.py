@@ -20,6 +20,10 @@ class Dialogs(Protocol):
 
     def error(self, title: str, text: str) -> None: ...
 
+    def confirm(self, title: str, text: str) -> bool:
+        """True when the user agrees, False otherwise."""
+        ...
+
     def ask_yes_no_cancel(
         self, title: str, text: str, yes_text: str | None = None, no_text: str | None = None
     ) -> bool | None:
@@ -46,6 +50,12 @@ class QtDialogs:
 
     def error(self, title: str, text: str) -> None:
         QMessageBox.critical(self._parent, title, text)
+
+    def confirm(self, title: str, text: str) -> bool:
+        answer = QMessageBox.question(
+            self._parent, title, text, QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        return answer == QMessageBox.Yes
 
     def ask_yes_no_cancel(
         self, title: str, text: str, yes_text: str | None = None, no_text: str | None = None
