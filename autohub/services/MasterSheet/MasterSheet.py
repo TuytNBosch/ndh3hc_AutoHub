@@ -65,6 +65,12 @@ class MasterSheet(ExcelDocument):
             self.save()
         return saved
 
+    def delete_variant_rows(self, request_rows: list[int], save: bool = True) -> int:
+        deleted = VariantRowWriter(self._worksheet(), self.excel_app).delete_variants(request_rows)
+        if save and deleted:
+            self.save()
+        return deleted
+
     def load_variant_rows(self) -> list[dict]:
         return VariantRowReader(self._worksheet()).load_variant_rows()
 

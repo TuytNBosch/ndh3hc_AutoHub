@@ -61,8 +61,12 @@ class HomeWidget(QWidget):
         self._update_btn.setEnabled(False)
         self._clear_btn = QPushButton("Clear table")
         self._clear_btn.setEnabled(False)
+        self._delete_btn = QPushButton("Delete selected")
+        self._delete_btn.setToolTip("Delete the variants of the selected rows (also from the Master Sheet after Update).")
+        self._delete_btn.setEnabled(False)
         write_row = QHBoxLayout()
         write_row.addWidget(self._clear_btn)
+        write_row.addWidget(self._delete_btn)
         write_row.addStretch(1)
         write_row.addWidget(self._update_btn)
 
@@ -81,6 +85,7 @@ class HomeWidget(QWidget):
         self._load_btn.clicked.connect(self._presenter.load_variants)
         self._update_btn.clicked.connect(self._presenter.update_master_sheet)
         self._clear_btn.clicked.connect(self._presenter.clear_table)
+        self._delete_btn.clicked.connect(self._presenter.delete_selected)
         self._variant_table.userEdited.connect(self._presenter.on_table_edited)
         self._presenter.restore_saved_paths()
 
@@ -120,6 +125,13 @@ class HomeWidget(QWidget):
 
     def set_clear_enabled(self, enabled: bool) -> None:
         self._clear_btn.setEnabled(enabled)
+        self._delete_btn.setEnabled(enabled)
+
+    def selected_rows(self) -> list[int]:
+        return self._variant_table.selected_rows()
+
+    def remove_rows(self, rows: list[int]) -> None:
+        self._variant_table.remove_rows(rows)
 
     def publish_variants(self, variants: list[dict]) -> None:
         self.variantsLoaded.emit(variants)
