@@ -1,10 +1,12 @@
 """User-interaction ports (file pick, messages) so workflows run in tests without a visible window."""
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Mapping, Protocol, Sequence
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
+from autohub.core.file_fields import FileField
+from autohub.core.file_form_dialog import FileFormDialog
 from autohub.core.progress import ProgressWindow
 from autohub.core.progress_dialog import ProgressDialog
 
@@ -23,6 +25,10 @@ class Dialogs(Protocol):
         ...
 
     def open_progress(self, title: str) -> ProgressWindow: ...
+
+    def ask_files(self, title: str, fields: Sequence[FileField], initial: Mapping[str, str]) -> dict[str, str] | None:
+        """Field name -> chosen path ("" for an optional field left empty), or None when cancelled."""
+        ...
 
 
 class QtDialogs:
@@ -49,3 +55,7 @@ class QtDialogs:
 
     def open_progress(self, title: str) -> ProgressWindow:
         return ProgressDialog(title, self._parent)
+
+    def ask_files(self, title: str, fields: Sequence[FileField], initial: Mapping[str, str]) -> dict[str, str] | None:
+        dialog = FileFormDialog(title, fields, initial, self._parent)
+        return dialog.values() if dialog.exec() == FileFormDialog.Accepted else None

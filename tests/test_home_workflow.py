@@ -37,7 +37,7 @@ def test_new_variant_enables_update_without_editing(tmp_path):
     assert view.rows == [{"J": "37820-62X-MD10-M6"}]
     assert view.states["update"] == (True, "Update Master Sheet")
     assert view.states["new"] == (True, "New variant")
-    assert dialogs.picked == ["Select ECU Info Sheet CR file", "Select System Matrix CR file"]
+    assert dialogs.asked_fields == ["ECU Info Sheet", "System Matrix", "HW Info", "Kick Off"]
 
 
 def test_new_variant_with_nothing_new_keeps_update_disabled(tmp_path):
@@ -190,3 +190,16 @@ def test_nothing_is_asked_when_the_table_is_empty(tmp_path):
     presenter, _, dialogs, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(rows=[])))
     presenter.load_variants()
     assert dialogs.asked == []
+
+
+def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_them(tmp_path):
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "hw.eml", "kom.pptx"], hw_answer=True, kick_off_answer=True)
+    presenter, view, _, settings = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
+
+    presenter.new_variant()
+
+    assert dialogs.asked_fields == ["ECU Info Sheet", "System Matrix", "HW Info", "Kick Off"]
+    assert view.file_names["Kick Off"] == "kom.pptx"
+    assert settings.data["ecu_info_path"] == "e.xlsx" and settings.data["hw_info_path"] == "hw.eml"
+    presenter.new_variant()
+    assert dialogs.initial["System Matrix"] == "m.xlsx"  # the dialog is prefilled with the last choice

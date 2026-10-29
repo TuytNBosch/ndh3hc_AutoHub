@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable, Protocol
 
 from autohub.core.dialogs import Dialogs
+from autohub.core.file_fields import FileField
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
 from autohub.modules.home.service import VariantService
@@ -29,6 +30,13 @@ SETTINGS_KEYS = {
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
+
+_SOURCE_FIELDS = (
+    FileField("ECU Info Sheet", _EXCEL_FILTER),
+    FileField("System Matrix", _EXCEL_FILTER),
+    FileField("HW Info", _HW_INFO_FILTER, required=False, hint="Bosch HW / B-number (.xlsx, .eml or .msg)"),
+    FileField("Kick Off", _KICK_OFF_FILTER, required=False, hint="Kick Off Meeting (.pptx)"),
+)
 
 
 class HomeView(Protocol):
@@ -166,18 +174,12 @@ class HomePresenter:
         master_sheet_path = self._valid_master_sheet("AutoHub")
         if master_sheet_path is None:
             return
-        ecu_info_path = self._pick("ECU Info Sheet", "Select ECU Info Sheet CR file", _EXCEL_FILTER)
-        if not ecu_info_path:
+        sources = self._ask_sources()
+        if sources is None:
             return
-        system_matrix_path = self._pick("System Matrix", "Select System Matrix CR file", _EXCEL_FILTER)
-        if not system_matrix_path:
-            return
-        hw_info_path = self._ask_hw_info()
-        if hw_info_path is None:
-            return
-        kick_off_path = self._ask_kick_off()
-        if kick_off_path is None:
-            return
+        ecu_info_path, system_matrix_path, hw_info_path, kick_off_path = (
+            sources[field.name] for field in _SOURCE_FIELDS
+        )
 
         paths = (master_sheet_path, ecu_info_path, system_matrix_path, hw_info_path, kick_off_path)
         _logger.info("New variant clicked (%s)", paths)
@@ -190,31 +192,19 @@ class HomePresenter:
             lambda error: self._fail_new_variant(error, window),
         )
 
-    def _ask_hw_info(self) -> str | None:
-        """HW info path, "" to continue without it, or None when the user cancels the whole action."""
-        answer = self._dialogs.ask_yes_no_cancel(
-            NEW_VARIANT_TEXT,
-            "Add HW info (Bosch HW / B-number, from an .xlsx, .eml or .msg file)?\n"
-            "Choose No to continue without it.",
-        )
-        if answer is None:
+    def _ask_sources(self) -> dict[str, str] | None:
+        """The source file paths from one dialog (remembered ones prefilled), or None when cancelled."""
+        initial = {field.name: self._paths.get(field.name, "") for field in _SOURCE_FIELDS}
+        chosen = self._dialogs.ask_files(NEW_VARIANT_TEXT, _SOURCE_FIELDS, initial)
+        if chosen is None:
             return None
-        if not answer:
-            return ""
-        return self._pick("HW Info", "Select HW info file", _HW_INFO_FILTER) or None
-
-    def _ask_kick_off(self) -> str | None:
-        """Kick Off Meeting path, "" to continue without it, or None when the user cancels the whole action."""
-        answer = self._dialogs.ask_yes_no_cancel(
-            NEW_VARIANT_TEXT,
-            "Add a Kick Off Meeting (.pptx) to fill power, cylinders and ECU HW name?\n"
-            "Choose No to continue without it.",
-        )
-        if answer is None:
-            return None
-        if not answer:
-            return ""
-        return self._pick("Kick Off", "Select Kick Off Meeting file", _KICK_OFF_FILTER) or None
+        for field in _SOURCE_FIELDS:
+            path = chosen.get(field.name, "")
+            if path:
+                self._set_path(field.name, path)
+                self._settings.update(**{SETTINGS_KEYS[field.name]: path})
+                _logger.info("%s file selected: %s", field.name, path)
+        return {field.name: chosen.get(field.name, "") for field in _SOURCE_FIELDS}
 
     def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow, keep_rows: bool) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)

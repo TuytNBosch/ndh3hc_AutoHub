@@ -129,6 +129,23 @@ class FakeDialogs:
     def error(self, title, text):
         self.errors.append((title, text))
 
+    def ask_files(self, title, fields, initial):
+        """Hands out `files` in field order; optional fields only when their answer flag is set."""
+        self.asked_fields = [field.name for field in fields]
+        self.initial = dict(initial)
+        wanted = {"HW Info": self.hw_answer, "Kick Off": self.kick_off_answer}
+        chosen = {}
+        for field in fields:
+            if not field.required and not wanted.get(field.name):
+                chosen[field.name] = ""
+            elif self.files:
+                chosen[field.name] = self.files.pop(0)
+            elif field.required:
+                return None  # the user cancelled before choosing every required file
+            else:
+                chosen[field.name] = ""
+        return chosen
+
     def open_progress(self, title):
         progress = FakeProgress(self, title)
         self.windows.append(progress)
