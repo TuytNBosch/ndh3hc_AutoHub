@@ -14,7 +14,7 @@ from autohub.modules.home.service import VariantService
 _logger = logging.getLogger(__name__)
 
 MASTER_SHEET = "Master Sheet"
-NEW_VARIANT_TEXT = "New variant"
+NEW_VARIANT_TEXT = "New variants"
 UPDATE_TEXT = "Update Master Sheet"
 LOAD_TEXT = "Load variants"
 NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Matrix CR."
