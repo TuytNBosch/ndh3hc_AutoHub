@@ -55,6 +55,16 @@ def development_number(value) -> str:
     return re.sub(r"-00$", "", clean_text(value))
 
 
+_EXCEL_NUMBER_LOOKALIKE = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)[eE][+-]?\d+$")
+
+
+def needs_text_format(value) -> bool:
+    """True for text Excel would turn into a number: leading zeros lost, or 4E5 read as 400000."""
+    if not isinstance(value, str):
+        return False
+    return (len(value) > 1 and value.startswith("0")) or bool(_EXCEL_NUMBER_LOOKALIKE.match(value.strip()))
+
+
 def ascii_hex(value) -> str:
     return "".join(f"{ord(character):02X}" for character in clean_text(value))
 
