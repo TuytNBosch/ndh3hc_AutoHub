@@ -142,7 +142,7 @@ def test_new_variant_passes_kick_off_info_to_the_master_sheet(tmp_path):
     presenter.new_variant()
 
     assert master.compute_args[3] == {"power_kw": "93"}
-    assert settings.data["kick_off_path"] == "kom.pptx"
+    assert "kick_off_path" not in settings.data
 
 
 def test_new_variant_reports_an_unreadable_kick_off(tmp_path):

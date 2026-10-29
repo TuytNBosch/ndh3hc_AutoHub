@@ -57,7 +57,7 @@ def test_new_variant_passes_hw_info_to_the_master_sheet(tmp_path):
     presenter.new_variant()
 
     assert master.compute_args[2] is not None
-    assert settings.data["hw_info_path"] == "hw.eml"
+    assert "hw_info_path" not in settings.data
 
 
 def test_new_variant_stops_when_a_file_dialog_is_cancelled(tmp_path):
@@ -152,6 +152,7 @@ def test_load_and_new_variant_report_their_steps_in_the_progress_window(tmp_path
     presenter, _, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
 
     presenter.load_variants()
+    presenter.clear_table()
     presenter.new_variant()
 
     load, new = dialogs.windows
@@ -192,26 +193,46 @@ def test_nothing_is_asked_when_the_table_is_empty(tmp_path):
     assert dialogs.asked == []
 
 
-def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_them(tmp_path):
+def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_nothing(tmp_path):
     dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "hw.eml", "kom.pptx"], hw_answer=True, kick_off_answer=True)
     presenter, view, _, settings = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
 
     presenter.new_variant()
 
     assert dialogs.asked_fields == ["ECU Info Sheet", "System Matrix", "HW Info", "Kick Off"]
-    assert view.file_names["Kick Off"] == "kom.pptx"
-    assert settings.data["ecu_info_path"] == "e.xlsx" and settings.data["hw_info_path"] == "hw.eml"
+    assert set(settings.data) == {"master_sheet_path"}
     presenter.new_variant()
-    assert dialogs.initial["System Matrix"] == "m.xlsx"  # the dialog is prefilled with the last choice
+    assert dialogs.initial == {}  # no history: the dialog always starts empty
+
+
+def test_new_variant_needs_an_empty_table_and_says_what_to_do_first(tmp_path):
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"])
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
+    view.rows = [{"J": "unsaved", "_row": None}]
+
+    presenter.new_variant()
+    assert "Update Master Sheet" in dialogs.infos[-1][1] and dialogs.windows == []
+
+    view.rows = [{"J": "saved", "_row": 8}]
+    presenter.new_variant()
+    assert "Update" not in dialogs.infos[-1][1] and "'Clear'" in dialogs.infos[-1][1]
+    assert dialogs.windows == [] and [r["J"] for r in view.rows] == ["saved"]
+
+    view.rows = []
+    presenter.new_variant()
+    assert len(dialogs.windows) == 1
 
 
 def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):
-    failing = FakeDocument(ok=False, error="boom")
-    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=True)
-    presenter, view, _, _ = _presenter(tmp_path, build_service(matrix=failing), dialogs)
+    master = FakeMasterSheet(rows=[{"J": "a", "_row": 8}])
+    dialogs = FakeDialogs(table_answer=True)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
     view.rows = [{"J": "mine", "_row": None}]
 
-    presenter.new_variant()
-
-    assert dialogs.asked_labels == ("Clear", "Keep")
+    master.load_variant_rows = lambda: (_ for _ in ()).throw(ValueError("boom"))
+    presenter.load_variants()
     assert [r["J"] for r in view.rows] == ["mine"] and dialogs.errors  # a failed action keeps the table
+
+    master.load_variant_rows = lambda: [{"J": "a", "_row": 8}]
+    presenter.load_variants()
+    assert dialogs.asked_labels == ("Clear", "Keep") and [r["J"] for r in view.rows] == ["a"]
