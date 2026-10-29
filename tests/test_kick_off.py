@@ -30,7 +30,6 @@ def test_parser_reads_power_cylinders_and_ecu_name():
     assert parse_kick_off(ROWS) == {
         "cylinders": "4",
         "power_kw": "93",
-        "ecu_hw_name": "MG1CS022",
         "displacement_l": "1.2",
         "emission": "BS6 + RDE",
         "immobilizer": "IMMO6",
@@ -39,9 +38,9 @@ def test_parser_reads_power_cylinders_and_ecu_name():
 
 
 def test_parser_handles_other_wordings_and_ignores_the_rest():
-    assert parse_kick_off([["Power", "66 kW/6000rpm"], ["ECU", "Bosch", "MED17.9.3"], ["Cylinder Head", "A"]]) == {
+    assert parse_kick_off([["Power", "66 kW/6000rpm"], ["Engine type", "1.2L L3"], ["Cylinder Head", "A"]]) == {
         "power_kw": "66",
-        "ecu_hw_name": "MED17.9.3",
+        "cylinders": "3",
     }
     assert parse_kick_off([]) == {}
 
@@ -94,9 +93,9 @@ def test_deck_without_matching_tables_is_reported(tmp_path):
 
 
 def test_builder_fills_the_blank_columns_from_kick_off_info():
-    info = {"power_kw": "93", "cylinders": "4", "ecu_hw_name": "MG1CS022"}
+    info = {"power_kw": "93", "cylinders": "4"}
     values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM, kick_off=info)
-    assert (values["AC"], values["AK"], values["AP"]) == ("93", "4", "MG1CS022")
+    assert (values["AC"], values["AK"]) == ("93", "4")
     assert "AC" not in build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM)
 
 
@@ -166,3 +165,23 @@ def test_real_decks_in_datas():
         assert reader.info["power_kw"] == expected
         assert reader.info["immobilizer"] == "IMMO6"
     assert KickOffMeeting(str(next(SAMPLES.glob("6SAAMMC*.pptx")))).load_data()
+
+
+def test_cylinders_are_read_from_the_equipped_with_sentence():
+    rows = [["for below models which will be equipped with 1.2L DOHC 4-cylinder engine: 28MY 6SAA-MMC,"]]
+    assert parse_kick_off(rows) == {"cylinders": "4"}
+
+
+def test_ecu_hw_name_is_the_ecu_type_and_tp_level_follows_the_protections():
+    values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM)
+    assert values["AP"] == values["S"] == "MG1CS022"
+    for rom, tuning, expected in (("ACTIVE", "ACTIVE", "TP9"), ("ACTIVE", "INACTIVE", "TP3"), ("INACTIVE", "INACTIVE", "TP3"), (None, "ACTIVE", "TP3")):
+        ecu = {**ECU, "ROMCheck": rom, "TuningProtection": tuning}
+        assert build_request_values(GENERAL, ecu, MAIN, {}, SYSTEM)["BG"] == expected
+
+
+def test_engine_family_comes_from_the_ecu_info_sheet_before_the_deck():
+    general = {**GENERAL, "EngineFamily": "NP1"}
+    values = build_request_values(general, ECU, MAIN, {}, SYSTEM, kick_off={"engine_family": "AP2"})
+    assert values["AG"] == "NP1"
+    assert build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM, kick_off={"engine_family": "AP2"})["AG"] == "AP2"

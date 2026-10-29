@@ -173,3 +173,18 @@ def test_body_table_ignores_lines_without_hw_data():
     text = "1\t5BF-G160\tKG\t\t\t37820-5BF-G160-M6\t37820-5BF-G16\tJMY\tJMY\n==> 37820-62XS-M*10-M6 changes"
     records = parse_body_table(text, "mail")
     assert [(r["part_number"], r["eu_mark"], r["ss_id"]) for r in records] == [("37820-5BF-G160-M6", "JMY", "JMY")]
+
+
+def test_engine_family_is_read_from_the_issue_cr_sheet():
+    from autohub.services.EcuInfoSheet.parser import parse_engine_family
+
+    path = DATAS / "EcuInfoSheet" / "CR-PFI-HG28A-SY012-1.xlsx"
+    buffer = io.BytesIO()
+    with open(path, "rb") as f:
+        office_file = msoffcrypto.OfficeFile(f)
+        office_file.load_key(password="hondabosch")
+        office_file.decrypt(buffer)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        sheet = openpyxl.load_workbook(buffer, data_only=True)["1) Issue CR"]
+    assert parse_engine_family(SheetGrid.from_openpyxl(sheet)) == "NP1"

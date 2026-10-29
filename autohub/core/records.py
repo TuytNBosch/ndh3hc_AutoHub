@@ -38,6 +38,7 @@ class BootRow(TypedDict, total=False):
 class GeneralInfo(TypedDict, total=False):
     MY: Any
     Project: Any
+    EngineFamily: str
 
 
 class EcuInfoData(TypedDict, total=False):
@@ -81,7 +82,6 @@ class KickOffInfo(TypedDict, total=False):
 
     power_kw: str
     cylinders: str
-    ecu_hw_name: str
     displacement_l: str
     emission: str
     immobilizer: str

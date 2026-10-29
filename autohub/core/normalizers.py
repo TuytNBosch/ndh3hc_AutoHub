@@ -106,3 +106,9 @@ def parse_event(project_purpose) -> str:
     text = clean_text(project_purpose)
     match = re.search(r"for\s+(.+?)/(.+?)\s+event$", text, re.IGNORECASE)
     return match.group(1).strip() if match else text
+
+
+def tp_level(rom_check, tuning_protection) -> str:
+    """TP9 when both ROM Check and Tuning Protection are ACTIVE, otherwise TP3."""
+    both_active = all(clean_text(value).upper() == "ACTIVE" for value in (rom_check, tuning_protection))
+    return "TP9" if both_active else "TP3"

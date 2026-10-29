@@ -28,7 +28,8 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Reads all three files through Excel COM automation on a background thread.
   - Computes variants that are not yet in the Master Sheet. Nothing is written at this step.
   - Fails with a clear message if the files are inconsistent, for example Main/Container/Boot counts that don't match, or a part number missing from the System Matrix.
-- **Kick Off Meeting (optional)**: New variant can also read a Kick Off Meeting `.pptx` (password `honda` or `hb` is tried when encrypted) and fills Power (kW), Num. of Cylinder, ECU HW Name and Engine Family where those columns are blank, Displacement (cc to litres, e.g. 1199 cc -> 1.2; a System Matrix value is never changed), and corrects Emission (the deck's EM Category, e.g. `BS6 + RDE`, replaces a System Matrix value that means the same norm such as `BS6`; a different norm like EURO 5 is kept) and Immobilizer (`Active|IMMO6`).
+- **Derived columns**: ECU HW Name equals ECU Type; TP Level is `TP9` when the ECU Info Sheet's ROM Check and Tuning Protection are both ACTIVE, otherwise `TP3`; Engine Family is read from the ECU Info Sheet's `1) Issue CR` sheet (the entry marked YES, e.g. `NP1`).
+- **Kick Off Meeting (optional)**: New variant can also read a Kick Off Meeting `.pptx` (password `honda` or `hb` is tried when encrypted) and fills Power (kW), Num. of Cylinder (also from "4-cylinder engine" text) and Engine Family (when the ECU Info Sheet CR has none) where those columns are blank, Displacement (cc to litres, e.g. 1199 cc -> 1.2; a System Matrix value is never changed), and corrects Emission (the deck's EM Category, e.g. `BS6 + RDE`, replaces a System Matrix value that means the same norm such as `BS6`; a different norm like EURO 5 is kept) and Immobilizer (`Active|IMMO6`).
 - **Load variants**: reads the existing variant rows from the Master Sheet.
 - **Editable variant table**:
   - Shows the Master Sheet request columns.
@@ -96,7 +97,7 @@ AutoHub/
 │   │   ├── EcuInfoSheet/         # reader + header-rule parser
 │   │   ├── SystemMatrix/         # reader + label-driven parser
 │   │   ├── HWInfo/               # reader, parser and per-file-type sources (.xlsx/.eml/.msg)
-│   │   ├── KickOff/              # Kick Off Meeting .pptx reader + rule-table parser (power, cylinders, ECU HW name)
+│   │   ├── KickOff/              # Kick Off Meeting .pptx reader + rule-table parser (power, cylinders, displacement, emission, immobilizer)
 │   │   └── WebFlow/              # legacy Selenium page objects (not refactored, see the requirements doc)
 │   └── resources/                # icons, logo, banner
 ├── docs/SOLID_REQUIREMENTS.md
