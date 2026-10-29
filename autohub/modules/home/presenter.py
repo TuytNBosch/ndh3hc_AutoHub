@@ -60,6 +60,8 @@ class HomeView(Protocol):
 
     def set_clear_enabled(self, enabled: bool) -> None: ...
 
+    def set_delete_enabled(self, enabled: bool) -> None: ...
+
     def publish_variants(self, variants: list[dict]) -> None: ...
 
 
@@ -124,6 +126,7 @@ class HomePresenter:
         self._deleted_rows = []
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(self._view.row_count() > 0)
+        self.on_selection_changed()
 
     def _ask_keep_rows(self, title: str) -> bool | None:
         """True to keep the rows already in the table, False to replace them, None to cancel the action.
@@ -169,6 +172,10 @@ class HomePresenter:
             return
         self._clear_rows()
 
+    def on_selection_changed(self) -> None:
+        """Delete selected is only active while at least one row is selected."""
+        self._view.set_delete_enabled(bool(self._view.selected_rows()))
+
     def delete_selected(self) -> None:
         """Removes the selected variants from the table; the Master Sheet follows on Update."""
         selected = self._view.selected_rows()
@@ -188,6 +195,7 @@ class HomePresenter:
         self._view.remove_rows(selected)
         _logger.info("Deleted %d variant(s) from the table (%d pending in the sheet)", count, len(self._deleted_rows))
         self._view.set_clear_enabled(self._view.row_count() > 0)
+        self.on_selection_changed()
         self.on_table_edited()
 
     def _clear_rows(self) -> None:
@@ -196,6 +204,7 @@ class HomePresenter:
         self._view.clear_rows()
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(False)
+        self.on_selection_changed()
         _logger.info("Variant table cleared")
 
     # -- New variant (compute only, nothing written yet) -------------------------------

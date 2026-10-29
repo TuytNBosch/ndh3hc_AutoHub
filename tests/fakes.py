@@ -211,6 +211,9 @@ class FakeView:
     def set_clear_enabled(self, enabled):
         self.states["clear"] = enabled
 
+    def set_delete_enabled(self, enabled):
+        self.states["delete"] = enabled
+
     def publish_variants(self, variants):
         self.published.append(variants)
 
