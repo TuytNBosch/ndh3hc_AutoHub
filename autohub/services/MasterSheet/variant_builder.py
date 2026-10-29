@@ -111,6 +111,7 @@ def build_request_values(
         "BI": program_id,
         "CO": clean_text(ecu.get("SecurityKey")),
         "CP": clean_text(ecu.get("SecurityKeyIdentifier")),
+        "CS": part_number,
         "CT": clean_text(main.get("NumReWrecuid")),
         "CU": clean_text(main.get("CALIBID")),
         "CV": program_id,
