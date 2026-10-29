@@ -152,3 +152,9 @@ def test_webflow_variant_uses_the_shared_defaults():
     assert variant["ecu"]["tp_level"] == WEBFLOW_DEFAULTS.tp_level
     assert variant["customer"]["component_id"] == WEBFLOW_DEFAULTS.component_id
     assert webflow_variant_from_row("P", {})["ecu"]["indi_spec"] == ""
+
+
+def test_security_type_1_drops_the_excel_float_suffix():
+    assert security_type_1_value({"SK1": "2025.0", "SK2": "020B9", "SK3": "010.0"}) == "2025020B9010"
+    assert security_type_1_value({"SK1": 20250901.0, "SK2": "1A2B"}) == "202509011A2B"
+    assert n.hex_text("ABC.0") == "ABC" and n.hex_text("x.0") == "x.0"
