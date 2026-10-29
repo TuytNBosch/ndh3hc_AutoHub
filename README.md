@@ -1,7 +1,5 @@
-<<<<<<< HEAD
 # ndh3hc_AutoHub
 Ngo Huu Dat
-=======
 # AutoHub
 
 Windows desktop app (PySide6) that automates the ECU variant workflow: it reads
@@ -133,4 +131,3 @@ python main.py
 ```powershell
 pytest
 ```
->>>>>>> b82647e (Initial commit)
