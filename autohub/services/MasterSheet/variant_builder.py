@@ -7,6 +7,7 @@ from autohub.core.normalizers import (
     ascii_hex,
     clean_text,
     customer_hardware_part_number,
+    development_number,
     hex_text,
     normalize_displacement,
     normalize_emission,
@@ -73,9 +74,10 @@ def ecu_for_variant(ecu_info: EcuInfoData, main: dict) -> EcuGroup:
 
 
 def _apply_hw_info(request_values: dict, hw: HWRecord) -> None:
-    for column, field in (("AN", "hw_ident"), ("AO", "b_number")):
-        if hw.get(field):
-            request_values[column] = hw[field]
+    if hw.get("hw_ident"):
+        request_values["AN"] = hw["hw_ident"]
+    if development_number(hw.get("b_number")):
+        request_values["AO"] = development_number(hw["b_number"])
     # The System Matrix stays authoritative for SS-ID / EU-mark; HW info only fills gaps.
     for column, field in (("CY", "eu_mark"), ("CZ", "ss_id")):
         if not request_values.get(column) and hw.get(field):

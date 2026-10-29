@@ -35,6 +35,9 @@ SYSTEM = {"Hardware": "MG1CS022", "Destination": "M", "Market": "Brazil", "SSID"
         (n.normalize_program_version, "SW ver：V034", "V034"),
         (n.title_status, "ACTIVE", "Active"),
         (n.customer_hardware_part_number, "37820-62X-MD10-M6", "37820-62X-MD1"),
+        (n.development_number, "0261B00DA8-00", "0261B00DA8"),
+        (n.development_number, "0261B00DA8", "0261B00DA8"),
+        (n.development_number, "0261B00-001", "0261B00-001"),
         (n.ascii_hex, "37805", "3337383035"),
         (n.parse_event, "62XS for DAN/MP1 event", "DAN"),
         (n.parse_event, "free text", "free text"),
@@ -67,7 +70,7 @@ def test_security_type_1_joins_sk1_sk2_sk3():
 def test_hw_info_fills_hw_columns_but_not_over_the_system_matrix():
     hw = {"hw_ident": "0261S10A2Y", "b_number": "0261B00CE7-00", "eu_mark": "ZZZ", "ss_id": "YYY"}
     values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM, hw)
-    assert (values["AN"], values["AO"]) == ("0261S10A2Y", "0261B00CE7-00")
+    assert (values["AN"], values["AO"]) == ("0261S10A2Y", "0261B00CE7")  # "-00" is dropped
     assert (values["CY"], values["CZ"]) == ("7C8", "41X")
 
     blank = {**SYSTEM, "SSID": None, "ECUMARK": None}

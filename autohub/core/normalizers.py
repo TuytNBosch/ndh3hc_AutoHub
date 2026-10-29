@@ -50,6 +50,11 @@ def customer_hardware_part_number(part_number: str) -> str:
     return re.sub(r"0-M6$", "", part_number)
 
 
+def development_number(value) -> str:
+    """Bosch development number without its "-00" suffix (0261B00DA8-00 -> 0261B00DA8)."""
+    return re.sub(r"-00$", "", clean_text(value))
+
+
 def ascii_hex(value) -> str:
     return "".join(f"{ord(character):02X}" for character in clean_text(value))
 
