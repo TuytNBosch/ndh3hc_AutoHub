@@ -4,7 +4,7 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from typing import Callable
 
-from autohub.core.ports import EcuInfoDocument, HWInfoDocument, SystemMatrixDocument, VariantSheet
+from autohub.core.ports import EcuInfoDocument, HWInfoDocument, KickOffDocument, SystemMatrixDocument, VariantSheet
 
 #: Opens whatever per-thread resource the documents need (COM) around one operation.
 SessionFactory = Callable[[], AbstractContextManager]
@@ -20,12 +20,14 @@ class VariantService:
         system_matrix_factory: Callable[[str], SystemMatrixDocument],
         hw_info_factory: Callable[[str], HWInfoDocument],
         session_factory: SessionFactory,
+        kick_off_factory: Callable[[str], KickOffDocument],
     ):
         self._master_sheet_factory = master_sheet_factory
         self._ecu_info_factory = ecu_info_factory
         self._system_matrix_factory = system_matrix_factory
         self._hw_info_factory = hw_info_factory
         self._session = session_factory
+        self._kick_off_factory = kick_off_factory
 
     @staticmethod
     def _load(document, description: str) -> None:
@@ -38,6 +40,7 @@ class VariantService:
         ecu_info_path: str,
         system_matrix_path: str,
         hw_info_path: str = "",
+        kick_off_path: str = "",
     ) -> list[dict]:
         with self._session():
             system_matrix = self._system_matrix_factory(system_matrix_path)
@@ -49,6 +52,12 @@ class VariantService:
                     hw_info = self._hw_info_factory(hw_info_path)
                     self._load(hw_info, "HW info")
 
+                kick_off = None
+                if kick_off_path:
+                    kick_off_document = self._kick_off_factory(kick_off_path)
+                    self._load(kick_off_document, "Kick Off Meeting")
+                    kick_off = kick_off_document.info
+
                 system_matrix.open()
                 self._load(system_matrix, "System Matrix data")
 
@@ -56,7 +65,7 @@ class VariantService:
                 self._load(ecu_info_sheet, "ECU Info Sheet data")
 
                 master_sheet.open()
-                return master_sheet.compute_new_variants(system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info)
+                return master_sheet.compute_new_variants(system_matrix.system_info, ecu_info_sheet.ecu_info, hw_info, kick_off)
             finally:
                 master_sheet.close()
                 ecu_info_sheet.close()

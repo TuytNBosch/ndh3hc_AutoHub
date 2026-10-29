@@ -76,6 +76,14 @@ class HWRecord(TypedDict, total=False):
     ss_id: str
 
 
+class KickOffInfo(TypedDict, total=False):
+    """Project-level facts from a Kick Off Meeting deck, shared by every variant of the project."""
+
+    power_kw: str
+    cylinders: str
+    ecu_hw_name: str
+
+
 class DocumentReader(Protocol):
     """Contract shared by the ECU Info Sheet, System Matrix and HW info readers."""
 

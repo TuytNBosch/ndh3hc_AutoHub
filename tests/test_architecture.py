@@ -50,11 +50,12 @@ def test_core_never_imports_services_or_modules():
         ROOT / "services" / "EcuInfoSheet" / "parser.py",
         ROOT / "services" / "SystemMatrix" / "parser.py",
         ROOT / "services" / "HWInfo" / "parser.py",
+        ROOT / "services" / "KickOff" / "parser.py",
     ],
 )
 def test_parsers_only_parse(parser):
     # SRP-5: no Excel, Qt, logging or file access inside a parser.
-    assert _violations([parser], ("win32com", "PySide6", "logging", "msoffcrypto", "openpyxl", "olefile")) == []
+    assert _violations([parser], ("win32com", "PySide6", "logging", "msoffcrypto", "openpyxl", "olefile", "pptx")) == []
 
 
 def test_only_the_settings_store_knows_where_settings_live():

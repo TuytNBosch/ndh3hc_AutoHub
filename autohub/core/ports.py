@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from autohub.core.records import DocumentReader, EcuInfoData, HWLookup, SystemMatrixData
+from autohub.core.records import DocumentReader, EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
 
 
 class SheetSession(Protocol):
@@ -29,7 +29,10 @@ class VariantWriter(Protocol):
 
 class NewVariantSource(Protocol):
     def compute_new_variants(
-        self, system_info: SystemMatrixData, ecu_info: EcuInfoData, hw_info: HWLookup | None = None
+        self, system_info: SystemMatrixData,
+        ecu_info: EcuInfoData,
+        hw_info: HWLookup | None = None,
+        kick_off: KickOffInfo | None = None,
     ) -> list[dict]: ...
 
 
@@ -47,3 +50,7 @@ class SystemMatrixDocument(DocumentReader, SheetSession, Protocol):
 
 class HWInfoDocument(DocumentReader, HWLookup, Protocol):
     records: list[dict[str, Any]]
+
+
+class KickOffDocument(DocumentReader, Protocol):
+    info: KickOffInfo

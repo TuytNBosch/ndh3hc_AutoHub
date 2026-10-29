@@ -28,6 +28,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Reads all three files through Excel COM automation on a background thread.
   - Computes variants that are not yet in the Master Sheet. Nothing is written at this step.
   - Fails with a clear message if the files are inconsistent, for example Main/Container/Boot counts that don't match, or a part number missing from the System Matrix.
+- **Kick Off Meeting (optional)**: New variant can also read a Kick Off Meeting `.pptx` (password `honda` or `hb` is tried when encrypted) and fills Power (kW), Num. of Cylinder and ECU HW Name for every new variant, only where those columns are still blank.
 - **Load variants**: reads the existing variant rows from the Master Sheet.
 - **Editable variant table**:
   - Shows the Master Sheet request columns.
@@ -95,6 +96,7 @@ AutoHub/
 │   │   ├── EcuInfoSheet/         # reader + header-rule parser
 │   │   ├── SystemMatrix/         # reader + label-driven parser
 │   │   ├── HWInfo/               # reader, parser and per-file-type sources (.xlsx/.eml/.msg)
+│   │   ├── KickOff/              # Kick Off Meeting .pptx reader + rule-table parser (power, cylinders, ECU HW name)
 │   │   └── WebFlow/              # legacy Selenium page objects (not refactored, see the requirements doc)
 │   └── resources/                # icons, logo, banner
 ├── docs/SOLID_REQUIREMENTS.md
@@ -106,7 +108,7 @@ AutoHub/
 
 - Windows with Microsoft Excel installed (COM automation through `pywin32`).
 - Microsoft Edge and a matching Edge WebDriver (for WebFlow).
-- Python packages: `PySide6`, `openpyxl`, `msoffcrypto-tool`, `pywin32`, `selenium`, `olefile`, `pytest`.
+- Python packages: `PySide6`, `openpyxl`, `msoffcrypto-tool`, `pywin32`, `selenium`, `olefile`, `python-pptx`, `pytest`.
 
 ## Extending
 
@@ -115,6 +117,7 @@ AutoHub/
   `autohub/bootstrap.py::build_modules()`.
 - **New HW info file type:** write a class with `read(path, password) -> list[dict]` and register it in
   `autohub/services/HWInfo/sources.py::default_registry()`.
+- **New Kick Off fact:** add one `Rule` to `RULES` in `autohub/services/KickOff/parser.py`, then map its field to a column in `variant_builder._apply_kick_off_info`.
 - **New ECU Info Sheet column:** add one `HeaderRule` to `HEADER_RULES` in
   `autohub/services/EcuInfoSheet/parser.py`.
 

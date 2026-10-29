@@ -23,9 +23,11 @@ SETTINGS_KEYS = {
     "ECU Info Sheet": "ecu_info_path",
     "System Matrix": "system_matrix_path",
     "HW Info": "hw_info_path",
+    "Kick Off": "kick_off_path",
 }
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
+_KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
 
 
 class HomeView(Protocol):
@@ -134,8 +136,11 @@ class HomePresenter:
         hw_info_path = self._ask_hw_info()
         if hw_info_path is None:
             return
+        kick_off_path = self._ask_kick_off()
+        if kick_off_path is None:
+            return
 
-        paths = (master_sheet_path, ecu_info_path, system_matrix_path, hw_info_path)
+        paths = (master_sheet_path, ecu_info_path, system_matrix_path, hw_info_path, kick_off_path)
         _logger.info("New variant clicked (%s)", paths)
         self._view.set_new_variant_state(False, "Creating...")
         self._view.set_update_state(False, UPDATE_TEXT)
@@ -157,6 +162,19 @@ class HomePresenter:
         if not answer:
             return ""
         return self._pick("HW Info", "Select HW info file", _HW_INFO_FILTER) or None
+
+    def _ask_kick_off(self) -> str | None:
+        """Kick Off Meeting path, "" to continue without it, or None when the user cancels the whole action."""
+        answer = self._dialogs.ask_yes_no_cancel(
+            NEW_VARIANT_TEXT,
+            "Add a Kick Off Meeting (.pptx) to fill power, cylinders and ECU HW name?\n"
+            "Choose No to continue without it.",
+        )
+        if answer is None:
+            return None
+        if not answer:
+            return ""
+        return self._pick("Kick Off", "Select Kick Off Meeting file", _KICK_OFF_FILTER) or None
 
     def _finish_new_variant(self, new_variants: list[dict]) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
