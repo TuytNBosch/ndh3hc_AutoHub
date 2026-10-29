@@ -56,7 +56,7 @@ def test_request_values_for_a_variant():
     assert values["J"] == values["CS"] == "37820-62X-MD10-M6"  # DWG NO. is the part number
     assert values["CX"] == "37820-62X-MD1"  # CUST PART NO. is DWG NO. without the last 4 characters
     assert values["H"] == "62XS for DAN/MP1 event"
-    assert values["AJ"] == "M"  # Market comes from the DESTINATION row
+    assert values["AJ"] == "Brazil"  # Market comes from the DESTINATION row
     assert values["S"] == values["BD"] == "MG1CS022"
     assert values["CY"] == "7C8" and values["CZ"] == "41X"
     assert values["CL"] == n.ascii_hex("37805-62X-MD10")
