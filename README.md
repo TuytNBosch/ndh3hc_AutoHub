@@ -32,6 +32,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - **Editable variant table**:
   - Shows the Master Sheet request columns.
   - Cells can be edited in place.
+  - Right-click a column header to filter it by text and/or values (marked with ▼); filters combine across columns. Hidden rows are still written back on update.
   - "Update Master Sheet" is enabled only after a user edit.
 - **Update Master Sheet**:
   - Rows loaded from the sheet are updated in place.
@@ -85,7 +86,7 @@ AutoHub/
 │   ├── ui/                       # main_window, sidebar, theme
 │   ├── modules/
 │   │   ├── home/                 # ui (layout), presenter (workflows), service, variant_table
-│   │   │                         #   + table_clipboard / table_search / table_actions / frozen_columns
+│   │   │                         #   + table_clipboard / table_search / table_filter (row_filter, filter_dialog) / table_actions / frozen_columns
 │   │   ├── creation/             # service, ui, variant_checklist, config_form
 │   │   └── comparison/           # placeholder
 │   ├── services/                 # I/O adapters (Excel COM, email/xlsx, Selenium)
