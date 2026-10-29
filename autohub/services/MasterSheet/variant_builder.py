@@ -86,12 +86,17 @@ def _apply_hw_info(request_values: dict, hw: HWRecord) -> None:
 
 
 def _apply_kick_off_info(request_values: dict, kick_off: KickOffInfo) -> None:
-    """Project facts from the Kick Off Meeting: fill blanks, and correct displacement, emission and immobilizer."""
-    for column, field in (("AC", "power_kw"), ("AK", "cylinders"), ("AP", "ecu_hw_name"), ("AG", "engine_family")):
+    """Project facts from the Kick Off Meeting: fill blanks, and correct emission and immobilizer."""
+    fill_when_blank = (
+        ("AC", "power_kw"),
+        ("AK", "cylinders"),
+        ("AP", "ecu_hw_name"),
+        ("AG", "engine_family"),
+        ("AE", "displacement_l"),  # the System Matrix value, when it has one, is left as it is
+    )
+    for column, field in fill_when_blank:
         if not request_values.get(column) and kick_off.get(field):
             request_values[column] = kick_off[field]
-    if kick_off.get("displacement_l"):
-        request_values["AE"] = kick_off["displacement_l"]
     # The deck's emission category replaces the System Matrix value when both mean the same norm
     # (BS6 / BS6 + RDE); a different norm for another destination (EURO 5) is kept.
     emission = kick_off.get("emission")
