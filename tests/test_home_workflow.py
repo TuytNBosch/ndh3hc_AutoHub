@@ -321,3 +321,20 @@ def test_deleting_every_variant_can_still_be_updated(tmp_path):
     presenter.update_master_sheet()
 
     assert view.rows == [] and master.deleted == [8]
+
+
+def test_delete_button_is_only_active_while_rows_are_selected(tmp_path):
+    presenter, view, _, _ = _presenter(tmp_path, build_service())
+    view.rows = [{"J": "a", "_row": 8}, {"J": "b", "_row": 9}]
+
+    presenter.on_selection_changed()
+    assert view.states["delete"] is False
+
+    view.selected = [1]
+    presenter.on_selection_changed()
+    assert view.states["delete"] is True
+
+    presenter.delete_selected()  # the selection goes with the removed row
+    view.selected = []
+    presenter.on_selection_changed()
+    assert view.states["delete"] is False

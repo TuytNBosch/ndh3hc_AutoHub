@@ -87,6 +87,9 @@ class HomeWidget(QWidget):
         self._clear_btn.clicked.connect(self._presenter.clear_table)
         self._delete_btn.clicked.connect(self._presenter.delete_selected)
         self._variant_table.userEdited.connect(self._presenter.on_table_edited)
+        self._variant_table.selectionModel().selectionChanged.connect(
+            lambda *_: self._presenter.on_selection_changed()
+        )
         self._presenter.restore_saved_paths()
 
     # -- HomeView ----------------------------------------------------------------------
@@ -125,6 +128,8 @@ class HomeWidget(QWidget):
 
     def set_clear_enabled(self, enabled: bool) -> None:
         self._clear_btn.setEnabled(enabled)
+
+    def set_delete_enabled(self, enabled: bool) -> None:
         self._delete_btn.setEnabled(enabled)
 
     def selected_rows(self) -> list[int]:
