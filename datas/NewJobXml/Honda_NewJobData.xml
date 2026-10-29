@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Job ExportGuid="8f43a361-df3a-4914-a167-8d7729e28250">
+  <SystemInformation>
+    <BuildConfiguration>Production</BuildConfiguration>
+    <Version>30.5.0</Version>
+  </SystemInformation>
+  <Fields>
+
+    <Field Type="String" Name="ECUGeneration" Description="ECU Generation" Group="Job Information" ReadOnly="true">MG1</Field>
+	<Field Type="String" Name="Brand" Description="Brand" Group="Job Information" ReadOnly="true">Honda</Field>
+	<Field Type="String" Name="ECUType" Description="ECU type" Group="Job Information" ReadOnly="true">MG1CA020</Field>
+    <Field Type="String" Name="CustomerGroup" Description="Customer group" Group="Job Information" ReadOnly="true">JAP</Field>
+	<Field Type="String" Name="WorkingMode" Description="Working mode" Group="Job Information" ReadOnly="true">Honda_PreRun</Field>
+    <Field Type="String" Name="ToolVersion" Description="Tool version" Group="Job Information" ReadOnly="true">PD W0001 (Productive)</Field>  
+	<Field Type="String" Name="DefaultRouting_search" Description="Routing" Group="" ReadOnly="true">Honda_MG1CA020</Field>
+
+    <Field Type="String" Name="DeliveryType_CF" Description="Delivery Type" Group="General">Plant Introduction</Field>
+    <Field Type="String" Name="ReleaseScope" Description="Release scope" Group="General">Program and Data</Field>
+    <Field Type="String" Name="ReleaseClass" Description="Release class" Group="General">Production</Field>
+    <Field Type="String" Name="Limitations" Description="Limitations" Group="General">NO</Field>
+    <Field Type="Bool" Name="Safety_Monitoring_SW_by_RB" Description="Safety Monitoring SW by RB" Group="Check">true</Field>
+    <Field Type="Bool" Name="SafetyCalibrationResponsibility" Description="Has Bosch responsibility for Safety Calibration? " Group="Check">true</Field>
+    <Field Type="Bool" Name="CalibrationResponsibility" Description="Has Bosch Cal Data Responsibility beside Safety Calibration? " Group="Check">true</Field>
+    <Field Type="Bool" Name="DataIntegrationResponsibility" Description="Is Bosch responsible for data integration?" Group="Check">true</Field>
+
+	<Field Type="String" Name="Model" Description="Model" Group="General">6SAY</Field>
+    <Field Type="String" Name="EngineFamily" Description="Engine family" Group="General">NP1</Field>
+    <Field Type="String" Name="Power" Description="Power [kW]" Group="General">66</Field>
+    <Field Type="StringList" Name="EmissionNorm" Description="Emission norm" Group="General">
+      <Items>
+        <Item>BS6</Item>
+      </Items>
+    </Field>
+    </Field>
+    <Field Type="StringList" Name="Immobilizer" Description="Immobilizer" Group="General">
+      <Items>
+        <Item>active</Item>
+        <Item>IMMO6</Item>
+      </Items>
+    </Field>
+	<Field Type="StringList" Name="Transmission" Description="Transmission" Group="General">
+      <Items>
+        <Item>MT</Item>
+      </Items>
+    </Field>
+    <Field Type="String" Name="Displacement" Description="Displacement" Group="General">1.2</Field>
+    <Field Type="StringList" Name="Market" Description="Market" Group="General">
+      <Items>
+        <Item>India</Item>
+      </Items>
+    </Field>
+    <Field Type="StringList" Name="ModelYear" Description="Model year" Group="General">
+      <Items>
+        <Item>2028</Item>
+      </Items>
+    </Field>
+    <Field Type="String" Name="NumberOfCylinders" Description="Cylinders" Group="General">4</Field>
+
+    <Field Type="String" Name="CustomerCodeNumber" Description="Project number (1st part, Customer Code Number)" Group="General">159</Field>
+    <Field Type="String" Name="ProjectCodeNumber" Description="Project number (2nd part, Project Code Number)" Group="General">378206SAT310M6</Field>
+	<Field Type="String" Name="HardwarePartNumber" Description="Hardware part number" Group="General">0261S10B58</Field>
+	<Field Type="String" Name="DevelopmentNumber" Description="Development number" Group="General">0261B00DA8</Field>
+    <Field Type="String" Name="ECU_HardwareName" Description="ECU hardware name" Group="General">MG1CA020-2.30</Field>
+
+    <Field Type="String" Name="CustomerOrderNumber" Description="Customer order number" Group="General">37820-6SA-T310-M6</Field>
+    <Field Type="String" Name="CustomerHardwarePartNumber" Description="Customer hardware part number" Group="General">37820-6SA-T31</Field>
+    <Field Type="String" Name="CustomerSoftwarePartNumber" Description="Customer software part number" Group="General">10SW134789</Field>
+    <Field Type="String" Name="Car" Description="Car" Group="General">Amaze</Field>	
+    <Field Type="String" Name="Customer_Name" Description="Customer name" Group="General">HONDA</Field>
+
+    <Field Type="Int" Name="NumberOfVariants" Description="Number of variants" Group="General">1</Field>
+    <Field Type="Bool" Name="SuccessorToTimeLimitedDeliveryECU" Description="Successor to Time Limited Delivery ECU?" Group="General">false</Field>
+	<Field Type="Bool" Name="TimeLimitationRequired" Description="Time limitation required?" Group="General">false</Field>
+
+    <Field Type="String" Name="FactoryShort" Description="Lead Plant" Group="General">SaW</Field>
+    <Field Type="String" Name="ProgramVersion" Description="Program version" Group="General">MG1CA020_6SAY_V011_TPROT</Field>
+    <Field Type="String" Name="DataVersion" Description="Data version" Group="General">MG1CA020_6SAY_V011_TPROT_IND_MT_S_HV007_HPT.hex</Field>
+    <Field Type="String" Name="SoftwareName" Description="Software name" Group="General">10SW134789</Field>
+
+    <Field Type="String" Name="ChangeEngineer" Description="Change engineer ( Outlook Display Name )" Group="General">EXTERNAL Nguyen Thanh Lam (Ban Vien, MS/EJV5-PS)</Field>
+    <Field Type="StringList" Name="ChangeReason" Description="Change Reason" Group="General">
+      <Items>
+        <Item>Customer requirement (Target: Customer covers costs)</Item>
+      </Items>
+    </Field>
+    <Field Type="String" Name="ECR_Notes" Description="ECR notes" Group="General">This container is for MP1 customer event.</Field>
+    <Field Type="String" Name="ChangeReleasedBySignature" Description="Change is released by ( Outlook Display Name )" Group="General">Nguyen Huu Thuyet (MS/EJV1-PS)</Field>
+    <Field Type="String" Name="CostAllocationHardware" Description="Cost allocation" Group="General">BM-00090940_008</Field>
+
+	<Field Type="String" Name="IndiSpec" Description="Specification-ID for PAV (INDI_SPEC)" Group="ECU">Honda_MG1CA020_IndiSpec_01</Field>
+    <Field Type="String" Name="FamilyName" Description="Family name (FAM_NAME)" Group="ECU">MG1CA020</Field>
+    <Field Type="String" Name="FSWID_ProjectVersion" Description="FSWID Project version" Group="ECU">6SAY</Field>
+    <Field Type="String" Name="FSWID_ProgramVersion" Description="FSWID Program version" Group="ECU">V011</Field>
+    <Field Type="String" Name="TP_Level" Description="TP_Level" Group="ECU">9</Field>
+
+    <Field Type="String" Name="ECU_default_ID" Description="ECU default ID" Group="Customer">FFFFEFFFFFEE0E000000</Field>
+    <Field Type="String" Name="ECU_progam_ID" Description="ECU progam ID" Group="Customer">33373830352D3653412D54333130</Field>
+    <Field Type="String" Name="ECU_rewriting_ID" Description="ECU rewriting ID" Group="Customer">00000000</Field>
+    <Field Type="String" Name="SecurityCoefficient" Description="Security coefficient" Group="Customer">2025020B9010</Field>
+	<Field Type="String" Name="SW_Version" Description="SW version" Group="Customer">01</Field>
+	<Field Type="String" Name="Component_ID" Description="Component ID" Group="Customer"></Field>
+
+  </Fields>
+</Job>

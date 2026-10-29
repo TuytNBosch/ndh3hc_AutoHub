@@ -1,0 +1,124 @@
+"""Editable variant table: displays rows, tracks their sheet row numbers and detects user edits.
+
+Clipboard, search, the context menu and the frozen leading columns are separate classes wired up here.
+"""
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
+
+from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDER
+from autohub.modules.home.frozen_columns import FrozenColumns
+from autohub.modules.home.table_actions import TableActions
+from autohub.modules.home.table_clipboard import TableClipboard
+from autohub.modules.home.table_search import TableSearch
+
+# "No." + "Part Number" stay visible while the other columns scroll horizontally.
+_FROZEN_COLUMNS = 2
+
+
+class VariantTable(QTableWidget):
+    #: emitted only for user edits, never while `populate` fills the table.
+    userEdited = Signal()
+
+    def __init__(self):
+        super().__init__(0, 1 + len(VARIANT_FIELD_ORDER))
+        self.setHorizontalHeaderLabels(["No."] + [VARIANT_FIELD_LABELS[column] for column in VARIANT_FIELD_ORDER])
+        self.verticalHeader().setVisible(False)
+        self.setAlternatingRowColors(True)
+        self.setMinimumHeight(160)
+        self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        #: Excel row per table row (None means "not yet in the sheet", insert on update).
+        self._row_numbers: list[int | None] = []
+        self.itemChanged.connect(lambda _item: self.userEdited.emit())
+
+        self._frozen = FrozenColumns(self, _FROZEN_COLUMNS)
+        self._clipboard = TableClipboard(self)
+        self._search = TableSearch(self, self._clipboard.set_cell_text)
+        self._find_dialog = None
+        self._actions = TableActions(self, self._clipboard, self.show_find_dialog, (self._frozen.view,))
+
+    # -- Rows ------------------------------------------------------------------
+
+    def populate(self, variants: list[dict]) -> None:
+        self._row_numbers = [variant.get("_row") for variant in variants]
+        self.blockSignals(True)
+        self.setRowCount(len(variants))
+        for row, values in enumerate(variants):
+            no_item = QTableWidgetItem(str(row + 1))
+            no_item.setFlags(no_item.flags() & ~Qt.ItemIsEditable)
+            self.setItem(row, 0, no_item)
+            for col, column_name in enumerate(VARIANT_FIELD_ORDER):
+                value = values.get(column_name, "")
+                if isinstance(value, float) and value.is_integer():
+                    value = int(value)  # COM returns 159 as 159.0
+                item = QTableWidgetItem("" if value is None else str(value))
+                self.setItem(row, col + 1, item)
+        self.blockSignals(False)
+        self.resizeColumnsToContents()
+        self._frozen.update_geometry()
+
+    def clear_rows(self) -> None:
+        self._row_numbers = []
+        self.blockSignals(True)
+        self.setRowCount(0)
+        self.blockSignals(False)
+        self._frozen.update_geometry()
+
+    def read(self) -> list[dict]:
+        variants = []
+        for row in range(self.rowCount()):
+            values = {"_row": self._row_numbers[row] if row < len(self._row_numbers) else None}
+            for col, column_name in enumerate(VARIANT_FIELD_ORDER):
+                item = self.item(row, col + 1)
+                values[column_name] = item.text() if item else ""
+            variants.append(values)
+        return variants
+
+    # -- Editing operations, delegated -------------------------------------------
+
+    def copy_selection(self) -> None:
+        self._clipboard.copy_selection()
+
+    def paste_clipboard(self) -> int:
+        return self._clipboard.paste()
+
+    def delete_selection(self) -> int:
+        return self._clipboard.delete_selection()
+
+    def find_next(self, needle: str, match_case: bool = False) -> bool:
+        return self._search.find_next(needle, match_case)
+
+    def replace_current(self, needle: str, replacement: str, match_case: bool = False) -> bool:
+        return self._search.replace_current(needle, replacement, match_case)
+
+    def replace_all(self, needle: str, replacement: str, match_case: bool = False) -> int:
+        return self._search.replace_all(needle, replacement, match_case)
+
+    def show_find_dialog(self, replace: bool) -> None:
+        from autohub.modules.home.find_replace_dialog import FindReplaceDialog
+
+        if self._find_dialog is None:
+            self._find_dialog = FindReplaceDialog(self, self.window())
+        self._find_dialog.open_for(replace)
+
+    # -- Qt hooks for the frozen overlay ---------------------------------------------
+
+    def updateGeometries(self) -> None:
+        super().updateGeometries()
+        if hasattr(self, "_frozen"):  # fires during base __init__, before the overlay exists
+            self._frozen.update_geometry()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._frozen.update_geometry()
+
+    def moveCursor(self, cursor_action, modifiers):
+        current = super().moveCursor(cursor_action, modifiers)
+        self._frozen.keep_cursor_visible(cursor_action, current)
+        return current
+
+    def scrollTo(self, index, hint=QAbstractItemView.EnsureVisible) -> None:
+        # Frozen cells are always visible; scrolling for them would only jerk the table.
+        if not self._frozen.is_frozen(index.column()):
+            super().scrollTo(index, hint)

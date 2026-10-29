@@ -1,0 +1,36 @@
+"""Composition root: the only place that knows which concrete classes implement the interfaces."""
+from __future__ import annotations
+
+from autohub.core.com import com_session
+from autohub.core.module_base import AutoHubModule
+from autohub.core.settings import JsonSettingsStore, SettingsStore
+from autohub.modules.comparison.module import ComparisonModule
+from autohub.modules.creation.module import CreationModule
+from autohub.modules.creation.service import WebFlowJobService
+from autohub.modules.home.module import HomeModule
+from autohub.modules.home.service import VariantService
+from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
+from autohub.services.HWInfo.HWInfo import HWInfo
+from autohub.services.MasterSheet.MasterSheet import MasterSheet
+from autohub.services.SystemMatrix.SystemMatrix import SystemMatrix
+from autohub.services.WebFlow.WebFlow import WebFlow
+
+
+def build_variant_service() -> VariantService:
+    return VariantService(
+        master_sheet_factory=MasterSheet,
+        ecu_info_factory=EcuInfoSheet,
+        system_matrix_factory=SystemMatrix,
+        hw_info_factory=HWInfo,
+        session_factory=com_session,
+    )
+
+
+def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
+    """Sidebar modules in display order. To add a feature, build and append its module here."""
+    settings = settings or JsonSettingsStore()
+    return [
+        HomeModule(build_variant_service, settings),
+        CreationModule(lambda: WebFlowJobService(WebFlow), settings),
+        ComparisonModule(),
+    ]

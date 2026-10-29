@@ -1,0 +1,71 @@
+"""Reads request ("REQ") rows from the Master Sheet worksheet (COM)."""
+from __future__ import annotations
+
+from typing import Iterator
+
+from autohub.core.normalizers import clean_text, normalize_part_number
+from autohub.core.variant_schema import  VARIANT_FIELD_ORDER
+from autohub.services.MasterSheet.variant_builder import variant_key
+from autohub.services.MasterSheet.webflow_variants import WEBFLOW_SOURCE_COLUMNS, webflow_variant_from_row
+
+#: Rows above this hold the template and example rows, not real variants.
+FIRST_DATA_ROW = 11
+_REQUEST_MARK = "REQ"
+
+
+class VariantRowReader:
+    def __init__(self, worksheet):
+        self._worksheet = worksheet
+
+    def _used_rows(self) -> tuple[int, int]:
+        used = self._worksheet.UsedRange
+        return used.Row, used.Row + used.Rows.Count - 1
+
+    def _value(self, column: str, row: int):
+        return self._worksheet.Range(f"{column}{row}").Value
+
+    def _is_request_row(self, row: int) -> bool:
+        return clean_text(self._value("D", row)).upper() == _REQUEST_MARK
+
+    def _request_rows_with_part_number(self) -> Iterator[tuple[int, str]]:
+        first_used, last_row = self._used_rows()
+        for row in range(max(FIRST_DATA_ROW, first_used), last_row + 1):
+            if not self._is_request_row(row):
+                continue
+            part_number = normalize_part_number(self._value("J", row))
+            if part_number:
+                yield row, part_number
+
+    def load_variant_rows(self) -> list[dict]:
+        """REQ rows as column-letter dicts for the UI table; each carries its Excel row as "_row"."""
+        rows_by_part_number: dict[str, dict] = {}
+        for row, part_number in self._request_rows_with_part_number():
+            rows_by_part_number[part_number.upper()] = {
+                "_row": row,
+                **{
+                    column: self._value(column, row)
+                    for column in VARIANT_FIELD_ORDER
+                    if not column.startswith("_")
+                },
+            }
+        return list(rows_by_part_number.values())
+
+    def load_webflow_variants(self) -> list[dict]:
+        """WebFlow-ready variants; rows are appended chronologically, so the latest per part number wins."""
+        variants_by_part_number: dict[str, dict] = {}
+        for row, part_number in self._request_rows_with_part_number():
+            values = {column: self._value(column, row) for column in WEBFLOW_SOURCE_COLUMNS}
+            variants_by_part_number[part_number.upper()] = webflow_variant_from_row(part_number, values)
+        return list(variants_by_part_number.values())
+
+    def existing_variant_keys(self) -> set[tuple[str, str, str]]:
+        """Keys of every REQ row, template and example rows included, so those are never recreated."""
+        first_used, last_row = self._used_rows()
+        keys: set[tuple[str, str, str]] = set()
+        for row in range(first_used, last_row + 1):
+            if not self._is_request_row(row):
+                continue
+            key = variant_key(self._value("H", row), self._value("J", row), self._value("BI", row))
+            if all(key):
+                keys.add(key)
+        return keys
