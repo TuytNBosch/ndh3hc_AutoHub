@@ -9,6 +9,7 @@ VARIANT_CHOICES: dict[str, tuple[str, ...]] = {
     "U": ("D-Muster", "Pilot", "Pre-Production", "Production", "Field Fix", "Customer service", "EWAK", "Test"),
     "V": ("Data", "Program and Data", "Program", "Basis software", "Boot software"),
     "W": ("NO", "YES \u2013 LIMITED", "YES - NO START"),
+    "AV": ("RtW2", "SaW", "SiP_test"),  # Lead Plant
     "X": _YES_NO,
     "Y": _YES_NO,
     "Z": _YES_NO,

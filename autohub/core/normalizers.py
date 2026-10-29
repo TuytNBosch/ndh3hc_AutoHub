@@ -26,9 +26,13 @@ def displacement_litres(cubic_centimetres) -> str:
 
 
 def normalize_model_year(value) -> str:
+    """A four-digit year: "27.0MY", "MY28" and "19" give 2027, 2028 and 2019; anything else is kept."""
     text = clean_text(value)
-    match = re.search(r"(\d+)(?:\.0)?\s*MY", text, re.IGNORECASE)
-    return f"MY{match.group(1)}" if match else text
+    match = re.fullmatch(r"(?:MY\s*)?(\d{2}|\d{4})(?:\.0+)?\s*(?:MY)?", text, re.IGNORECASE)
+    if not match:
+        return text
+    year = match.group(1)
+    return year if len(year) == 4 else f"20{year}"
 
 
 def normalize_emission(value) -> str:
