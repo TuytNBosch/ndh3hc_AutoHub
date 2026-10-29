@@ -205,50 +205,49 @@ def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_noth
     assert dialogs.initial == {}  # no history: the dialog always starts empty
 
 
-def test_new_variant_can_update_the_master_sheet_and_clear_the_table_first(tmp_path):
+def test_new_variant_asks_clear_keep_or_cancel_like_load(tmp_path):
     master = FakeMasterSheet(new_rows=[{"J": "fresh"}])
-    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=True)
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx"], table_answer=True)
     presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
-    unsaved = {"J": "unsaved", "_row": None}
-    view.rows = [unsaved]
+    view.rows = [{"J": "old", "_row": 8}]
 
-    presenter.new_variant()
-
-    assert dialogs.asked_labels == ("Update and clear", "Clear only")
-    assert master.saved == [unsaved]  # written to the Master Sheet before anything else
+    presenter.new_variant()  # Clear
+    assert dialogs.asked_labels == ("Clear", "Keep")
     assert [r["J"] for r in view.rows] == ["fresh"]
-    assert dialogs.windows[0].steps[0] == "Opening the Master Sheet..."
+
+    dialogs.table_answer = False  # Keep: the new variants are added below
+    view.rows = [{"J": "old", "_row": 8}]
+    presenter.new_variant()
+    assert [r["J"] for r in view.rows] == ["old", "fresh"]
+    assert view.states["update"] == (True, "Update Master Sheet")
 
 
-def test_new_variant_can_discard_the_rows_or_be_cancelled(tmp_path):
+def test_new_variant_cancel_changes_nothing_and_an_empty_table_asks_nothing(tmp_path):
+    master = FakeMasterSheet(new_rows=[{"J": "fresh"}])
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=None)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    view.rows = [{"J": "old", "_row": 8}]
+    presenter.new_variant()
+    assert view.rows == [{"J": "old", "_row": 8}] and dialogs.windows == []
+
+    dialogs.asked.clear()
+    view.rows = []
+    presenter.new_variant()
+    assert dialogs.asked == [] and [r["J"] for r in view.rows] == ["fresh"]
+
+
+def test_keeping_rows_keeps_pending_deletions(tmp_path):
     master = FakeMasterSheet(new_rows=[{"J": "fresh"}])
     dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=False)
     presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
-    view.rows = [{"J": "unsaved", "_row": None}]
-    presenter.new_variant()
-    assert master.saved is None and [r["J"] for r in view.rows] == ["fresh"]
+    view.rows = [{"J": "a", "_row": 8}, {"J": "b", "_row": 14}]
+    view.selected = [0]
+    presenter.delete_selected()
 
-    dialogs.table_answer = None
-    view.rows = [{"J": "keep me", "_row": 8}]
     presenter.new_variant()
-    assert [r["J"] for r in view.rows] == ["keep me"] and len(dialogs.windows) == 1
+    presenter.update_master_sheet()
 
-
-def test_saved_rows_only_need_clearing_and_an_empty_table_asks_nothing(tmp_path):
-    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx"])
-    presenter, view, _, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
-    view.rows = [{"J": "saved", "_row": 8}]
-    dialogs.confirm_answer = False  # a plain Yes/No question: no second Cancel button
-    presenter.new_variant()
-    assert dialogs.asked == [] and view.rows == [{"J": "saved", "_row": 8}]
-
-    dialogs.confirm_answer = True
-    presenter.new_variant()
-    assert dialogs.confirmed[-1][0] == "New variants" and view.rows == []
-
-    dialogs.confirmed.clear()
-    presenter.new_variant()
-    assert dialogs.confirmed == []
+    assert master.deleted == [8]
 
 
 def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):

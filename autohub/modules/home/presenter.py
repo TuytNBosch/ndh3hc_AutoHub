@@ -25,8 +25,6 @@ _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
 
-_NOTHING, _CLEAR, _SAVE_THEN_CLEAR = "nothing", "clear", "save-then-clear"  # rows already in the table
-
 _SOURCE_FIELDS = (
     FileField("ECU Info Sheet", _EXCEL_FILTER),
     FileField("System Matrix", _EXCEL_FILTER),
@@ -145,19 +143,23 @@ class HomePresenter:
         )
         return None if answer is None else not answer
 
-    def _show_added_rows(self, rows: list[dict], keep: bool) -> None:
-        """Shows `rows`; when `keep`, after the rows already in the table, skipping ones it already holds."""
+    def _show_added_rows(self, rows: list[dict], keep: bool) -> int:
+        """Shows `rows`; when `keep`, after the rows already in the table, skipping ones it already holds.
+
+        Returns how many of `rows` ended up in the table."""
         if not keep:
             self._show_rows(rows)
-            return
+            return len(rows)
         existing = self._view.read_rows()
-        unsaved = self._edited
+        unsaved, deleted = self._edited, self._deleted_rows
         known = {_row_identity(row) for row in existing}
         added = [row for row in rows if _row_identity(row) not in known]
         self._show_rows(existing + added)
-        if unsaved or any(row.get("_row") is None for row in existing + added):
+        self._deleted_rows = deleted  # kept rows keep their pending deletions too
+        if unsaved or deleted or any(row.get("_row") is None for row in existing + added):
             self._view.set_update_state(True, UPDATE_TEXT)
             self._edited = True
+        return len(added)
 
     def on_table_edited(self) -> None:
         self._edited = True
@@ -210,8 +212,8 @@ class HomePresenter:
     # -- New variant (compute only, nothing written yet) -------------------------------
 
     def new_variant(self) -> None:
-        before = self._ask_before_new_variant()
-        if before is None:
+        keep_rows = self._ask_keep_rows(NEW_VARIANT_TEXT)
+        if keep_rows is None:
             return
         master_sheet_path = self._valid_master_sheet("AutoHub")
         if master_sheet_path is None:
@@ -228,56 +230,9 @@ class HomePresenter:
         self._view.set_new_variant_state(False, "Creating...")
         self._view.set_update_state(False, UPDATE_TEXT)
         window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
-        if before == _SAVE_THEN_CLEAR:
-            variants = self._view.read_rows()
-            deleted = list(self._deleted_rows)
-            self._start_task(
-                lambda: self._service.save_variants(master_sheet_path, variants, window.step, deleted),
-                lambda result: self._saved_before_new_variant(result, window, paths),
-                lambda error: self._fail_new_variant(f"Could not update the Master Sheet: {error}", window),
-            )
-            return
-        if before == _CLEAR:
-            self._clear_rows()
-        self._compute_new_variants(paths, window)
-
-    def _ask_before_new_variant(self) -> str | None:
-        """What to do with the rows in the table first (_NOTHING, _CLEAR or _SAVE_THEN_CLEAR), None to cancel."""
-        rows = self._view.read_rows() if self._view.row_count() else []
-        if not rows and not self._deleted_rows:
-            return _NOTHING
-        count = len(rows)
-        plural = "s" if count != 1 else ""
-        if self._edited or self._deleted_rows or any(row.get("_row") is None for row in rows):
-            answer = self._dialogs.ask_yes_no_cancel(
-                NEW_VARIANT_TEXT,
-                f"The table still contains {count} variant{plural} and changes that are not in the Master Sheet yet "
-                f"({len(self._deleted_rows)} deleted).\n\n"
-                "Update and clear: save the changes to the Master Sheet, then clear the table.\n"
-                "Clear only: discard the changes and clear the table.",
-                yes_text="Update and clear",
-                no_text="Clear only",
-            )
-            if answer is None:
-                return None
-            return _SAVE_THEN_CLEAR if answer else _CLEAR
-        cleared = self._dialogs.confirm(
-            NEW_VARIANT_TEXT,
-            f"The table still contains {count} variant{plural}. Clear the table before creating new variants?",
-        )
-        return _CLEAR if cleared else None
-
-    def _saved_before_new_variant(self, result, window: ProgressWindow, paths: tuple) -> None:
-        saved, _rows, available = result
-        _logger.info("Updated %d variant(s) before creating new ones", len(saved))
-        self._view.publish_variants(available)
-        self._clear_rows()
-        self._compute_new_variants(paths, window)
-
-    def _compute_new_variants(self, paths: tuple, window: ProgressWindow) -> None:
         self._start_task(
             lambda: self._service.compute_new_variants(*paths, progress=window.step),
-            lambda new_variants: self._finish_new_variant(new_variants, window),
+            lambda new_variants: self._finish_new_variant(new_variants, window, keep_rows),
             lambda error: self._fail_new_variant(error, window),
         )
 
@@ -291,12 +246,12 @@ class HomePresenter:
                 _logger.info("%s file selected: %s", field.name, chosen[field.name])
         return {field.name: chosen.get(field.name, "") for field in _SOURCE_FIELDS}
 
-    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow) -> None:
+    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow, keep_rows: bool) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
-        self._show_rows(new_variants)
-        count = len(new_variants)
+        count = self._show_added_rows(new_variants, keep_rows)
         if count > 0:
             self._view.set_update_state(True, UPDATE_TEXT)  # new rows can be written as they are
+            self._edited = True
         _logger.info("Found %d new variant(s) (not yet written)", count)
         if count == 0:
             window.succeed("No new variants. Existing variants were skipped.")
@@ -308,6 +263,7 @@ class HomePresenter:
 
     def _fail_new_variant(self, error: str, window: ProgressWindow) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
+        self._view.set_update_state(self._edited, UPDATE_TEXT)  # the table is untouched
         _logger.error("New variant failed: %s", error)
         window.fail(error)
 
