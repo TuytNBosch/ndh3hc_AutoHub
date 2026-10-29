@@ -8,6 +8,7 @@ from autohub.core.normalizers import (
     clean_text,
     customer_hardware_part_number,
     development_number,
+    same_emission,
     hex_text,
     normalize_displacement,
     normalize_emission,
@@ -85,10 +86,20 @@ def _apply_hw_info(request_values: dict, hw: HWRecord) -> None:
 
 
 def _apply_kick_off_info(request_values: dict, kick_off: KickOffInfo) -> None:
-    """Project facts from the Kick Off Meeting fill columns the other documents leave blank."""
-    for column, field in (("AC", "power_kw"), ("AK", "cylinders"), ("AP", "ecu_hw_name")):
+    """Project facts from the Kick Off Meeting: fill blanks, and correct displacement, emission and immobilizer."""
+    for column, field in (("AC", "power_kw"), ("AK", "cylinders"), ("AP", "ecu_hw_name"), ("AG", "engine_family")):
         if not request_values.get(column) and kick_off.get(field):
             request_values[column] = kick_off[field]
+    if kick_off.get("displacement_l"):
+        request_values["AE"] = kick_off["displacement_l"]
+    # The deck's emission category replaces the System Matrix value when both mean the same norm
+    # (BS6 / BS6 + RDE); a different norm for another destination (EURO 5) is kept.
+    emission = kick_off.get("emission")
+    if emission and (not request_values.get("AH") or same_emission(request_values["AH"], emission)):
+        request_values["AH"] = emission
+    if kick_off.get("immobilizer"):
+        parts = [request_values.get("AD"), kick_off["immobilizer"]]
+        request_values["AD"] = "|".join(part for part in dict.fromkeys(parts) if part)
 
 
 def build_request_values(

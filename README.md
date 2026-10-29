@@ -28,7 +28,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Reads all three files through Excel COM automation on a background thread.
   - Computes variants that are not yet in the Master Sheet. Nothing is written at this step.
   - Fails with a clear message if the files are inconsistent, for example Main/Container/Boot counts that don't match, or a part number missing from the System Matrix.
-- **Kick Off Meeting (optional)**: New variant can also read a Kick Off Meeting `.pptx` (password `honda` or `hb` is tried when encrypted) and fills Power (kW), Num. of Cylinder and ECU HW Name for every new variant, only where those columns are still blank.
+- **Kick Off Meeting (optional)**: New variant can also read a Kick Off Meeting `.pptx` (password `honda` or `hb` is tried when encrypted) and fills Power (kW), Num. of Cylinder, ECU HW Name and Engine Family where those columns are blank, and corrects Displacement (cc to litres, e.g. 1199 cc -> 1.2), Emission (the deck's EM Category, e.g. `BS6 + RDE`, replaces a System Matrix value that means the same norm such as `BS6`; a different norm like EURO 5 is kept) and Immobilizer (`Active|IMMO6`).
 - **Load variants**: reads the existing variant rows from the Master Sheet.
 - **Editable variant table**:
   - Shows the Master Sheet request columns.

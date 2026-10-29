@@ -6,6 +6,7 @@ from typing import Iterator
 
 import msoffcrypto
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 from autohub.core.records import KickOffInfo
 from autohub.services.KickOff.parser import parse_kick_off
@@ -35,12 +36,23 @@ def _decrypt(path: str, passwords: tuple[str, ...]) -> io.BytesIO | None:
     return None
 
 
+def _shape_rows(shapes) -> Iterator[list[str]]:
+    """Table rows as their cell texts; every text-box line as a one-cell row."""
+    for shape in shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from _shape_rows(shape.shapes)
+        elif getattr(shape, "has_table", False) and shape.has_table:
+            for row in shape.table.rows:
+                yield [cell.text.replace("\n", " ").strip() for cell in row.cells]
+        elif shape.has_text_frame:
+            for line in shape.text_frame.text.splitlines():
+                if line.strip():
+                    yield [line.strip()]
+
+
 def _table_rows(presentation) -> Iterator[list[str]]:
     for slide in presentation.slides:
-        for shape in slide.shapes:
-            if getattr(shape, "has_table", False) and shape.has_table:
-                for row in shape.table.rows:
-                    yield [cell.text.replace("\n", " ").strip() for cell in row.cells]
+        yield from _shape_rows(slide.shapes)
 
 
 class KickOffMeeting:
