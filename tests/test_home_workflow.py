@@ -158,3 +158,35 @@ def test_load_and_new_variant_report_their_steps_in_the_progress_window(tmp_path
     assert load.title == "Load variants" and load.steps == ["Opening the Master Sheet...", "Reading the variants..."]
     assert new.title == "New variant" and "Reading the System Matrix..." in new.steps
     assert dialogs.infos[0][1] == "Loaded 1 variant from the Master Sheet."
+
+
+def _load_twice(tmp_path, table_answer):
+    master = FakeMasterSheet(rows=[{"J": "a", "_row": 8}, {"J": "b", "_row": 9}])
+    dialogs = FakeDialogs(table_answer=table_answer)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    view.rows = [{"J": "edited", "_row": 8}, {"J": "mine", "_row": None}]
+    presenter.load_variants()
+    return view, dialogs
+
+
+def test_load_asks_before_replacing_rows_and_can_clear_them(tmp_path):
+    view, dialogs = _load_twice(tmp_path, True)
+    assert "still contains 2 variants" in dialogs.asked[0]
+    assert [r["J"] for r in view.rows] == ["a", "b"]
+
+
+def test_load_can_keep_the_current_rows_and_adds_only_new_ones(tmp_path):
+    view, _ = _load_twice(tmp_path, False)
+    assert [r["J"] for r in view.rows] == ["edited", "mine", "b"]  # sheet row 8 is already in the table
+    assert view.states["update"][0] is True  # a row not in the sheet yet can still be written
+
+
+def test_cancelling_the_question_does_nothing(tmp_path):
+    view, dialogs = _load_twice(tmp_path, None)
+    assert [r["J"] for r in view.rows] == ["edited", "mine"] and dialogs.windows == []
+
+
+def test_nothing_is_asked_when_the_table_is_empty(tmp_path):
+    presenter, _, dialogs, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(rows=[])))
+    presenter.load_variants()
+    assert dialogs.asked == []
