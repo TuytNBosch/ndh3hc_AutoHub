@@ -90,6 +90,23 @@ def build_service(master=None, ecu=None, matrix=None, hw=None, kick_off=None) ->
     )
 
 
+class FakeProgress:
+    """Records what a progress window would show; results also land in the dialogs' infos / errors."""
+
+    def __init__(self, dialogs, title):
+        self.dialogs, self.title = dialogs, title
+        self.steps: list = []
+
+    def step(self, text):
+        self.steps.append(text)
+
+    def succeed(self, text):
+        self.dialogs.infos.append((self.title, text))
+
+    def fail(self, text):
+        self.dialogs.errors.append((self.title, text))
+
+
 class FakeDialogs:
     def __init__(self, files=(), hw_answer=False, kick_off_answer=False):
         self.files = list(files)
@@ -98,6 +115,7 @@ class FakeDialogs:
         self.infos: list = []
         self.errors: list = []
         self.picked: list = []
+        self.windows: list = []
 
     def pick_file(self, title, file_filter):
         self.picked.append(title)
@@ -108,6 +126,11 @@ class FakeDialogs:
 
     def error(self, title, text):
         self.errors.append((title, text))
+
+    def open_progress(self, title):
+        progress = FakeProgress(self, title)
+        self.windows.append(progress)
+        return progress
 
     def ask_yes_no_cancel(self, title, text):
         return self.kick_off_answer if "Kick Off" in text else self.hw_answer

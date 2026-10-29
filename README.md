@@ -30,6 +30,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Fails with a clear message if the files are inconsistent, for example Main/Container/Boot counts that don't match, or a part number missing from the System Matrix.
 - **Derived columns**: ECU HW Name equals ECU Type; TP Level is `TP9` when the ECU Info Sheet's ROM Check and Tuning Protection are both ACTIVE, otherwise `TP3`; Engine Family is read from the ECU Info Sheet's `1) Issue CR` sheet (the entry marked YES, e.g. `NP1`).
 - **SW Version / Indi Spec**: SW Version is `01` for ECU type MG1CS022 only, otherwise `-`; Indi Spec (e.g. `Honda_MG1CS022_CS_IndiSpec_01`) is filled in the table and the WebFlow job uses that cell.
+- **Progress window**: New variant, Load variants and Update show a window with each step, then the result (e.g. `Found 3 new variants`, `Loaded 12 variants`) or the error. It can only be closed once the action has finished or failed.
 - **Market** is built from the System Matrix destination codes (`KJ` -> Japan, `KE/KG` -> `UK|Germany/Greece/...`) using the table in `core/markets.py`; unknown codes are kept as written.
 - **Model Year** is a four-digit year (`27.0MY`, `MY28` or `19` become `2027`, `2028`, `2019`).
 - **List-box columns**: Lead Plant (RtW2, SaW, SiP_test), Delivery Type, Release Class, Release Scope, Limitations and the four Yes/No columns (Safety Monitoring SW, Safety Calibration, Cal Data and Data Integration responsibility) are drop-downs in the table, with the same options as the webFLOW Configurator (`core/variant_choices.py`).

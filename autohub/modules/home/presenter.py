@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable, Protocol
 
 from autohub.core.dialogs import Dialogs
+from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
 from autohub.modules.home.service import VariantService
 
@@ -144,10 +145,11 @@ class HomePresenter:
         _logger.info("New variant clicked (%s)", paths)
         self._view.set_new_variant_state(False, "Creating...")
         self._view.set_update_state(False, UPDATE_TEXT)
+        window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
         self._start_task(
-            lambda: self._service.compute_new_variants(*paths),
-            self._finish_new_variant,
-            self._fail_new_variant,
+            lambda: self._service.compute_new_variants(*paths, progress=window.step),
+            lambda new_variants: self._finish_new_variant(new_variants, window),
+            lambda error: self._fail_new_variant(error, window),
         )
 
     def _ask_hw_info(self) -> str | None:
@@ -176,25 +178,24 @@ class HomePresenter:
             return ""
         return self._pick("Kick Off", "Select Kick Off Meeting file", _KICK_OFF_FILTER) or None
 
-    def _finish_new_variant(self, new_variants: list[dict]) -> None:
+    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
         self._show_rows(new_variants)
         count = len(new_variants)
         self._view.set_update_state(count > 0, UPDATE_TEXT)  # new rows can be written as they are
         _logger.info("Found %d new variant(s) (not yet written)", count)
         if count == 0:
-            self._dialogs.info(NEW_VARIANT_TEXT, "No new variants. Existing variants were skipped.")
+            window.succeed("No new variants. Existing variants were skipped.")
         else:
-            self._dialogs.info(
-                NEW_VARIANT_TEXT,
+            window.succeed(
                 f"Found {count} new variant{'s' if count != 1 else ''}. Review/edit below, "
                 "then click Update to save to the Master Sheet.",
             )
 
-    def _fail_new_variant(self, error: str) -> None:
+    def _fail_new_variant(self, error: str, window: ProgressWindow) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
         _logger.error("New variant failed: %s", error)
-        self._dialogs.error(NEW_VARIANT_TEXT, error)
+        window.fail(error)
 
     # -- Update Master Sheet (insert new rows / update existing rows) ------------------
 
@@ -208,24 +209,25 @@ class HomePresenter:
         variants = self._view.read_rows()
         _logger.info("Update variants clicked (%d variant(s))", len(variants))
         self._view.set_update_state(False, "Updating...")
+        window = self._dialogs.open_progress("Update variants")
         self._start_task(
-            lambda: self._service.save_variants(master_sheet_path, variants),
-            self._finish_update,
-            self._fail_update,
+            lambda: self._service.save_variants(master_sheet_path, variants, window.step),
+            lambda result: self._finish_update(result, window),
+            lambda error: self._fail_update(error, window),
         )
 
-    def _finish_update(self, result) -> None:
+    def _finish_update(self, result, window: ProgressWindow) -> None:
         saved, rows, available = result
         count = len(saved)
         _logger.info("Updated %d variant(s) in the Master Sheet", count)
         self._show_rows(rows)
-        self._dialogs.info("Update variants", f"Updated {count} variant{'s' if count != 1 else ''} in the Master Sheet.")
+        window.succeed(f"Updated {count} variant{'s' if count != 1 else ''} in the Master Sheet.")
         self._view.publish_variants(available)
 
-    def _fail_update(self, error: str) -> None:
+    def _fail_update(self, error: str, window: ProgressWindow) -> None:
         self._view.set_update_state(True, UPDATE_TEXT)
         _logger.error("Update variants failed: %s", error)
-        self._dialogs.error("Update variants", error)
+        window.fail(error)
 
     # -- Load variants -----------------------------------------------------------------
 
@@ -235,22 +237,23 @@ class HomePresenter:
             return
         _logger.info("Load variants clicked (master=%s)", master_sheet_path)
         self._view.set_load_state(False, "Loading...")
+        window = self._dialogs.open_progress(LOAD_TEXT)
         self._start_task(
-            lambda: self._service.load_variants(master_sheet_path),
-            self._finish_load,
-            self._fail_load,
+            lambda: self._service.load_variants(master_sheet_path, window.step),
+            lambda result: self._finish_load(result, window),
+            lambda error: self._fail_load(error, window),
         )
 
-    def _finish_load(self, result) -> None:
+    def _finish_load(self, result, window: ProgressWindow) -> None:
         rows, available = result
         self._view.set_load_state(True, LOAD_TEXT)
         self._show_rows(rows)
         count = len(rows)
         _logger.info("Loaded %d variant(s)", count)
-        self._dialogs.info(LOAD_TEXT, f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet.")
+        window.succeed(f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet.")
         self._view.publish_variants(available)
 
-    def _fail_load(self, error: str) -> None:
+    def _fail_load(self, error: str, window: ProgressWindow) -> None:
         self._view.set_load_state(True, LOAD_TEXT)
         _logger.error("Load variants failed: %s", error)
-        self._dialogs.error(LOAD_TEXT, error)
+        window.fail(error)

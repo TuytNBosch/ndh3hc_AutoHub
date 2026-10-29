@@ -5,6 +5,9 @@ from typing import Protocol
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
+from autohub.core.progress import ProgressWindow
+from autohub.core.progress_dialog import ProgressDialog
+
 
 class Dialogs(Protocol):
     def pick_file(self, title: str, file_filter: str) -> str:
@@ -18,6 +21,8 @@ class Dialogs(Protocol):
     def ask_yes_no_cancel(self, title: str, text: str) -> bool | None:
         """True for Yes, False for No, None for Cancel."""
         ...
+
+    def open_progress(self, title: str) -> ProgressWindow: ...
 
 
 class QtDialogs:
@@ -41,3 +46,6 @@ class QtDialogs:
         if answer == QMessageBox.Cancel:
             return None
         return answer == QMessageBox.Yes
+
+    def open_progress(self, title: str) -> ProgressWindow:
+        return ProgressDialog(title, self._parent)
