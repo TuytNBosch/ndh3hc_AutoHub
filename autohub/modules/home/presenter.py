@@ -74,6 +74,7 @@ class HomePresenter:
         self._dialogs = dialogs
         self._start_task = start_task
         self._paths: dict[str, str] = {}
+        self._edited = False  # the table holds changes that are not in the Master Sheet yet
 
     # -- File paths ------------------------------------------------------------------
 
@@ -110,13 +111,47 @@ class HomePresenter:
 
     def _show_rows(self, rows: list[dict]) -> None:
         self._view.show_rows(rows)
+        self._edited = False
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(self._view.row_count() > 0)
 
+    def _ask_keep_rows(self, title: str) -> bool | None:
+        """True to keep the rows already in the table, False once they are cleared, None to cancel the action."""
+        count = self._view.row_count()
+        if count == 0:
+            return False
+        answer = self._dialogs.ask_yes_no_cancel(
+            title,
+            f"The table still contains {count} variant{'s' if count != 1 else ''}.\n\n"
+            "Yes: clear them first.\nNo: keep them and add the new ones.",
+        )
+        if answer is None:
+            return None
+        if answer:
+            self.clear_table()
+            return False
+        return True
+
+    def _show_added_rows(self, rows: list[dict], keep: bool) -> None:
+        """Shows `rows`; when `keep`, after the rows already in the table, skipping ones it already holds."""
+        if not keep:
+            self._show_rows(rows)
+            return
+        existing = self._view.read_rows()
+        unsaved = self._edited
+        known = {_row_identity(row) for row in existing}
+        added = [row for row in rows if _row_identity(row) not in known]
+        self._show_rows(existing + added)
+        if unsaved or any(row.get("_row") is None for row in existing + added):
+            self._view.set_update_state(True, UPDATE_TEXT)
+            self._edited = True
+
     def on_table_edited(self) -> None:
+        self._edited = True
         self._view.set_update_state(True, UPDATE_TEXT)
 
     def clear_table(self) -> None:
+        self._edited = False
         self._view.clear_rows()
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(False)
@@ -125,6 +160,9 @@ class HomePresenter:
     # -- New variant (compute only, nothing written yet) -------------------------------
 
     def new_variant(self) -> None:
+        keep_rows = self._ask_keep_rows(NEW_VARIANT_TEXT)
+        if keep_rows is None:
+            return
         master_sheet_path = self._valid_master_sheet("AutoHub")
         if master_sheet_path is None:
             return
@@ -148,7 +186,7 @@ class HomePresenter:
         window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
         self._start_task(
             lambda: self._service.compute_new_variants(*paths, progress=window.step),
-            lambda new_variants: self._finish_new_variant(new_variants, window),
+            lambda new_variants: self._finish_new_variant(new_variants, window, keep_rows),
             lambda error: self._fail_new_variant(error, window),
         )
 
@@ -178,11 +216,12 @@ class HomePresenter:
             return ""
         return self._pick("Kick Off", "Select Kick Off Meeting file", _KICK_OFF_FILTER) or None
 
-    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow) -> None:
+    def _finish_new_variant(self, new_variants: list[dict], window: ProgressWindow, keep_rows: bool) -> None:
         self._view.set_new_variant_state(True, NEW_VARIANT_TEXT)
-        self._show_rows(new_variants)
+        self._show_added_rows(new_variants, keep_rows)
         count = len(new_variants)
-        self._view.set_update_state(count > 0, UPDATE_TEXT)  # new rows can be written as they are
+        if count > 0:
+            self._view.set_update_state(True, UPDATE_TEXT)  # new rows can be written as they are
         _logger.info("Found %d new variant(s) (not yet written)", count)
         if count == 0:
             window.succeed("No new variants. Existing variants were skipped.")
@@ -232,6 +271,9 @@ class HomePresenter:
     # -- Load variants -----------------------------------------------------------------
 
     def load_variants(self) -> None:
+        keep_rows = self._ask_keep_rows(LOAD_TEXT)
+        if keep_rows is None:
+            return
         master_sheet_path = self._valid_master_sheet(LOAD_TEXT)
         if master_sheet_path is None:
             return
@@ -240,14 +282,14 @@ class HomePresenter:
         window = self._dialogs.open_progress(LOAD_TEXT)
         self._start_task(
             lambda: self._service.load_variants(master_sheet_path, window.step),
-            lambda result: self._finish_load(result, window),
+            lambda result: self._finish_load(result, window, keep_rows),
             lambda error: self._fail_load(error, window),
         )
 
-    def _finish_load(self, result, window: ProgressWindow) -> None:
+    def _finish_load(self, result, window: ProgressWindow, keep_rows: bool) -> None:
         rows, available = result
         self._view.set_load_state(True, LOAD_TEXT)
-        self._show_rows(rows)
+        self._show_added_rows(rows, keep_rows)
         count = len(rows)
         _logger.info("Loaded %d variant(s)", count)
         window.succeed(f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet.")
@@ -257,3 +299,10 @@ class HomePresenter:
         self._view.set_load_state(True, LOAD_TEXT)
         _logger.error("Load variants failed: %s", error)
         window.fail(error)
+
+
+def _row_identity(row: dict) -> tuple:
+    """Sheet row number for rows from the Master Sheet, else the variant key (purpose, part number, program id)."""
+    if row.get("_row") is not None:
+        return ("sheet", row["_row"])
+    return ("new", row.get("H"), row.get("J"), row.get("BI"))

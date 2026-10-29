@@ -108,10 +108,12 @@ class FakeProgress:
 
 
 class FakeDialogs:
-    def __init__(self, files=(), hw_answer=False, kick_off_answer=False):
+    def __init__(self, files=(), hw_answer=False, kick_off_answer=False, table_answer=True):
         self.files = list(files)
         self.hw_answer = hw_answer
         self.kick_off_answer = kick_off_answer
+        self.table_answer = table_answer  # True clears the table, False keeps it, None cancels
+        self.asked: list = []
         self.infos: list = []
         self.errors: list = []
         self.picked: list = []
@@ -133,6 +135,9 @@ class FakeDialogs:
         return progress
 
     def ask_yes_no_cancel(self, title, text):
+        self.asked.append(text)
+        if "still contains" in text:
+            return self.table_answer
         return self.kick_off_answer if "Kick Off" in text else self.hw_answer
 
 
