@@ -151,9 +151,10 @@ class FakeDialogs:
         self.windows.append(progress)
         return progress
 
-    def ask_yes_no_cancel(self, title, text):
+    def ask_yes_no_cancel(self, title, text, yes_text=None, no_text=None):
         self.asked.append(text)
         if "still contains" in text:
+            self.asked_labels = (yes_text, no_text)
             return self.table_answer
         return self.kick_off_answer if "Kick Off" in text else self.hw_answer
 

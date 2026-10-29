@@ -124,21 +124,21 @@ class HomePresenter:
         self._view.set_clear_enabled(self._view.row_count() > 0)
 
     def _ask_keep_rows(self, title: str) -> bool | None:
-        """True to keep the rows already in the table, False once they are cleared, None to cancel the action."""
+        """True to keep the rows already in the table, False to replace them, None to cancel the action.
+
+        Nothing is removed here: replaced rows only go once the new ones arrive, so a cancelled or failed
+        action never loses the table."""
         count = self._view.row_count()
         if count == 0:
             return False
         answer = self._dialogs.ask_yes_no_cancel(
             title,
             f"The table still contains {count} variant{'s' if count != 1 else ''}.\n\n"
-            "Yes: clear them first.\nNo: keep them and add the new ones.",
+            "Clear: replace them with the new ones.\nKeep: leave them and add the new ones below.",
+            yes_text="Clear",
+            no_text="Keep",
         )
-        if answer is None:
-            return None
-        if answer:
-            self.clear_table()
-            return False
-        return True
+        return None if answer is None else not answer
 
     def _show_added_rows(self, rows: list[dict], keep: bool) -> None:
         """Shows `rows`; when `keep`, after the rows already in the table, skipping ones it already holds."""
