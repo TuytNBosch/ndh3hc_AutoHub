@@ -57,6 +57,7 @@ class FakeMasterSheet(FakeDocument):
         super().__init__(path, **kwargs)
         self.new_rows, self.rows, self.webflow = new_rows or [], rows or [], webflow or []
         self.saved = None
+        self.deleted = None
         self.compute_args = None
 
     def compute_new_variants(self, system_info, ecu_info, hw_info=None, kick_off=None):
@@ -66,6 +67,10 @@ class FakeMasterSheet(FakeDocument):
     def save_variant_rows(self, variants, save=True):
         self.saved = variants
         return [{"PartNumber": v.get("J")} for v in variants]
+
+    def delete_variant_rows(self, request_rows, save=True):
+        self.deleted = list(request_rows)
+        return len(request_rows)
 
     def load_variant_rows(self):
         return self.rows
@@ -171,6 +176,7 @@ class FakeView:
         self.states: dict = {}
         self.file_names: dict = {}
         self.published: list = []
+        self.selected: list = []
 
     def show_file_name(self, field_name, path):
         self.file_names[field_name] = path
@@ -186,6 +192,12 @@ class FakeView:
 
     def clear_rows(self):
         self.rows = []
+
+    def selected_rows(self):
+        return list(self.selected)
+
+    def remove_rows(self, rows):
+        self.rows = [row for i, row in enumerate(self.rows) if i not in rows]
 
     def set_new_variant_state(self, enabled, text):
         self.states["new"] = (enabled, text)

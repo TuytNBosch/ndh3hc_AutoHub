@@ -26,6 +26,8 @@ class VariantReader(Protocol):
 class VariantWriter(Protocol):
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]: ...
 
+    def delete_variant_rows(self, request_rows: list[int], save: bool = True) -> int: ...
+
 
 class NewVariantSource(Protocol):
     def compute_new_variants(

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from typing import Callable
+from typing import Callable, Sequence
 
 from autohub.core.progress import ProgressCallback, no_progress
 from autohub.core.ports import EcuInfoDocument, HWInfoDocument, KickOffDocument, SystemMatrixDocument, VariantSheet
@@ -81,16 +81,26 @@ class VariantService:
                 system_matrix.close()
 
     def save_variants(
-        self, master_sheet_path: str, variants: list[dict], progress: ProgressCallback = no_progress
+        self,
+        master_sheet_path: str,
+        variants: list[dict],
+        progress: ProgressCallback = no_progress,
+        deleted_rows: Sequence[int] = (),
     ) -> tuple[list, list[dict], list[dict]]:
-        """Returns (saved, reloaded table rows, WebFlow-ready variants)."""
+        """Writes `variants`, then deletes the variants at `deleted_rows` (their sheet rows).
+
+        Deleting comes last so the "_row" numbers of the written variants are still right while writing.
+        Returns (saved, reloaded table rows, WebFlow-ready variants)."""
         with self._session():
             master_sheet = self._master_sheet_factory(master_sheet_path)
             try:
                 progress("Opening the Master Sheet...")
                 master_sheet.open()
                 progress(f"Writing {len(variants)} variant(s)...")
-                saved = master_sheet.save_variant_rows(variants)
+                saved = master_sheet.save_variant_rows(variants, save=not deleted_rows)
+                if deleted_rows:
+                    progress(f"Deleting {len(deleted_rows)} variant(s)...")
+                    master_sheet.delete_variant_rows(list(deleted_rows))
                 progress("Reloading the variants...")
                 rows = master_sheet.load_variant_rows()
                 available = master_sheet.load_webflow_variants()

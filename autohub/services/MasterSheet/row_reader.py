@@ -8,8 +8,7 @@ from autohub.core.variant_schema import  VARIANT_FIELD_ORDER
 from autohub.services.MasterSheet.variant_builder import variant_key
 from autohub.services.MasterSheet.webflow_variants import WEBFLOW_SOURCE_COLUMNS, webflow_variant_from_row
 
-#: Rows above this hold the template and example rows, not real variants.
-FIRST_DATA_ROW = 11
+from autohub.services.MasterSheet.row_writer import FIRST_DATA_ROW  # rows above hold the template, not variants
 _REQUEST_MARK = "REQ"
 
 

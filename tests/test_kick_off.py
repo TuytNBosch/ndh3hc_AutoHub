@@ -150,7 +150,7 @@ def test_new_variant_reports_an_unreadable_kick_off(tmp_path):
     dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "kom.pptx"], kick_off_answer=True)
     presenter, _, dialogs, _ = _presenter(tmp_path, build_service(kick_off=kick_off), dialogs)
     presenter.new_variant()
-    assert dialogs.errors == [("New variant", "none of the known passwords works")]
+    assert dialogs.errors == [("New variants", "none of the known passwords works")]
 
 
 SAMPLES = Path(__file__).resolve().parent.parent / "datas" / "KoM"

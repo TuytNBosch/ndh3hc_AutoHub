@@ -36,7 +36,7 @@ def test_new_variant_enables_update_without_editing(tmp_path):
 
     assert view.rows == [{"J": "37820-62X-MD10-M6"}]
     assert view.states["update"] == (True, "Update Master Sheet")
-    assert view.states["new"] == (True, "New variant")
+    assert view.states["new"] == (True, "New variants")
     assert dialogs.asked_fields == ["ECU Info Sheet", "System Matrix", "HW Info", "Kick Off"]
 
 
@@ -74,8 +74,8 @@ def test_new_variant_reports_the_reader_error(tmp_path):
         tmp_path, build_service(matrix=matrix), FakeDialogs(files=["e.xlsx", "m.xlsx"])
     )
     presenter.new_variant()
-    assert dialogs.errors == [("New variant", "'m.xlsx' is not a readable System Matrix: no part numbers")]
-    assert view.states["new"] == (True, "New variant")
+    assert dialogs.errors == [("New variants", "'m.xlsx' is not a readable System Matrix: no part numbers")]
+    assert view.states["new"] == (True, "New variants")
 
 
 def test_documents_are_closed_even_when_loading_fails(tmp_path):
@@ -157,7 +157,7 @@ def test_load_and_new_variant_report_their_steps_in_the_progress_window(tmp_path
 
     load, new = dialogs.windows
     assert load.title == "Load variants" and load.steps == ["Opening the Master Sheet...", "Reading the variants..."]
-    assert new.title == "New variant" and "Reading the System Matrix..." in new.steps
+    assert new.title == "New variants" and "Reading the System Matrix..." in new.steps
     assert dialogs.infos[0][1] == "Loaded 1 variant from the Master Sheet."
 
 
@@ -275,3 +275,49 @@ def test_clear_and_update_buttons_ask_for_confirmation(tmp_path):
     dialogs.confirm_answer = True
     presenter.clear_table()
     assert view.rows == []
+
+
+def test_delete_selected_variants_are_removed_from_the_sheet_on_update(tmp_path):
+    master = FakeMasterSheet(rows=[{"J": "kept", "_row": 14}])
+    dialogs = FakeDialogs()
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    view.rows = [{"J": "a", "_row": 8}, {"J": "kept", "_row": 14}, {"J": "new", "_row": None}, {"J": "b", "_row": 20}]
+    view.selected = [0, 2, 3]
+
+    presenter.delete_selected()
+
+    assert [r["J"] for r in view.rows] == ["kept"]
+    assert view.states["update"] == (True, "Update Master Sheet")
+    assert master.deleted is None  # nothing touches the sheet until Update
+
+    presenter.update_master_sheet()
+
+    assert master.deleted == [8, 20]  # the never-saved row has nothing to delete
+    assert "Deleted 2." in dialogs.infos[-1][1]
+    presenter.update_master_sheet()  # the pending deletions were consumed
+    assert dialogs.confirmed[-1][0] == "Update variants" and master.deleted == [8, 20]
+
+
+def test_delete_needs_a_selection_and_a_yes(tmp_path):
+    dialogs = FakeDialogs(confirm_answer=False)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(), dialogs)
+    view.rows = [{"J": "a", "_row": 8}]
+
+    presenter.delete_selected()
+    assert dialogs.infos and dialogs.confirmed == []
+
+    view.selected = [0]
+    presenter.delete_selected()
+    assert len(view.rows) == 1
+
+
+def test_deleting_every_variant_can_still_be_updated(tmp_path):
+    master = FakeMasterSheet(rows=[])
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master))
+    view.rows = [{"J": "a", "_row": 8}]
+    view.selected = [0]
+
+    presenter.delete_selected()
+    presenter.update_master_sheet()
+
+    assert view.rows == [] and master.deleted == [8]

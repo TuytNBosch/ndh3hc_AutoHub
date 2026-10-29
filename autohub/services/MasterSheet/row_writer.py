@@ -5,6 +5,8 @@ from datetime import datetime
 
 from autohub.core.normalizers import needs_text_format
 
+FIRST_DATA_ROW = 11  # rows above hold the template and examples
+
 LAST_DATA_COLUMN = "CZ"
 _ROWS_PER_VARIANT = 3  # request, implementation and comparison rows
 _INSERT_SHIFT_DOWN = -4121  # xlShiftDown
@@ -61,6 +63,18 @@ class VariantRowWriter:
                 }
             )
         return saved
+
+    def delete_variants(self, request_rows: list[int]) -> int:
+        """Delete the REQ row and its implementation and comparison rows for each given request row.
+
+        Rows go from the bottom up so the numbers still to delete stay valid; returns how many variants went."""
+        deleted = 0
+        for request_row in sorted({int(row) for row in request_rows}, reverse=True):
+            if request_row < FIRST_DATA_ROW or str(self._worksheet.Cells(request_row, 4).Value).strip().upper() != "REQ":
+                continue  # not a request row any more, never delete something else
+            self._worksheet.Rows(f"{request_row}:{request_row + _ROWS_PER_VARIANT - 1}").Delete()
+            deleted += 1
+        return deleted
 
     def write_values(self, row: int, values: dict) -> None:
         worksheet = self._worksheet

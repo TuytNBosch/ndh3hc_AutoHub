@@ -75,6 +75,21 @@ class VariantTable(QTableWidget):
         self.blockSignals(False)
         self._frozen.update_geometry()
 
+    def selected_rows(self) -> list[int]:
+        return sorted({index.row() for index in self.selectedIndexes()})
+
+    def remove_rows(self, rows: list[int]) -> None:
+        """Removes the given table rows (not signalling an edit) and renumbers the rest."""
+        self.blockSignals(True)
+        for row in sorted(set(rows), reverse=True):
+            self.removeRow(row)
+            if row < len(self._row_numbers):
+                del self._row_numbers[row]
+        for row in range(self.rowCount()):
+            self.item(row, 0).setText(str(row + 1))
+        self.blockSignals(False)
+        self._frozen.update_geometry()
+
     def read(self) -> list[dict]:
         variants = []
         for row in range(self.rowCount()):

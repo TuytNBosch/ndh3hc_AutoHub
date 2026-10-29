@@ -48,6 +48,10 @@ class HomeView(Protocol):
 
     def clear_rows(self) -> None: ...
 
+    def selected_rows(self) -> list[int]: ...
+
+    def remove_rows(self, rows: list[int]) -> None: ...
+
     def set_new_variant_state(self, enabled: bool, text: str) -> None: ...
 
     def set_load_state(self, enabled: bool, text: str) -> None: ...
@@ -79,6 +83,7 @@ class HomePresenter:
         self._start_task = start_task
         self._paths: dict[str, str] = {}
         self._edited = False  # the table holds changes that are not in the Master Sheet yet
+        self._deleted_rows: list[int] = []  # Master Sheet rows of variants deleted here, removed on Update
 
     # -- File paths ------------------------------------------------------------------
 
@@ -116,6 +121,7 @@ class HomePresenter:
     def _show_rows(self, rows: list[dict]) -> None:
         self._view.show_rows(rows)
         self._edited = False
+        self._deleted_rows = []
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(self._view.row_count() > 0)
 
@@ -163,8 +169,30 @@ class HomePresenter:
             return
         self._clear_rows()
 
+    def delete_selected(self) -> None:
+        """Removes the selected variants from the table; the Master Sheet follows on Update."""
+        selected = self._view.selected_rows()
+        if not selected:
+            self._dialogs.info("Delete variants", "Select one or more variants (rows) to delete.")
+            return
+        count = len(selected)
+        plural = "s" if count != 1 else ""
+        if not self._dialogs.confirm(
+            "Delete variants",
+            f"Delete {count} selected variant{plural}?\n\n"
+            f"They are removed from the Master Sheet when you click '{UPDATE_TEXT}'.",
+        ):
+            return
+        rows = self._view.read_rows()
+        self._deleted_rows += [rows[i]["_row"] for i in selected if rows[i].get("_row")]
+        self._view.remove_rows(selected)
+        _logger.info("Deleted %d variant(s) from the table (%d pending in the sheet)", count, len(self._deleted_rows))
+        self._view.set_clear_enabled(self._view.row_count() > 0)
+        self.on_table_edited()
+
     def _clear_rows(self) -> None:
         self._edited = False
+        self._deleted_rows = []
         self._view.clear_rows()
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(False)
@@ -193,8 +221,9 @@ class HomePresenter:
         window = self._dialogs.open_progress(NEW_VARIANT_TEXT)
         if before == _SAVE_THEN_CLEAR:
             variants = self._view.read_rows()
+            deleted = list(self._deleted_rows)
             self._start_task(
-                lambda: self._service.save_variants(master_sheet_path, variants, window.step),
+                lambda: self._service.save_variants(master_sheet_path, variants, window.step, deleted),
                 lambda result: self._saved_before_new_variant(result, window, paths),
                 lambda error: self._fail_new_variant(f"Could not update the Master Sheet: {error}", window),
             )
@@ -206,16 +235,17 @@ class HomePresenter:
     def _ask_before_new_variant(self) -> str | None:
         """What to do with the rows in the table first (_NOTHING, _CLEAR or _SAVE_THEN_CLEAR), None to cancel."""
         rows = self._view.read_rows() if self._view.row_count() else []
-        if not rows:
+        if not rows and not self._deleted_rows:
             return _NOTHING
         count = len(rows)
         plural = "s" if count != 1 else ""
-        if self._edited or any(row.get("_row") is None for row in rows):
+        if self._edited or self._deleted_rows or any(row.get("_row") is None for row in rows):
             answer = self._dialogs.ask_yes_no_cancel(
                 NEW_VARIANT_TEXT,
-                f"The table still contains {count} variant{plural} that are not in the Master Sheet yet.\n\n"
-                "Update and clear: save them to the Master Sheet, then clear the table.\n"
-                "Clear only: discard them and clear the table.",
+                f"The table still contains {count} variant{plural} and changes that are not in the Master Sheet yet "
+                f"({len(self._deleted_rows)} deleted).\n\n"
+                "Update and clear: save the changes to the Master Sheet, then clear the table.\n"
+                "Clear only: discard the changes and clear the table.",
                 yes_text="Update and clear",
                 no_text="Clear only",
             )
@@ -277,32 +307,37 @@ class HomePresenter:
     # -- Update Master Sheet (insert new rows / update existing rows) ------------------
 
     def update_master_sheet(self) -> None:
-        if self._view.row_count() == 0:
+        if self._view.row_count() == 0 and not self._deleted_rows:
             return
         master_sheet_path = self._valid_master_sheet("Update variants")
         if master_sheet_path is None:
             return
 
-        if not self._dialogs.confirm(
-            "Update variants", f"Are you sure you want to update the Master Sheet with {self._view.row_count()} variant(s)?"
-        ):
+        deleted = list(self._deleted_rows)
+        text = f"Are you sure you want to update the Master Sheet with {self._view.row_count()} variant(s)?"
+        if deleted:
+            text += f"\n\n{len(deleted)} variant(s) will be deleted from the Master Sheet."
+        if not self._dialogs.confirm("Update variants", text):
             return
         variants = self._view.read_rows()
         _logger.info("Update variants clicked (%d variant(s))", len(variants))
         self._view.set_update_state(False, "Updating...")
         window = self._dialogs.open_progress("Update variants")
         self._start_task(
-            lambda: self._service.save_variants(master_sheet_path, variants, window.step),
-            lambda result: self._finish_update(result, window),
+            lambda: self._service.save_variants(master_sheet_path, variants, window.step, deleted),
+            lambda result: self._finish_update(result, window, deleted),
             lambda error: self._fail_update(error, window),
         )
 
-    def _finish_update(self, result, window: ProgressWindow) -> None:
+    def _finish_update(self, result, window: ProgressWindow, deleted: list[int]) -> None:
         saved, rows, available = result
         count = len(saved)
         _logger.info("Updated %d variant(s) in the Master Sheet", count)
         self._show_rows(rows)
-        window.succeed(f"Updated {count} variant{'s' if count != 1 else ''} in the Master Sheet.")
+        message = f"Updated {count} variant{'s' if count != 1 else ''} in the Master Sheet."
+        if deleted:
+            message += f" Deleted {len(deleted)}."
+        window.succeed(message)
         self._view.publish_variants(available)
 
     def _fail_update(self, error: str, window: ProgressWindow) -> None:
