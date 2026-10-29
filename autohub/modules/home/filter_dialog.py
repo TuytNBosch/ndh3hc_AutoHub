@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QHBoxLayout,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
@@ -44,10 +45,11 @@ class ColumnFilterDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._text)
-        layout.addWidget(select_all)
-        layout.addWidget(clear_all)
+        actions = QHBoxLayout()
+        for button in (select_all, clear_all, reset):
+            actions.addWidget(button)
+        layout.addLayout(actions)
         layout.addWidget(self._list)
-        layout.addWidget(reset)
         layout.addWidget(buttons)
         self.setMinimumWidth(260)
         self._hide_unmatched_values()
