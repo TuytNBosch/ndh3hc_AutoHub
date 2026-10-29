@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from autohub.core.markets import market_from_destination
 from autohub.core.normalizers import (
     ascii_hex,
     clean_text,
@@ -13,7 +14,6 @@ from autohub.core.normalizers import (
     normalize_displacement,
     normalize_emission,
     normalize_key_text,
-    normalize_list,
     normalize_model_year,
     normalize_part_number,
     normalize_program_version,
@@ -153,7 +153,7 @@ def build_request_values(
         "AF": normalize_model_year(general.get("MY")),
         "AH": normalize_emission(system_variant.get("Emission")),
         "AI": clean_text(system_variant.get("Transmission")),
-        "AJ": normalize_list(system_variant.get("Destination")),
+        "AJ": market_from_destination(system_variant.get("Destination")),
         "AQ": part_number,
         "AR": customer_hardware_part_number(part_number),
         "AM": part_number.replace("-", ""),
