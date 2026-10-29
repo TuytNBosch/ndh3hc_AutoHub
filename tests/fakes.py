@@ -108,11 +108,13 @@ class FakeProgress:
 
 
 class FakeDialogs:
-    def __init__(self, files=(), hw_answer=False, kick_off_answer=False, table_answer=True):
+    def __init__(self, files=(), hw_answer=False, kick_off_answer=False, table_answer=True, confirm_answer=True):
         self.files = list(files)
         self.hw_answer = hw_answer
         self.kick_off_answer = kick_off_answer
         self.table_answer = table_answer  # True clears the table, False keeps it, None cancels
+        self.confirm_answer = confirm_answer
+        self.confirmed: list = []
         self.asked: list = []
         self.infos: list = []
         self.errors: list = []
@@ -122,6 +124,10 @@ class FakeDialogs:
     def pick_file(self, title, file_filter):
         self.picked.append(title)
         return self.files.pop(0) if self.files else ""
+
+    def confirm(self, title, text):
+        self.confirmed.append((title, text))
+        return self.confirm_answer
 
     def info(self, title, text):
         self.infos.append((title, text))
