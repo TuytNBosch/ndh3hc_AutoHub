@@ -164,7 +164,8 @@ def build_request_values(
         "BH": defaults.ecu_default_id,
         "CL": ascii_hex(program_id),
         "CM": defaults.ecu_rewriting_id,
-        "CQ": defaults.sw_version,
+        "CQ": defaults.sw_version_for(hardware),
+        "BC": defaults.indi_spec(hardware),
         "AU": "HONDA",
     }
     security_type_1 = security_type_1_value(boot)

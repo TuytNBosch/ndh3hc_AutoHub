@@ -7,7 +7,7 @@ from autohub.core.normalizers import clean_text, parse_event
 from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS, WebFlowDefaults
 
 #: Sheet columns a request row is read from to build a WebFlow variant.
-WEBFLOW_SOURCE_COLUMNS = ("C", "H", "BD", "BE", "BF", "BH", "CL", "CM", "CN", "CQ")
+WEBFLOW_SOURCE_COLUMNS = ("C", "H", "BC", "BD", "BE", "BF", "BH", "CL", "CM", "CN", "CQ")
 
 
 def webflow_variant_from_row(
@@ -22,7 +22,7 @@ def webflow_variant_from_row(
         "created_at": row.get("C"),
         "general": defaults.general(),
         "ecu": {
-            "indi_spec": defaults.indi_spec(hardware),
+            "indi_spec": clean_text(row.get("BC")) or defaults.indi_spec(hardware),
             "family_name": hardware,
             "project_version": clean_text(row.get("BE")),
             "program_version": clean_text(row.get("BF")),

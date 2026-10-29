@@ -194,3 +194,12 @@ def test_writer_formats_scientific_looking_text_as_text():
     VariantRowWriter(sheet, None).write_values(5, {"A": "4E5", "B": "400000"})
     assert (sheet.cells["A5"].NumberFormat, sheet.cells["A5"].Value) == ("@", "4E5")
     assert sheet.cells["B5"].NumberFormat == "General"
+
+
+def test_sw_version_is_01_for_mg1cs020_only_and_indi_spec_is_filled():
+    for hardware, expected in (("MG1CS020", "01"), ("mg1cs020", "01"), ("MG1CS022", "-"), ("", "-")):
+        values = build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Hardware": hardware})
+        assert values["CQ"] == expected
+    values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM)
+    assert values["BC"] == "Honda_MG1CS022_CS_IndiSpec_01"
+    assert webflow_variant_from_row("P", {"BC": "Custom", "BD": "MG1CS022"})["ecu"]["indi_spec"] == "Custom"
