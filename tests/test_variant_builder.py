@@ -196,8 +196,8 @@ def test_writer_formats_scientific_looking_text_as_text():
     assert sheet.cells["B5"].NumberFormat == "General"
 
 
-def test_sw_version_is_01_for_mg1cs020_only_and_indi_spec_is_filled():
-    for hardware, expected in (("MG1CS020", "01"), ("mg1cs020", "01"), ("MG1CS022", "-"), ("", "-")):
+def test_sw_version_is_01_for_mg1cs022_only_and_indi_spec_is_filled():
+    for hardware, expected in (("MG1CS022", "01"), ("mg1cs022", "01"), ("MG1CS020", "-"), ("", "-")):
         values = build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Hardware": hardware})
         assert values["CQ"] == expected
     values = build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM)
