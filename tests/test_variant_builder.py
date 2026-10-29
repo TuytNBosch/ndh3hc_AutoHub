@@ -162,3 +162,35 @@ def test_security_type_1_drops_the_excel_float_suffix():
     assert security_type_1_value({"SK1": "2025.0", "SK2": "020B9", "SK3": "010.0"}) == "2025020B9010"
     assert security_type_1_value({"SK1": 20250901.0, "SK2": "1A2B"}) == "202509011A2B"
     assert n.hex_text("ABC.0") == "ABC" and n.hex_text("x.0") == "x.0"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [("4E5", True), ("1.5e-3", True), ("-2E10", True), ("0261B", True), ("E5", False), ("4E", False), ("4EA5", False), ("400000", False), (400000, False), (None, False)],
+)
+def test_needs_text_format(value, expected):
+    assert n.needs_text_format(value) is expected
+
+
+class _Cell:
+    HasFormula = False
+    Column = 1
+    NumberFormat = "General"
+    Value = None
+
+
+class _Sheet:
+    def __init__(self):
+        self.cells = {}
+
+    def Range(self, address):
+        return self.cells.setdefault(address, _Cell()) if address != "CZ1" else type("C", (), {"Column": 104})()
+
+
+def test_writer_formats_scientific_looking_text_as_text():
+    from autohub.services.MasterSheet.row_writer import VariantRowWriter
+
+    sheet = _Sheet()
+    VariantRowWriter(sheet, None).write_values(5, {"A": "4E5", "B": "400000"})
+    assert (sheet.cells["A5"].NumberFormat, sheet.cells["A5"].Value) == ("@", "4E5")
+    assert sheet.cells["B5"].NumberFormat == "General"

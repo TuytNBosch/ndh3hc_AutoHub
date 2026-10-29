@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from autohub.core.normalizers import needs_text_format
+
 LAST_DATA_COLUMN = "CZ"
 _ROWS_PER_VARIANT = 3  # request, implementation and comparison rows
 _INSERT_SHIFT_DOWN = -4121  # xlShiftDown
@@ -68,8 +70,8 @@ class VariantRowWriter:
                 continue
             cell = worksheet.Range(f"{column_name}{row}")
             if cell.Column <= last_data_column and not cell.HasFormula:
-                if isinstance(value, str) and len(value) > 1 and value.startswith("0"):
-                    cell.NumberFormat = "@"  # keep leading zeros
+                if needs_text_format(value):
+                    cell.NumberFormat = "@"  # keep leading zeros and values like 4E5 as typed
                 cell.Value = value
 
     def _clear_copied_values(self, first_row: int, last_row: int) -> None:
