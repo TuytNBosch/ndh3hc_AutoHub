@@ -205,22 +205,45 @@ def test_new_variant_asks_for_every_source_file_in_one_dialog_and_remembers_noth
     assert dialogs.initial == {}  # no history: the dialog always starts empty
 
 
-def test_new_variant_needs_an_empty_table_and_says_what_to_do_first(tmp_path):
-    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"])
-    presenter, view, _, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
-    view.rows = [{"J": "unsaved", "_row": None}]
+def test_new_variant_can_update_the_master_sheet_and_clear_the_table_first(tmp_path):
+    master = FakeMasterSheet(new_rows=[{"J": "fresh"}])
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=True)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    unsaved = {"J": "unsaved", "_row": None}
+    view.rows = [unsaved]
 
     presenter.new_variant()
-    assert "Update Master Sheet" in dialogs.infos[-1][1] and dialogs.windows == []
 
+    assert dialogs.asked_labels == ("Update and clear", "Clear only")
+    assert master.saved == [unsaved]  # written to the Master Sheet before anything else
+    assert [r["J"] for r in view.rows] == ["fresh"]
+    assert dialogs.windows[0].steps[0] == "Opening the Master Sheet..."
+
+
+def test_new_variant_can_discard_the_rows_or_be_cancelled(tmp_path):
+    master = FakeMasterSheet(new_rows=[{"J": "fresh"}])
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"], table_answer=False)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    view.rows = [{"J": "unsaved", "_row": None}]
+    presenter.new_variant()
+    assert master.saved is None and [r["J"] for r in view.rows] == ["fresh"]
+
+    dialogs.table_answer = None
+    view.rows = [{"J": "keep me", "_row": 8}]
+    presenter.new_variant()
+    assert [r["J"] for r in view.rows] == ["keep me"] and len(dialogs.windows) == 1
+
+
+def test_saved_rows_only_need_clearing_and_an_empty_table_asks_nothing(tmp_path):
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx", "e.xlsx", "m.xlsx"], table_answer=True)
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=FakeMasterSheet(new_rows=[])), dialogs)
     view.rows = [{"J": "saved", "_row": 8}]
     presenter.new_variant()
-    assert "Update" not in dialogs.infos[-1][1] and "'Clear'" in dialogs.infos[-1][1]
-    assert dialogs.windows == [] and [r["J"] for r in view.rows] == ["saved"]
+    assert dialogs.asked_labels == ("Clear", "Cancel") and view.rows == []
 
-    view.rows = []
+    dialogs.asked.clear()
     presenter.new_variant()
-    assert len(dialogs.windows) == 1
+    assert dialogs.asked == []
 
 
 def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):
