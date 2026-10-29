@@ -47,6 +47,7 @@ def test_normalizers(function, value, expected):
 def test_request_values_for_a_variant():
     values = build_request_values(GENERAL, ECU, MAIN, {"SK1": ""}, SYSTEM, now=datetime(2026, 1, 2))
     assert values["J"] == values["CS"] == "37820-62X-MD10-M6"  # DWG NO. is the part number
+    assert values["CX"] == "37820-62X-MD1"  # CUST PART NO. is DWG NO. without the last 4 characters
     assert values["H"] == "62XS for DAN/MP1 event"
     assert values["AJ"] == "M"  # Market comes from the DESTINATION row
     assert values["S"] == values["BD"] == "MG1CS022"
