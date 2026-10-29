@@ -16,7 +16,7 @@ from autohub.core.normalizers import (
     normalize_program_version,
     title_status,
 )
-from autohub.core.records import EcuGroup, EcuInfoData, HWLookup, HWRecord, SystemMatrixData
+from autohub.core.records import BootRow, EcuGroup, EcuInfoData, HWLookup, HWRecord, SystemMatrixData
 from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS
 
 _SECURITY_KEY_FIELDS = ("SK1", "SK2", "SK3")
@@ -54,6 +54,11 @@ def index_system_variants(system_info: SystemMatrixData) -> dict[str, dict]:
             **setting_by_column.get(column, {}),
         }
     return variants
+
+
+def security_type_1_value(boot: BootRow) -> str:
+    """SecuAcs_CustTypeI: the Boot row's Security Type Ⅰ SK1, SK2 and SK3 values joined in order."""
+    return "".join(clean_text(boot.get(field)) for field in _SECURITY_KEY_FIELDS)
 
 
 def ecu_for_variant(ecu_info: EcuInfoData, main: dict) -> EcuGroup:
@@ -130,8 +135,9 @@ def build_request_values(
         "CQ": defaults.sw_version,
         "AU": "HONDA",
     }
-    if any(clean_text(boot.get(field)) for field in _SECURITY_KEY_FIELDS):
-        request_values["CN"] = defaults.security_coefficient
+    security_type_1 = security_type_1_value(boot)
+    if security_type_1:
+        request_values["CN"] = security_type_1
     if hw:
         _apply_hw_info(request_values, hw)
     return request_values
