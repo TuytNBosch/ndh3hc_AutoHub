@@ -18,12 +18,24 @@ ROWS = [
     ["Engine type", "1.5L L4 GDI", "←"],
     ["Maximum Power（kW/rpm）", "93 kW／6200 rpm　(E100)", "←"],
     ["1", "ECU", "Bosch", "MG1 CS022"],
+    ["Displacement    ", "1199 cc"],
+    ["EM Category", "BS6 +RDE"],
+    ["Security", "Immobilizer (Generation 6th)", "", "X"],
+    ["NP1-kai engine, same as 6SAA/6G0X/5DZX/5V6P"],
     ["Power", "99 kW"],  # later duplicates never override the first match
 ]
 
 
 def test_parser_reads_power_cylinders_and_ecu_name():
-    assert parse_kick_off(ROWS) == {"cylinders": "4", "power_kw": "93", "ecu_hw_name": "MG1CS022"}
+    assert parse_kick_off(ROWS) == {
+        "cylinders": "4",
+        "power_kw": "93",
+        "ecu_hw_name": "MG1CS022",
+        "displacement_l": "1.2",
+        "emission": "BS6 + RDE",
+        "immobilizer": "IMMO6",
+        "engine_family": "NP1",
+    }
 
 
 def test_parser_handles_other_wordings_and_ignores_the_rest():
@@ -88,6 +100,40 @@ def test_builder_fills_the_blank_columns_from_kick_off_info():
     assert "AC" not in build_request_values(GENERAL, ECU, MAIN, {}, SYSTEM)
 
 
+def test_kick_off_corrects_emission_and_immobilizer():
+    info = {"emission": "BS6 + RDE", "immobilizer": "IMMO6", "engine_family": "NP1"}
+    values = build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Emission": "BS6"}, kick_off=info)
+    assert (values["AH"], values["AD"], values["AG"]) == ("BS6 + RDE", "Active|IMMO6", "NP1")
+
+
+def test_displacement_from_the_system_matrix_is_not_touched():
+    info = {"displacement_l": "1.2"}
+    assert build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Displacement": "1.5L"}, kick_off=info)["AE"] == "1.5"
+    assert build_request_values(GENERAL, ECU, MAIN, {}, {**SYSTEM, "Displacement": None}, kick_off=info)["AE"] == "1.2"
+
+
+def test_a_different_emission_norm_in_the_system_matrix_is_kept():
+    system = {**SYSTEM, "Emission": "EURO 5"}
+    values = build_request_values(GENERAL, ECU, MAIN, {}, system, kick_off={"emission": "BS6 + RDE"})
+    assert values["AH"] == "EURO 5"
+
+
+@pytest.mark.parametrize(
+    "first, second, same",
+    [("BS6", "BS6 + RDE", True), ("BHARAT STAGE6", "BS-6 +RDE", True), ("BS6", "EURO 5", False), ("", "BS6", False)],
+)
+def test_same_emission_ignores_wording_and_rde(first, second, same):
+    from autohub.core.normalizers import same_emission
+
+    assert same_emission(first, second) is same
+
+
+def test_displacement_litres():
+    from autohub.core.normalizers import displacement_litres
+
+    assert (displacement_litres("1199"), displacement_litres("1,498"), displacement_litres(998)) == ("1.2", "1.5", "1.0")
+
+
 def test_new_variant_passes_kick_off_info_to_the_master_sheet(tmp_path):
     master = FakeMasterSheet(new_rows=[{"J": "P"}])
     kick_off = FakeDocument(info={"power_kw": "93"})
@@ -118,3 +164,5 @@ def test_real_decks_in_datas():
         reader = KickOffMeeting(str(deck))
         assert reader.load_data() is True, reader.last_error
         assert reader.info["power_kw"] == expected
+        assert reader.info["immobilizer"] == "IMMO6"
+    assert KickOffMeeting(str(next(SAMPLES.glob("6SAAMMC*.pptx")))).load_data()

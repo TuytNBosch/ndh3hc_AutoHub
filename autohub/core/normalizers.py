@@ -20,6 +20,11 @@ def normalize_displacement(value) -> str:
     return re.sub(r"(?i)L$", "", clean_text(value))
 
 
+def displacement_litres(cubic_centimetres) -> str:
+    """Engine size in litres with one decimal (1199 -> "1.2", 1498 -> "1.5")."""
+    return f"{int(str(cubic_centimetres).replace(',', '')) / 1000:.1f}"
+
+
 def normalize_model_year(value) -> str:
     text = clean_text(value)
     match = re.search(r"(\d+)(?:\.0)?\s*MY", text, re.IGNORECASE)
@@ -29,6 +34,26 @@ def normalize_model_year(value) -> str:
 def normalize_emission(value) -> str:
     text = re.sub(r"\s*\([^)]*\)\s*$", "", clean_text(value))
     return text.replace("-", " ")
+
+
+def emission_standard(value) -> str:
+    """A comparison key for an emission norm: "BS6 + RDE", "BS-6" and "Bharat Stage 6" all give "bs6"."""
+    text = re.sub(r"(?i)bharat\s*stage", "bs", clean_text(value))
+    return re.sub(r"[^a-z0-9]", "", re.sub(r"(?i)\+?\s*\bRDE\b", "", text).casefold())
+
+
+def same_emission(first, second) -> bool:
+    key = emission_standard(first)
+    return bool(key) and key == emission_standard(second)
+
+
+def tidy_emission(value) -> str:
+    """"BS6 +RDE" -> "BS6 + RDE"."""
+    return re.sub(r"\s*\+\s*", " + ", clean_text(value))
+
+
+def immobilizer_label(generation) -> str:
+    return f"IMMO{generation}"
 
 
 def normalize_list(value) -> str:

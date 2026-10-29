@@ -82,6 +82,10 @@ class KickOffInfo(TypedDict, total=False):
     power_kw: str
     cylinders: str
     ecu_hw_name: str
+    displacement_l: str
+    emission: str
+    immobilizer: str
+    engine_family: str
 
 
 class DocumentReader(Protocol):
