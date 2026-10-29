@@ -144,3 +144,17 @@ def test_editing_the_table_enables_update(tmp_path):
     presenter, view, _, _ = _presenter(tmp_path, build_service())
     presenter.on_table_edited()
     assert view.states["update"] == (True, "Update Master Sheet")
+
+
+def test_load_and_new_variant_report_their_steps_in_the_progress_window(tmp_path):
+    master = FakeMasterSheet(rows=[{"J": "a"}], new_rows=[])
+    dialogs = FakeDialogs(files=["e.xlsx", "m.xlsx"])
+    presenter, _, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+
+    presenter.load_variants()
+    presenter.new_variant()
+
+    load, new = dialogs.windows
+    assert load.title == "Load variants" and load.steps == ["Opening the Master Sheet...", "Reading the variants..."]
+    assert new.title == "New variant" and "Reading the System Matrix..." in new.steps
+    assert dialogs.infos[0][1] == "Loaded 1 variant from the Master Sheet."

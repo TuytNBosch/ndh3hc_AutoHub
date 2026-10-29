@@ -49,3 +49,27 @@ def test_checklist_selection_persists_through_injected_settings(qapp):
     assert [v["part_number"] for v in creation._checklist.selected_variants()] == ["P2"]
     creation._checklist._checkboxes["P1"].setChecked(True)
     assert settings.data["selected_variants"] == ["P1", "P2"]
+
+
+def test_progress_dialog_can_only_be_closed_after_the_action_finished():
+    from PySide6.QtGui import QCloseEvent
+    from PySide6.QtWidgets import QApplication
+
+    from autohub.core.progress_dialog import ProgressDialog
+
+    QApplication.instance() or QApplication([])
+    dialog = ProgressDialog("Load variants")
+    dialog.step("Reading...")
+    QApplication.processEvents()
+    event = QCloseEvent()
+    dialog.closeEvent(event)
+    dialog.reject()
+    assert not event.isAccepted() and dialog.isVisible()
+
+    dialog.succeed("Loaded 3 variants from the Master Sheet.")
+    QApplication.processEvents()
+    assert dialog._buttons.isEnabled() and "Loaded 3 variants" in dialog._status.text()
+    event = QCloseEvent()
+    dialog.closeEvent(event)
+    assert event.isAccepted()
+    dialog.reject()
