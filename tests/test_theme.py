@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
 from autohub.modules.settings.ui import SettingsWidget
 from autohub.ui.theme import DARK, LIGHT, apply_theme, is_dark, normalize_theme_mode
@@ -91,3 +91,66 @@ def test_checklist_selects_the_latest_event_until_the_user_chooses():
     box._on_event_chosen(0)
     box.set_variants(rows)
     assert box._event_filter.currentText() == "OLD"
+
+
+def _changed_page(answer):
+    from tests.fakes import FakeDialogs
+
+    QApplication.instance() or QApplication([])
+    settings = MemorySettings()
+    page = SettingsWidget(settings, dialogs=FakeDialogs(table_answer=answer))
+    page._theme.setCurrentIndex(page._theme.findData("light"))
+    return page, settings
+
+
+def test_leaving_without_changes_does_not_ask():
+    from tests.fakes import FakeDialogs
+
+    QApplication.instance() or QApplication([])
+    dialogs = FakeDialogs(table_answer=None)
+    assert SettingsWidget(MemorySettings(), dialogs=dialogs).confirm_leave() is True
+    assert dialogs.asked == []
+
+
+def test_leaving_with_changes_apply_discard_or_cancel():
+    page, settings = _changed_page(True)
+    assert page.confirm_leave() is True and settings.load()["theme"] == "light"
+    apply_theme(QApplication.instance(), "dark")
+
+    page, settings = _changed_page(False)
+    assert page.confirm_leave() is True and "theme" not in settings.load()
+    assert page._theme.currentData() == "dark" and not page._apply.isEnabled()
+
+    page, settings = _changed_page(None)
+    assert page.confirm_leave() is False and "theme" not in settings.load()
+    assert page._theme.currentData() == "light"
+
+
+def test_main_window_stays_on_the_page_when_leaving_is_cancelled():
+    from autohub.ui.main_window import MainWindow
+
+    QApplication.instance() or QApplication([])
+
+    class Guard(QWidget):
+        allow = False
+
+        def confirm_leave(self):
+            return self.allow
+
+    class Mod:
+        icon_file = None
+        pinned_bottom = False
+
+        def __init__(self, name, widget):
+            self.display_name, self._widget = name, widget
+
+        def create_widget(self):
+            return self._widget
+
+    guard = Guard()
+    window = MainWindow([Mod("A", guard), Mod("B", QWidget())])
+    window._sidebar._list.setCurrentRow(1)
+    assert window._pages.currentIndex() == 0 and window._sidebar._list.currentRow() == 0
+    guard.allow = True
+    window._sidebar._list.setCurrentRow(1)
+    assert window._pages.currentIndex() == 1

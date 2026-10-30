@@ -4,6 +4,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QFormLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
+from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.logger import LOGGING_ENABLED_KEY, logging_enabled, set_logging_enabled
 from autohub.core.settings import SettingsStore
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode
@@ -13,9 +14,10 @@ _LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
 
 
 class SettingsWidget(QWidget):
-    def __init__(self, settings: SettingsStore):
+    def __init__(self, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
         self._settings = settings
+        self._dialogs = dialogs or QtDialogs(self)
 
         title = QLabel("Settings")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
@@ -54,6 +56,23 @@ class SettingsWidget(QWidget):
     def _refresh_apply(self, *_args) -> None:
         """Apply is only available while the page differs from what is applied."""
         self._apply.setEnabled(self._current() != self._applied)
+
+    def confirm_leave(self) -> bool:
+        """Asks what to do with pending changes; False (Cancel) keeps the user on this page."""
+        if not self._apply.isEnabled():
+            return True
+        answer = self._dialogs.ask_yes_no_cancel(
+            "Unapplied settings", "You changed settings but did not apply them.\nApply them before leaving?",
+            yes_text="Apply", no_text="Discard",
+        )
+        if answer is None:
+            return False
+        if answer:
+            self._on_apply()
+        else:
+            self._theme.setCurrentIndex(self._theme.findData(self._applied[0]))
+            self._logging.setChecked(self._applied[1])
+        return True
 
     def _on_apply(self) -> None:
         mode, enabled = self._current()
