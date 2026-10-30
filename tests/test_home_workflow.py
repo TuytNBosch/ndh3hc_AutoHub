@@ -342,3 +342,24 @@ def test_delete_button_is_only_active_while_rows_are_selected(tmp_path):
     view.selected = []
     presenter.on_selection_changed()
     assert view.states["delete"] is False
+
+
+def test_load_shows_only_the_latest_variants_from_the_setting(tmp_path):
+    master = FakeMasterSheet(rows=[{"_row": 11}, {"_row": 14}, {"_row": 17}], webflow=[{"part_number": "P"}])
+    settings = MemorySettings({"master_sheet_path": str(tmp_path / "master.xlsx"), "latest_variant_count": 2})
+    presenter, view, dialogs, _ = _presenter(tmp_path, build_service(master=master), settings=settings)
+
+    presenter.load_variants()
+
+    assert [row["_row"] for row in view.rows] == [14, 17]
+    assert view.latest_count == 2
+    assert "latest 2 of 3" in dialogs.infos[-1][1]
+    assert view.published == [[{"part_number": "P"}]]
+
+
+def test_latest_count_is_saved_and_never_negative(tmp_path):
+    presenter, _, _, settings = _presenter(tmp_path, build_service())
+    presenter.set_latest_count(5)
+    assert presenter.latest_count() == 5
+    presenter.set_latest_count(-3)
+    assert presenter.latest_count() == 0

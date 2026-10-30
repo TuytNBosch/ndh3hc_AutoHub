@@ -21,6 +21,7 @@ NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Ma
 
 # Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
 SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
+LATEST_COUNT_KEY = "latest_variant_count"  # how many of the newest variants Load shows; 0 = all
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
 _KICK_OFF_FILTER = "Kick Off Meeting (*.pptx)"
@@ -39,6 +40,8 @@ class HomeView(Protocol):
     def show_file_name(self, field_name: str, path: str) -> None: ...
 
     def show_rows(self, rows: list[dict]) -> None: ...
+
+    def show_latest_count(self, count: int) -> None: ...
 
     def read_rows(self) -> list[dict]: ...
 
@@ -93,6 +96,13 @@ class HomePresenter:
             path = saved.get(key, "")
             if path:
                 self._set_path(field_name, path)
+        self._view.show_latest_count(self.latest_count())
+
+    def latest_count(self) -> int:
+        return normalize_latest_count(self._settings.load().get(LATEST_COUNT_KEY, 0))
+
+    def set_latest_count(self, count: int) -> None:
+        self._settings.update(**{LATEST_COUNT_KEY: normalize_latest_count(count)})
 
     def browse_master_sheet(self) -> None:
         self._pick(MASTER_SHEET, "Select file", _EXCEL_FILTER)
@@ -329,16 +339,30 @@ class HomePresenter:
     def _finish_load(self, result, window: ProgressWindow, keep_rows: bool) -> None:
         rows, available = result
         self._view.set_load_state(True, LOAD_TEXT)
-        self._show_added_rows(rows, keep_rows)
-        count = len(rows)
-        _logger.info("Loaded %d variant(s)", count)
-        window.succeed(f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet.")
+        shown = latest_rows(rows, self.latest_count())
+        self._show_added_rows(shown, keep_rows)
+        count, total = len(shown), len(rows)
+        _logger.info("Loaded %d of %d variant(s)", count, total)
+        note = f" (latest {count} of {total})" if count != total else ""
+        window.succeed(f"Loaded {count} variant{'s' if count != 1 else ''} from the Master Sheet{note}.")
         self._view.publish_variants(available)
 
     def _fail_load(self, error: str, window: ProgressWindow) -> None:
         self._view.set_load_state(True, LOAD_TEXT)
         _logger.error("Load variants failed: %s", error)
         window.fail(error)
+
+
+def normalize_latest_count(value) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def latest_rows(rows: list[dict], count: int) -> list[dict]:
+    """The `count` newest variants (the sheet lists the oldest first); 0 keeps all of them."""
+    return rows[-count:] if 0 < count < len(rows) else rows
 
 
 def _row_identity(row: dict) -> tuple:
