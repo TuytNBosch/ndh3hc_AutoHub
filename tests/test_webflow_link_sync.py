@@ -1,8 +1,11 @@
 from unittest.mock import Mock
 
+import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 
 from autohub.core.variant_schema import VARIANT_FIELD_ORDER
+from autohub.modules.home import variant_table as table_module
 from autohub.modules.creation.ui import CreationWidget
 from autohub.modules.home.ui import HomeWidget
 from autohub.ui.main_window import MainWindow
@@ -59,3 +62,28 @@ def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp):
     assert table.isColumnHidden(table._link_column)
     assert table.item(0, table._link_column).text() == "WF3"
     assert not home._update_btn.isEnabled()
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+def test_job_link_opens_only_on_double_click(qapp, monkeypatch, frozen):
+    table = table_module.VariantTable()
+    link = "https://webflow/app/ShowJob/16409"
+    table.populate([{"J": "P", "_webflow_link": link}])
+    table.set_webflow_link_visible(True)
+    table.resize(800, 300)
+    table.show()
+    qapp.processEvents()
+    view = table._frozen.view if frozen else table
+    if not frozen:
+        table._frozen.view.hide()
+    opened = Mock()
+    monkeypatch.setattr(table_module.QDesktopServices, "openUrl", opened)
+    index = table.model().index(0, table._link_column)
+    position = view.visualRect(index).center()
+
+    QTest.mouseClick(view.viewport(), Qt.LeftButton, pos=position)
+    opened.assert_not_called()
+    QTest.mouseDClick(view.viewport(), Qt.LeftButton, pos=position)
+    opened.assert_called_once()
+    assert opened.call_args.args[0].toString() == link
+    table.close()
