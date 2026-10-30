@@ -184,6 +184,38 @@ def test_pool_import_does_not_retry_uncertain_click(monkeypatch):
     button.click.assert_called_once()
 
 
+def test_lead_plant_waits_until_requested_option_is_loaded(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    option = Mock()
+    reads = Mock(side_effect=[None, {"---": Mock()}, {"SaW": option}])
+    monkeypatch.setattr(hardware_module, "read_options", reads)
+    assert fields._loaded_options("SaW") == {"SaW": option}
+    assert reads.call_count == 3
+
+
+@pytest.mark.parametrize("initial", [None, True, False])
+def test_classification_sets_one_variant_and_x_checkboxes(monkeypatch, initial):
+    fields, _ = _hardware(monkeypatch)
+    section = fields.sections["Classification"]
+    checkbox = section.body.return_value.find_element.return_value.find_element.return_value
+    states = [initial]
+    def value(_checkbox):
+        return states[0]
+    def click():
+        states[0] = {None: True, True: False, False: None}[states[0]]
+    checkbox.click.side_effect = click
+    monkeypatch.setattr(hardware_module, "checkbox_value", value)
+    assert fields.prepare_classification() is True
+    assert section.fill_input.call_args.args[1] == "1"
+    assert states[0] is False
+
+
+def test_classification_failure_is_reported(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    fields.sections["Classification"].fill_input.return_value = False
+    assert fields.prepare_classification() is False
+
+
 @pytest.mark.parametrize("succeed", [True, False])
 def test_total_duration_includes_browser_and_link_writing(monkeypatch, caplog, succeed):
     ticks = iter((10.0, 135.5))

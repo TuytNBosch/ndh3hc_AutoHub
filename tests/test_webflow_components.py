@@ -341,10 +341,12 @@ def test_job_filler_uses_requested_priority_then_form_order():
         "customer_software_part_number", "car", "customer_name",
         "program_version", "data_version", "ecr_number",
     ]
-    assert field_calls[8:11] == hardware_calls[:3]
-    assert field_calls[11] == ("import_software_part_number",)
-    assert field_calls[12:9 + len(hardware_calls)] == hardware_calls[3:]
-    assert field_calls[9 + len(hardware_calls)] == ("select_ecu_tab",)
+    assert field_calls[8:10] == hardware_calls[:2]
+    assert field_calls[10] == ("prepare_classification",)
+    assert field_calls[11] == hardware_calls[2]
+    assert field_calls[12] == ("import_software_part_number",)
+    assert field_calls[13:10 + len(hardware_calls)] == hardware_calls[3:]
+    assert field_calls[10 + len(hardware_calls)] == ("select_ecu_tab",)
     assert calls[-1] == ("save",)
 
 
