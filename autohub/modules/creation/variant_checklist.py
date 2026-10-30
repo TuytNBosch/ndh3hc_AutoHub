@@ -51,9 +51,9 @@ class VariantChecklist(QWidget):
 
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
-        toolbar.addStretch(1)
         toolbar.addWidget(QLabel("Event:"))
         toolbar.addWidget(self._event_filter)
+        toolbar.addStretch(1)
         toolbar.addWidget(select_all_btn)
         toolbar.addWidget(clear_btn)
 
@@ -65,7 +65,8 @@ class VariantChecklist(QWidget):
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setMinimumHeight(150)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.horizontalHeader().setStretchLastSection(False)
+        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._empty_label = QLabel("Load variants from a Master Sheet on Home, or create them from all three files.")
 
         layout = QVBoxLayout(self)
