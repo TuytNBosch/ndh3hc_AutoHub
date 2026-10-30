@@ -57,6 +57,7 @@ class VariantRowReader:
         for row, part_number in self.request_rows_with_part_number():
             rows_by_part_number[part_number.upper()] = {
                 "_row": row,
+                "_webflow_link": self._webflow_link(row),
                 **{
                     column: self._value(column, row)
                     for column in VARIANT_FIELD_ORDER

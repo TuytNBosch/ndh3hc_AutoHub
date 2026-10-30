@@ -4,11 +4,13 @@ Clipboard, search, column filters, the context menu and the frozen leading colum
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
 
 from autohub.core.variant_choices import VARIANT_CHOICES
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDER
+from autohub.core.webflow_links import webflow_link_text
 from autohub.modules.home.choice_delegate import ChoiceDelegate
 from autohub.modules.home.column_limits import ColumnLimits
 from autohub.modules.home.frozen_columns import FrozenColumns
@@ -26,8 +28,13 @@ class VariantTable(QTableWidget):
     userEdited = Signal()
 
     def __init__(self):
-        super().__init__(0, 1 + len(VARIANT_FIELD_ORDER))
-        self.setHorizontalHeaderLabels(["No."] + [VARIANT_FIELD_LABELS[column] for column in VARIANT_FIELD_ORDER])
+        super().__init__(0, 2 + len(VARIANT_FIELD_ORDER))
+        self._link_column = 1 + len(VARIANT_FIELD_ORDER)
+        self.setHorizontalHeaderLabels(
+            ["No."] + [VARIANT_FIELD_LABELS[column] for column in VARIANT_FIELD_ORDER] + ["WebFlow Link"]
+        )
+        self.setColumnHidden(self._link_column, True)
+        self.cellClicked.connect(self._open_link)
         self.verticalHeader().setVisible(False)
         self.setAlternatingRowColors(True)
         self.setMinimumHeight(160)
@@ -65,9 +72,27 @@ class VariantTable(QTableWidget):
                     value = int(value)  # COM returns 159 as 159.0
                 item = QTableWidgetItem("" if value is None else str(value))
                 self.setItem(row, col + 1, item)
+            self._set_link_item(row, values.get("_webflow_link") or "")
         self.blockSignals(False)
         self._limits.apply()
         self._frozen.update_geometry()
+
+    def set_webflow_link_visible(self, visible: bool) -> None:
+        self.setColumnHidden(self._link_column, not visible)
+
+    def _set_link_item(self, row: int, link: str) -> None:
+        """The link column is read-only: it shows "WF<number>" and opens the job when clicked."""
+        item = QTableWidgetItem(webflow_link_text(link) or link)
+        item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+        item.setData(Qt.UserRole, link)
+        item.setToolTip(link)
+        self.setItem(row, self._link_column, item)
+
+    def _open_link(self, row: int, column: int) -> None:
+        item = self.item(row, column)
+        link = item.data(Qt.UserRole) if column == self._link_column and item else ""
+        if link:
+            QDesktopServices.openUrl(QUrl(link))
 
     def clear_rows(self) -> None:
         self._filter.reset()

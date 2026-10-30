@@ -13,6 +13,7 @@ from autohub.core.workers import TaskRunner
 from autohub.modules.home.banner import BannerLabel
 from autohub.modules.home.presenter import (
     LATEST_COUNT_CHOICES,
+    SHOW_WEBFLOW_LINK_KEY,
     LOAD_TEXT,
     MASTER_SHEET,
     NEW_VARIANT_TEXT,
@@ -34,6 +35,7 @@ class HomeWidget(QWidget):
     def __init__(self, service: VariantService, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
 
+        self._settings = settings
         self._banner = BannerLabel(HOME_BANNER_PATH)
         self._file_name_labels: dict[str, QLabel] = {}
         self._variant_table = VariantTable()
@@ -97,6 +99,7 @@ class HomeWidget(QWidget):
         )
         self._settings_btn.clicked.connect(self._open_settings)
         self._presenter.restore_saved_paths()
+        self._variant_table.set_webflow_link_visible(self._show_webflow_link())
 
     # -- HomeView ----------------------------------------------------------------------
 
@@ -112,9 +115,16 @@ class HomeWidget(QWidget):
         self._variant_table.populate(rows)
 
     def _open_settings(self) -> None:
-        dialog = HomeSettingsDialog(self._presenter.latest_count(), LATEST_COUNT_CHOICES, self)
+        dialog = HomeSettingsDialog(
+            self._presenter.latest_count(), LATEST_COUNT_CHOICES, self._show_webflow_link(), self
+        )
         if dialog.exec() == HomeSettingsDialog.Accepted:
+            self._settings.update(**{SHOW_WEBFLOW_LINK_KEY: dialog.show_webflow_link()})
+            self._variant_table.set_webflow_link_visible(dialog.show_webflow_link())
             self._presenter.set_latest_count(dialog.latest_count())
+
+    def _show_webflow_link(self) -> bool:
+        return bool(self._settings.load().get(SHOW_WEBFLOW_LINK_KEY, False))
 
     def read_rows(self) -> list[dict]:
         return self._variant_table.read()
