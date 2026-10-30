@@ -168,13 +168,16 @@ class WebFlow(webdriver.Edge):
             _logger.info("Job %s (%d/%d): filling variant %s", job_id, number, len(variants), variant["part_number"])
             if not run_step(_logger, f"Open job {job_id}", self.open_job, job_id):
                 raise RuntimeError(f"Could not open WebFlow job {job_id}.")
-            self._fill_job(variant)
+            warnings = self._fill_job(variant)
             _logger.info("Job %s saved for variant %s: %s", job_id, variant["part_number"], self.job_url(job_id))
-            results.append({
+            result = {
                 "PartNumber": variant["part_number"],
                 "JobId": job_id,
                 "Url": self.job_url(job_id),
-            })
+            }
+            if warnings:
+                result["Warnings"] = warnings
+            results.append(result)
 
         _logger.info("WebFlow creation finished: %d job(s); closing the browser", len(results))
         self.quit()  # only once every job is filled; quitting earlier broke the 2nd job onwards
@@ -183,6 +186,7 @@ class WebFlow(webdriver.Edge):
     def _fill_job(self, variant: dict):
         part_number = variant["part_number"]
         general = self.body.tab.generaltab
+        general.skipped_fields.clear()
         if not run_step(_logger, f"[{part_number}] Select the General tab", general.select_general_tab):
             raise RuntimeError("Could not select the General tab.")
 
@@ -232,3 +236,4 @@ class WebFlow(webdriver.Edge):
         failed = run_steps(_logger, [(f"[{part_number}] {step[0]}", *step[1:]) for step in steps])
         if failed:
             raise RuntimeError(f"Could not fill all values for {part_number}. Failed: {'; '.join(failed)}")
+        return list(general.skipped_fields)

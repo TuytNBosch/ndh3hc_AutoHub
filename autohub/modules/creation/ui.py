@@ -123,7 +123,18 @@ class CreationWidget(QWidget):
         self._checklist.set_links({item["PartNumber"]: item["Url"] for item in results if item.get("Url")})
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
-        message = f"Created and filled {len(results)} WebFlow job(s).\n{summary}"
+        warnings = [
+            f"{item['PartNumber']}: {warning}"
+            for item in results
+            for warning in item.get("Warnings", [])
+        ]
+        if warnings:
+            message = (
+                f"Created {len(results)} WebFlow job(s), but some requested values could not be changed:\n"
+                f"{summary}\n\n" + "\n".join(warnings)
+            )
+        else:
+            message = f"Created and filled {len(results)} WebFlow job(s).\n{summary}"
         link_error = next((item["LinkError"] for item in results if item.get("LinkError")), "")
         if link_error:
             message += f"\n\nThe links were not written to the Master Sheet: {link_error}"

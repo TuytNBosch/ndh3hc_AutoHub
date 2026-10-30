@@ -1,3 +1,4 @@
+import logging
 import time
 
 
@@ -11,10 +12,70 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 
+_logger = logging.getLogger(__name__)
+
+
+def _checkbox_value(checkbox):
+    """Return a checkbox's current value, including its indeterminate state."""
+    value = checkbox.get_attribute("aria-checked")
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    if value == "mixed":
+        return None
+
+    try:
+        checkbox.find_element(By.CSS_SELECTOR, 'checkicon[data-pc-section="checkIcon"]')
+        return True
+    except Exception:
+        try:
+            checkbox.find_element(By.CSS_SELECTOR, 'timesicon[data-pc-section="uncheckIcon"]')
+            return False
+        except Exception:
+            return None
+
+
+def _checkbox_is_disabled(form_element, checkbox_element) -> bool:
+    """Recognize disabled states exposed by WebFlow's PrimeNG checkbox markup."""
+    try:
+        host = form_element.find_element(By.CSS_SELECTOR, "p-tristatecheckbox")
+    except Exception:
+        host = None
+
+    for element in (host, checkbox_element):
+        if element is None:
+            continue
+        if element.get_attribute("aria-disabled") == "true":
+            return True
+        if any(
+            element.get_attribute(attribute) == "true"
+            for attribute in ("ng-reflect-disabled", "ng-reflect-is-disabled")
+        ):
+            return True
+        classes = element.get_attribute("class") or ""
+        if any(name in classes.split() for name in ("bg-disabled", "p-checkbox-disabled", "p-disabled")):
+            return True
+
+    return False
+
+
+def _click_count(current: bool | None, target: bool | None) -> int:
+    """Number of tri-state cycles needed to reach a target value."""
+    if current is target:
+        return 0
+    if target is None:
+        return 2 if current is True else 1
+    if current is None:
+        return 1 if target else 2
+    return 1
+
+
 class GeneralTab:
 
     def __init__(self, driver: WebDriver):
         self.driver = driver
+        self.skipped_fields: list[str] = []
 
     def is_general_tab(self) -> bool:
         
@@ -298,283 +359,69 @@ class GeneralTab:
         except:
             return False
 
-    def select_safety_monitoring_sw(self, check: bool = None) -> bool:
-        self.expand_configurator_items()
+    def _select_tristate_checkbox(self, title_xpath: str, checkbox_css: str, check: bool | None, label: str) -> bool:
+        if not self.expand_configurator_items():
+            return False
         try:
             title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_SAFETY_MONITORING_SW_BY_RB_TITLE_XPATH))
+                EC.presence_of_element_located((By.XPATH, title_xpath))
             )
-
             form_element = title_element.find_element(By.XPATH, "..")
+            checkbox_element = form_element.find_element(By.CSS_SELECTOR, checkbox_css)
+            current = _checkbox_value(checkbox_element)
+            if current is check:
+                return True
 
-            checkbox_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_SAFETY_MONITORING_SW_BY_RB_CHECKBOX_CSS)
-            
-            ischecked = False
-            isunchecked = False
+            if _checkbox_is_disabled(form_element, checkbox_element):
+                warning = (
+                    f"{label}: WebFlow disabled the control (current value {current!r}, "
+                    f"requested {check!r}); the value was not changed."
+                )
+                self.skipped_fields.append(warning)
+                _logger.warning(warning)
+                return True
 
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'checkicon[data-pc-section="checkIcon"]')
-                ischecked = True
-            except:
-                pass
-
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'timesicon[data-pc-section="uncheckIcon"]')
-                isunchecked = True
-            except:
-                pass
-
-            if check is None:
-                if not ischecked and not isunchecked:
+            for _ in range(_click_count(current, check)):
+                checkbox_element.click()
+                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
+                checkbox_element = form_element.find_element(By.CSS_SELECTOR, checkbox_css)
+                current = _checkbox_value(checkbox_element)
+                if current is check:
                     return True
-                elif ischecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                elif isunchecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                else:
-                    return False
 
-            else:
-                if check: # True
-                    if ischecked:
-                        return True
-                    elif isunchecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-                else: # False
-                    if isunchecked:
-                        return True
-                    elif ischecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS) 
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            return True
-
-        except:
+            return current is check
+        except Exception:
+            _logger.exception("Could not set WebFlow checkbox %s", label)
             return False
 
-    def select_safety_calibration_response(self, check: bool = None) -> bool:
-        self.expand_configurator_items()
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_SAFETY_CALIBRATION_RESPONSIBILITY_TITLE_XPATH))
-            )
+    def select_safety_monitoring_sw(self, check: bool | None = None) -> bool:
+        return self._select_tristate_checkbox(
+            Constants.GENERAL_SAFETY_MONITORING_SW_BY_RB_TITLE_XPATH,
+            Constants.GENERAL_SAFETY_MONITORING_SW_BY_RB_CHECKBOX_CSS,
+            check,
+            "Safety Monitoring SW by RB",
+        )
 
-            form_element = title_element.find_element(By.XPATH, "..")
+    def select_safety_calibration_response(self, check: bool | None = None) -> bool:
+        return self._select_tristate_checkbox(
+            Constants.GENERAL_SAFETY_CALIBRATION_RESPONSIBILITY_TITLE_XPATH,
+            Constants.GENERAL_SAFETY_CALIBRATION_RESPONSIBILITY_CHECKBOX_CSS,
+            check,
+            "Safety Calibration responsibility",
+        )
 
-            checkbox_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_SAFETY_CALIBRATION_RESPONSIBILITY_CHECKBOX_CSS)
-            
-            ischecked = False
-            isunchecked = False
+    def select_bosch_cal_data_response(self, check: bool | None = None) -> bool:
+        return self._select_tristate_checkbox(
+            Constants.GENERAL_BOSCH_CAL_DATA_RESPONSIBILITY_TITLE_XPATH,
+            Constants.GENERAL_BOSCH_CAL_DATA_RESPONSIBILITY_CHECKBOX_CSS,
+            check,
+            "Bosch calibration data responsibility",
+        )
 
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'checkicon[data-pc-section="checkIcon"]')
-                ischecked = True
-            except:
-                pass
-
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'timesicon[data-pc-section="uncheckIcon"]')
-                isunchecked = True
-            except:
-                pass
-
-            if check is None:
-                if not ischecked and not isunchecked:
-                    return True
-                elif ischecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                elif isunchecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                else:
-                    return False
-
-            else:
-                if check: # True
-                    if ischecked:
-                        return True
-                    elif isunchecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-                else: # False
-                    if isunchecked:
-                        return True
-                    elif ischecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS) 
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            return True
-
-        except:
-            return False
-
-    def select_bosch_cal_data_response(self, check: bool = None) -> bool:
-        self.expand_configurator_items()
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_BOSCH_CAL_DATA_RESPONSIBILITY_TITLE_XPATH))
-            )
-
-            form_element = title_element.find_element(By.XPATH, "..")
-
-            checkbox_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_BOSCH_CAL_DATA_RESPONSIBILITY_CHECKBOX_CSS)
-            
-            ischecked = False
-            isunchecked = False
-
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'checkicon[data-pc-section="checkIcon"]')
-                ischecked = True
-            except:
-                pass
-
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'timesicon[data-pc-section="uncheckIcon"]')
-                isunchecked = True
-            except:
-                pass
-
-            if check is None:
-                if not ischecked and not isunchecked:
-                    return True
-                elif ischecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                elif isunchecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                else:
-                    return False
-
-            else:
-                if check: # True
-                    if ischecked:
-                        return True
-                    elif isunchecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-                else: # False
-                    if isunchecked:
-                        return True
-                    elif ischecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS) 
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            return True
-
-        except:
-            return False
-
-    def select_data_integration_response(self, check: bool = None) -> bool:
-        self.expand_configurator_items()
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_DATA_INTEGRATION_RESPONSIBILITY_TITLE_XPATH))
-            )
-
-            form_element = title_element.find_element(By.XPATH, "..")
-
-            checkbox_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_DATA_INTEGRATION_RESPONSIBILITY_CHECKBOX_CSS)
-            
-            ischecked = False
-            isunchecked = False
-
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'checkicon[data-pc-section="checkIcon"]')
-                ischecked = True
-            except:
-                pass
-
-            try:
-                _= checkbox_element.find_element(By.CSS_SELECTOR, 'timesicon[data-pc-section="uncheckIcon"]')
-                isunchecked = True
-            except:
-                pass
-
-            if check is None:
-                if not ischecked and not isunchecked:
-                    return True
-                elif ischecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                elif isunchecked:
-                    checkbox_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                else:
-                    return False
-
-            else:
-                if check: # True
-                    if ischecked:
-                        return True
-                    elif isunchecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-                else: # False
-                    if isunchecked:
-                        return True
-                    elif ischecked:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS) 
-                    else:
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                        checkbox_element.click()
-                        time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            return True
-
-        except:
-            return False
-
+    def select_data_integration_response(self, check: bool | None = None) -> bool:
+        return self._select_tristate_checkbox(
+            Constants.GENERAL_DATA_INTEGRATION_RESPONSIBILITY_TITLE_XPATH,
+            Constants.GENERAL_DATA_INTEGRATION_RESPONSIBILITY_CHECKBOX_CSS,
+            check,
+            "Data integration responsibility",
+        )
