@@ -42,11 +42,23 @@ class SettingsWidget(QWidget):
         self._apply = QPushButton("Apply")
         self._apply.setToolTip("Save and apply the settings above.")
         self._apply.clicked.connect(self._on_apply)
+        self._applied = self._current()
+        self._theme.currentIndexChanged.connect(self._refresh_apply)
+        self._logging.toggled.connect(self._refresh_apply)
+        self._refresh_apply()
         layout.addWidget(self._apply, alignment=Qt.AlignRight)
 
+    def _current(self) -> tuple[str, bool]:
+        return self._theme.currentData(), self._logging.isChecked()
+
+    def _refresh_apply(self, *_args) -> None:
+        """Apply is only available while the page differs from what is applied."""
+        self._apply.setEnabled(self._current() != self._applied)
+
     def _on_apply(self) -> None:
-        mode = self._theme.currentData()
-        enabled = self._logging.isChecked()
+        mode, enabled = self._current()
         self._settings.update(**{THEME_KEY: mode, LOGGING_ENABLED_KEY: enabled})
         set_logging_enabled(enabled)
         apply_theme(QApplication.instance(), mode)
+        self._applied = (mode, enabled)
+        self._refresh_apply()

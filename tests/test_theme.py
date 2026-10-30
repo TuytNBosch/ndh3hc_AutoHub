@@ -24,10 +24,16 @@ def test_settings_page_saves_and_applies_the_theme():
     app = QApplication.instance() or QApplication([])
     settings = MemorySettings()
     page = SettingsWidget(settings)
+    assert not page._apply.isEnabled()  # nothing changed yet
     page._theme.setCurrentIndex(page._theme.findData("light"))
+    assert page._apply.isEnabled()
     assert "theme" not in settings.load()  # nothing happens until Apply
     page._apply.click()
     assert settings.load()["theme"] == "light"
+    assert not page._apply.isEnabled()  # applied, so grey again
+    page._theme.setCurrentIndex(page._theme.findData("dark"))
+    page._theme.setCurrentIndex(page._theme.findData("light"))
+    assert not page._apply.isEnabled()  # back to the applied value
     assert app.palette().window().color().name() == LIGHT.window
     apply_theme(app, "dark")
 
