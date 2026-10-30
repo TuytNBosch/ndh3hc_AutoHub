@@ -1,12 +1,15 @@
 """WebFlow job creation with ownership of the browser session (no Qt)."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from contextlib import AbstractContextManager, nullcontext
 from typing import Callable, Protocol
 
 from autohub.core.ports import SheetSession, WebFlowLinkWriter
 from autohub.core.progress import ProgressCallback, no_progress
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -47,12 +50,20 @@ class WebFlowJobService:
         """Creates the jobs, then writes each job link into the Master Sheet (when a path is given).
 
         A failure to write the links is returned as "LinkError" on the results; the jobs exist either way."""
+        _logger.info("Creating WebFlow jobs for %s", [v["part_number"] for v in variants])
         results = self._create(variants, config, progress)
+        for item in results:
+            _logger.info("Job %s created for %s: %s", item.get("JobId"), item.get("PartNumber"), item.get("Url"))
         if master_sheet_path:
             error = self._write_links(master_sheet_path, results, progress)
             if error:
+                _logger.error("Writing the WebFlow links to the Master Sheet failed: %s", error)
                 for item in results:
                     item["LinkError"] = error
+            else:
+                _logger.info("Wrote %d WebFlow link(s) to the Master Sheet", len(results))
+        else:
+            _logger.info("No Master Sheet path is set, so the links were not written")
         return results
 
     def _write_links(self, path: str, results: list[dict], progress: ProgressCallback) -> str:
@@ -76,6 +87,7 @@ class WebFlowJobService:
 
     def _create(self, variants: list[dict], config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
         self.shutdown()
+        _logger.info("Starting the browser (base URL %s, tool version %s, routing %s)", config.base_url, config.tool_version, config.routing)
         progress("Starting the browser...")
         self._webflow = self._webflow_factory(driver_path=config.driver_path, base_url=config.base_url)
         return self._webflow.create_and_fill_jobs(
@@ -88,5 +100,5 @@ class WebFlowJobService:
         try:
             self._webflow.quit()
         except Exception:
-            pass
+            _logger.debug("The browser was already closed")
         self._webflow = None

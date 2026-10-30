@@ -1,7 +1,11 @@
+import logging
 import time
 
 
 from ... import Constants as Constants
+from ...step_log import run_step
+
+_logger = logging.getLogger(__name__)
 
 
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -52,30 +56,32 @@ class JobCreation:
                            working_mode: str = "Honda_PreRun",) -> bool:
         success = True
 
-        if ecu_generation:
-            success &= self.select_ecu_generation(ecu_generation)
-        if brand:
-            success &= self.select_brand(brand)
-        if ecu_type:
-            success &= self.select_ecu_type(ecu_type)
-        if customer_group:
-            success &= self.select_customer_group(customer_group)
-        if working_mode:
-            success &= self.select_working_mode(working_mode)
-        if tool_version:
-            success &= self.select_tool_version(tool_version)
-        if routing:
-            success &= self.select_routing(routing)
-        if number_of_jobs:
-            success &= self.select_number_of_jobs(number_of_jobs)
-    
-        if self.confirm_button() is not None:
-            self.confirm_button().click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
+        for label, value, select in (
+            ("ECU generation", ecu_generation, self.select_ecu_generation),
+            ("brand", brand, self.select_brand),
+            ("ECU type", ecu_type, self.select_ecu_type),
+            ("customer group", customer_group, self.select_customer_group),
+            ("working mode", working_mode, self.select_working_mode),
+            ("tool version", tool_version, self.select_tool_version),
+            ("routing", routing, self.select_routing),
+            ("number of jobs", number_of_jobs, self.select_number_of_jobs),
+        ):
+            if value:
+                success &= run_step(_logger, f"Job creation form: select {label} = {value}", select, value)
 
-        success &= WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
+        confirm = self.confirm_button()
+        if confirm is not None:
+            _logger.info("Step: confirm the job creation")
+            confirm.click()
+            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
+        else:
+            _logger.warning("The job creation confirm button was not found")
+
+        success &= run_step(
+            _logger, "Wait for WebFlow to finish creating the jobs",
+            WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until,
+            EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS)),
+        )
 
         if success:
             self.number_of_jobs = number_of_jobs
@@ -86,6 +92,9 @@ class JobCreation:
             for _ in range(number_of_jobs):
                 self.new_jobs_ids.append(str(current_id))
                 current_id += 1
+            _logger.info("WebFlow created job id(s): %s (url %s)", ", ".join(self.new_jobs_ids), current_url)
+        else:
+            _logger.error("WebFlow job creation did not succeed")
 
         return success
 
