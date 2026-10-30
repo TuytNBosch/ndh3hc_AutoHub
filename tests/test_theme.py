@@ -44,3 +44,25 @@ def test_pinned_module_sits_in_the_bottom_list_and_selection_is_exclusive():
     assert chosen == [2] and sidebar._list.currentRow() == -1
     sidebar._list.setCurrentRow(1)
     assert chosen == [2, 1] and sidebar._bottom_list.currentRow() == -1
+
+
+def test_settings_page_turns_logging_off_and_on_with_apply():
+    import logging
+
+    from autohub.core.logger import logging_enabled
+
+    QApplication.instance() or QApplication([])
+    settings = MemorySettings()
+    page = SettingsWidget(settings)
+    assert page._logging.isChecked() and logging_enabled(settings.load())
+    try:
+        page._logging.setChecked(False)
+        assert not logging.root.manager.disable  # not yet
+        page._apply.click()
+        assert settings.load()["logging_enabled"] is False
+        assert logging.root.manager.disable == logging.CRITICAL
+        page._logging.setChecked(True)
+        page._apply.click()
+        assert logging.root.manager.disable == logging.NOTSET
+    finally:
+        logging.disable(logging.NOTSET)
