@@ -16,6 +16,9 @@ class AutoHubModule(ABC):
     #: Short label shown in the sidebar.
     display_name: str = "Module"
 
+    #: Listed at the bottom of the sidebar (e.g. Settings) instead of in the main list.
+    pinned_bottom: bool = False
+
     #: Icon file name under autohub/resources/icons/ (None falls back to a generic glyph).
     icon_file: str | None = None
 

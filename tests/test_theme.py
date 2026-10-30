@@ -28,3 +28,17 @@ def test_settings_page_saves_and_applies_the_theme():
     assert settings.load()["theme"] == "light"
     assert app.palette().window().color().name() == LIGHT.window
     apply_theme(app, "dark")
+
+
+def test_pinned_module_sits_in_the_bottom_list_and_selection_is_exclusive():
+    from autohub.ui.sidebar import Sidebar
+
+    QApplication.instance() or QApplication([])
+    sidebar = Sidebar([(None, "Home"), (None, "Creation"), (None, "Settings")], pinned_bottom=[2])
+    chosen = []
+    sidebar.moduleSelected.connect(chosen.append)
+    assert sidebar._list.count() == 2 and sidebar._bottom_list.count() == 1
+    sidebar._bottom_list.setCurrentRow(0)
+    assert chosen == [2] and sidebar._list.currentRow() == -1
+    sidebar._list.setCurrentRow(1)
+    assert chosen == [2, 1] and sidebar._bottom_list.currentRow() == -1
