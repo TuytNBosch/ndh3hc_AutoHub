@@ -4,10 +4,12 @@ import time
 
 from ... import Constants as Constants
 from ...step_log import run_step
+from autohub.core.webflow_links import job_number
 
 _logger = logging.getLogger(__name__)
 
 
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -77,17 +79,13 @@ class JobCreation:
         else:
             _logger.warning("The job creation confirm button was not found")
 
-        success &= run_step(
-            _logger, "Wait for WebFlow to finish creating the jobs",
-            WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until,
-            EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS)),
-        )
+        success &= run_step(_logger, "Wait for WebFlow to finish creating the jobs", self._wait_until_jobs_created)
 
         if success:
             self.number_of_jobs = number_of_jobs
 
             current_url = self.driver.current_url
-            current_id = int(current_url.rstrip("/").split("/")[-1])
+            current_id = job_number(current_url)
 
             for _ in range(number_of_jobs):
                 self.new_jobs_ids.append(str(current_id))
@@ -97,6 +95,21 @@ class JobCreation:
             _logger.error("WebFlow job creation did not succeed")
 
         return success
+
+    def _wait_until_jobs_created(self) -> bool:
+        """Creating several jobs is slow: wait (up to WEBFLOW_TIMEOUT) for the spinner to go and the URL to end in the new job number."""
+        def done(driver) -> bool:
+            busy = driver.find_elements(By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS)
+            return not any(element.is_displayed() for element in busy) and job_number(driver.current_url) is not None
+
+        try:
+            WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(done)
+            return True
+        except TimeoutException:
+            _logger.error(
+                "WebFlow did not finish creating the jobs within %ds (page: %s)", Constants.WEBFLOW_TIMEOUT, self.driver.current_url
+            )
+            return False
 
     def get_options(self) -> dict | None:
 

@@ -35,3 +35,11 @@ def test_an_exception_is_logged_and_reraised(caplog):
     with pytest.raises(ValueError):
         run_step(LOG, "boom", boom)
     assert any(r.levelname == "ERROR" and "boom" in r.getMessage() for r in caplog.records)
+
+
+def test_job_number_reads_the_id_at_the_end_of_the_url():
+    from autohub.core.webflow_links import job_number
+
+    assert job_number("https://h:8881/app/ShowJob/16406") == 16406
+    assert job_number("https://h:8881/app/ShowJob/16406/") == 16406
+    assert job_number("https://h:8881/app/newJob") is None
