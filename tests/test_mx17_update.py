@@ -179,7 +179,7 @@ def test_new_info_sheet_never_renames_or_clears_the_main_sheet():
     book = master.workbook
     book.ActiveSheet = sheets[0]  # the main sheet stays active
 
-    def copy(After=None):
+    def copy(before=None, after=None):
         sheets.append(Sheet(f"{layout.INFO_TEMPLATE_SHEET} (2)", sheets[1].cells))
         book.Worksheets.Count = len(sheets)
 
