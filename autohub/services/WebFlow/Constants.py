@@ -3,10 +3,12 @@ WEBFLOW_TITLE               = "webFLOW"             # Title of the webFLOW page
 WEBFLOW_TIMEOUT             = 60                    # Timeout in seconds for webFLOW page to load
 WEBFLOW_REFRESH_INTERVAL    = 3                     # Interval in seconds to refresh the webFLOW page while waiting for it to load
 WEBFLOW_MAX_ATTEMPTS        = 5                     # Maximum number of attempts to check for webFLOW page load
+IMPLICIT_WAIT               = 1                     # Seconds Selenium waits for an element to show up when it is looked up
 WEBFLOW_TIMEOUT_CSS         = 1                     # Timeout in seconds for CSS-based webFLOW page checks
 
 WEBFLOW_LOADING_SCREEN_CLASS        = "loading-screen-icon"
 WEBFLOW_ACTIVITY_INDICATOR_CLASS    = "a-activity-indicator"
+TOAST_MESSAGE_CSS                   = 'div[role="alert"].p-toast-message'  # A toast message such as "Saved successfully"
 
 
 SIDEMENUBAR_TIMEOUT         = 60                    # Timeout in seconds for the side menu bar to load

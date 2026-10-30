@@ -3,6 +3,7 @@ import time
 
 
 from ... import Constants as Constants
+from ...dropdown import read_options
 from ...step_log import run_step
 from autohub.core.webflow_links import job_number
 
@@ -112,29 +113,7 @@ class JobCreation:
             return False
 
     def get_options(self) -> dict | None:
-
-        options = {}
-        has_options = False
-
-        try:
-            options_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.CLASS_NAME, Constants.BODY_JOBCREATION_OPTIONS_CLASS))
-            )
-
-            default_element = options_element.find_element(By.TAG_NAME, "ul")
-            item_id = default_element.get_attribute('id').replace('list','')
-
-            for i in range(Constants.BODY_JOBCREATION_OPTIONS_MAX_ITEMS):
-                item = WebDriverWait(self.driver, 1).until(EC.visibility_of_element_located((By.ID, item_id + str(i))))
-                item_text = item.get_attribute('aria-label')
-                options[item_text] = item
-
-                if has_options is False:
-                    has_options = True
-        except:
-            pass
-        
-        return options if has_options else None
+        return read_options(self.driver, Constants.BODY_JOBCREATION_OPTIONS_CLASS, Constants.BODY_JOBCREATION_OPTIONS_MAX_ITEMS)
 
     def select_ecu_generation(self, ecu_generation: str = "---") -> bool:
         try:
