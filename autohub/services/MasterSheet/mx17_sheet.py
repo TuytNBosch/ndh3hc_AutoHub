@@ -4,6 +4,7 @@ Same interface as `MasterSheet` (the MG1 layout, which is left as it is), so the
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import Any
 
@@ -11,12 +12,14 @@ from openpyxl.utils import column_index_from_string, get_column_letter
 
 from autohub.core.normalizers import needs_text_format, normalize_part_number
 from autohub.core.records import EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
+from autohub.services.common.file_access import write_block_reason
 from autohub.services.MasterSheet import mx17_layout as layout
 from autohub.services.MasterSheet.MasterSheet import MasterSheet
 from autohub.services.MasterSheet.variant_builder import compute_new_variant_rows
 from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
 
 _XL_CELL_TYPE_CONSTANTS = 2
+_XL_READ_WRITE = 2
 _LAST_MAIN_INDEX = column_index_from_string(layout.LAST_DATA_COLUMN)
 _LAST_INFO_INDEX = column_index_from_string(layout.INFO_LAST_COLUMN)
 
@@ -38,7 +41,18 @@ class Mx17MasterSheet(MasterSheet):
 
     def _require_writable(self) -> None:
         if self.workbook.ReadOnly:
-            raise PermissionError(f"Workbook is locked or read-only (close it in Excel first): {self.file_path}")
+            self._try_read_write()
+        if self.workbook.ReadOnly:
+            reason = write_block_reason(self.file_path) or "Excel opened it read-only (e.g. another Excel holds it)"
+            raise PermissionError(f"Workbook is locked or read-only: {reason}. {self.file_path}")
+
+    def _try_read_write(self) -> None:
+        """Asks Excel to reopen the workbook read-write; that fails (and it stays read-only) while it is locked."""
+        try:
+            self.workbook.ChangeFileAccess(Mode=_XL_READ_WRITE)
+            self.workbook = self.excel_app.Workbooks(os.path.basename(self.file_path))
+        except Exception:  # still locked; the caller reports why
+            pass
 
     # -- Reading ---------------------------------------------------------------------
 
