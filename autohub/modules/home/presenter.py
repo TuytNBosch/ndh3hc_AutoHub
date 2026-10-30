@@ -318,7 +318,8 @@ class HomePresenter:
         saved, rows, available = result
         count = len(saved)
         _logger.info("Updated %d variant(s) in the Master Sheet", count)
-        self._show_rows(rows)
+        self._loaded_rows = rows
+        self._show_rows(latest_rows(rows, self.latest_count()))
         message = f"Updated {count} variant{'s' if count != 1 else ''} in the Master Sheet."
         if deleted:
             message += f" Deleted {len(deleted)}."

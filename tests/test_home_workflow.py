@@ -399,3 +399,16 @@ def test_changing_latest_count_before_any_load_changes_nothing(tmp_path):
     presenter, view, _, _ = _presenter(tmp_path, build_service())
     presenter.set_latest_count(20)
     assert view.rows == []
+
+
+def test_update_reloads_only_the_latest_variants_from_the_setting(tmp_path):
+    master = FakeMasterSheet(rows=[{"_row": 11 + 3 * i} for i in range(20)], webflow=[])
+    settings = MemorySettings({"master_sheet_path": str(tmp_path / "master.xlsx"), "latest_variant_count": 5})
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), settings=settings)
+    view.rows = [{"_row": None, "J": "P"}]
+
+    presenter.update_master_sheet()
+
+    assert [row["_row"] for row in view.rows] == [56, 59, 62, 65, 68]
+    presenter.set_latest_count(10)
+    assert len(view.rows) == 10
