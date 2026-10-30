@@ -9,7 +9,8 @@ from autohub.config import LOGO_PATH
 from autohub.core.logger import setup_logging
 from autohub.ui.button_cursor import install_button_cursor
 from autohub.ui.main_window import MainWindow
-from autohub.ui.theme import apply_dark_theme, enable_dark_titlebar
+from autohub.core.settings import JsonSettingsStore
+from autohub.ui.theme import apply_theme, set_dark_titlebar
 
 
 def main() -> int:
@@ -18,10 +19,11 @@ def main() -> int:
     app = QApplication(sys.argv)
     if LOGO_PATH.exists():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
-    apply_dark_theme(app)
+    settings = JsonSettingsStore()
+    dark = apply_theme(app, settings.load().get("theme"))
     install_button_cursor(app)
-    window = MainWindow(build_modules())
-    enable_dark_titlebar(window)
+    window = MainWindow(build_modules(settings))
+    set_dark_titlebar(window, dark)
     window.show()
     return app.exec()
 

@@ -1,8 +1,8 @@
 """Collapsible sidebar: logo/title header + icon+label navigation list."""
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QFont, QIcon, QPixmap
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
+from PySide6.QtGui import QFont, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
 
 from autohub.config import APP_NAME, ICONS_DIR, LOGO_PATH
@@ -16,20 +16,6 @@ _ICON_SIZE = QSize(20, 20)
 _OPEN_GLYPH = "\uE711"
 _CLOSED_GLYPH = "\uE700"
 
-_STYLE = """
-#Sidebar { background-color: #24252b; }
-#sidebarTitle { color: #ffffff; font-size: 15px; font-weight: 600; }
-#toggleButton {
-    background: transparent; border: none; color: #c7c7d1;
-    padding: 0; margin: 0; border-radius: 4px;
-}
-#toggleButton:hover { color: #ffffff; background-color: #2c2d35; }
-#sidebarList { background-color: transparent; border: none; outline: none; font-size: 13px; color: #c7c7d1; }
-#sidebarList::item { height: 36px; border-radius: 6px; margin: 2px 8px; padding-left: 6px; }
-#sidebarList::item:selected { background-color: #35363f; color: #e2a63c; }
-#sidebarList::item:hover:!selected { background-color: #2c2d35; }
-"""
-
 
 class Sidebar(QWidget):
     """Sidebar navigation list that can collapse down to icon-only width."""
@@ -41,6 +27,7 @@ class Sidebar(QWidget):
         super().__init__()
         self.setObjectName("Sidebar")
         self._titles = [title for _, title in items]
+        self._icon_files = [icon_file for icon_file, _ in items]
         self._collapsed = False
 
         self._logo = QLabel()
@@ -81,16 +68,25 @@ class Sidebar(QWidget):
         layout.addLayout(self._header)
         layout.addWidget(self._list, stretch=1)
 
-        self.setStyleSheet(_STYLE)
         self.setFixedWidth(_EXPANDED_WIDTH)
 
         if items:
             self._list.setCurrentRow(0)
 
-    @staticmethod
-    def _resolve_icon(icon_file: str | None) -> QIcon:
+    def _resolve_icon(self, icon_file: str | None) -> QIcon:
         path = ICONS_DIR / icon_file if icon_file else None
-        return QIcon(str(path)) if path and path.exists() else QIcon()
+        if not path or not path.exists():
+            return QIcon()
+        image = QImage(str(path))
+        if self.palette().window().color().lightness() > 128:
+            image.invertPixels(QImage.InvertRgb)  # the icons are light; a light theme needs them dark
+        return QIcon(QPixmap.fromImage(image))
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        if event.type() == QEvent.PaletteChange and hasattr(self, "_list"):
+            for row, icon_file in enumerate(self._icon_files):
+                self._list.item(row).setIcon(self._resolve_icon(icon_file))
 
     def toggle_collapsed(self) -> None:
         self._collapsed = not self._collapsed

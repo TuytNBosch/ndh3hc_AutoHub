@@ -9,6 +9,7 @@ from autohub.modules.creation.module import CreationModule
 from autohub.modules.creation.service import WebFlowJobService
 from autohub.modules.home.module import HomeModule
 from autohub.modules.home.service import VariantService
+from autohub.modules.settings.module import SettingsModule
 from autohub.services.EcuInfoSheet.EcuInfoSheet import EcuInfoSheet
 from autohub.services.HWInfo.HWInfo import HWInfo
 from autohub.services.KickOff.KickOff import KickOffMeeting
@@ -35,4 +36,5 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
         HomeModule(build_variant_service, settings),
         CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session), settings),
         ComparisonModule(),
+        SettingsModule(settings),
     ]
