@@ -1,0 +1,551 @@
+{
+ "step": "[37820-6WZ-M610-M6] General: Import software part number from pool",
+ "navigated": false,
+ "dropped": 0,
+ "events": [
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_426_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "PVER Archiving Status"
+   },
+   "t": 45870,
+   "type": "added"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": null,
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": "pn_id_426_tooltip",
+   "old": null,
+   "t": 45870,
+   "target": "div#10010 > div:nth-of-type(1)",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content; pointer-events: none;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "p-tooltip p-component p-tooltip-bottom",
+   "old": null,
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px; top: -999px;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: -999px;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0;",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0.004; z-index: ",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0; z-index: 1102",
+   "t": 45870,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0.004;",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 71.5px; top: 538.312px; opacity: 0.004; z-index: ",
+   "t": 45884,
+   "target": "div#pn_id_426_tooltip",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_426_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "PVER Archiving Status"
+   },
+   "t": 45884,
+   "type": "removed"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": null,
+   "old": "pn_id_426_tooltip",
+   "t": 45884,
+   "target": "div#10010 > div:nth-of-type(1)",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_429_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Link to e.g. ARC, E-CR, RAS"
+   },
+   "t": 45885,
+   "type": "added"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": null,
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": "pn_id_429_tooltip",
+   "old": null,
+   "t": 45885,
+   "target": "div#2353 > div:nth-of-type(2)",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "p-tooltip p-component p-tooltip-bottom",
+   "old": null,
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px; top: -999px;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: -999px;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0;",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0.004; z-inde",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0; z-index: 1",
+   "t": 45885,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0.004;",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 239.625px; top: 576.312px; opacity: 0.004; z-inde",
+   "t": 45901,
+   "target": "div#pn_id_429_tooltip",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_429_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Link to e.g. ARC, E-CR, RAS"
+   },
+   "t": 45901,
+   "type": "removed"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": null,
+   "old": "pn_id_429_tooltip",
+   "t": 45901,
+   "target": "div#2353 > div:nth-of-type(2)",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_433_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Link to e.g. SuperOPL, in case of no seperate tracking. 'Tracking via webFLOW on"
+   },
+   "t": 45901,
+   "type": "added"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": null,
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": "pn_id_433_tooltip",
+   "old": null,
+   "t": 45901,
+   "target": "div#2355 > div:nth-of-type(2)",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "p-tooltip p-component p-tooltip-bottom",
+   "old": null,
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px; top: -999px;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: -999px;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0;",
+   "t": 45901,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0.004; z-inde",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0; z-index: 1",
+   "t": 45902,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0.004;",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 119.625px; top: 616.312px; opacity: 0.004; z-inde",
+   "t": 45917,
+   "target": "div#pn_id_433_tooltip",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_433_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Link to e.g. SuperOPL, in case of no seperate tracking. 'Tracking via webFLOW on"
+   },
+   "t": 45917,
+   "type": "removed"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": null,
+   "old": "pn_id_433_tooltip",
+   "t": 45917,
+   "target": "div#2355 > div:nth-of-type(2)",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_434_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Predecessor job ID"
+   },
+   "t": 45936,
+   "type": "added"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": null,
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": "pn_id_434_tooltip",
+   "old": null,
+   "t": 45936,
+   "target": "div#2416 > div:nth-of-type(1)",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content; pointer-events: none;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "class",
+   "new": "p-tooltip p-component p-tooltip-bottom",
+   "old": null,
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: -999px; top: -999px;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: -999px;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0;",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0.004; z-index:",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0; z-index: 110",
+   "t": 45936,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "attr": "style",
+   "new": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0.004;",
+   "old": "display: inline-block; width: fit-content; pointer-events: none; left: 472.5px; top: 667.312px; opacity: 0.004; z-index:",
+   "t": 45950,
+   "target": "div#pn_id_434_tooltip",
+   "type": "attr"
+  },
+  {
+   "in": "html > body",
+   "node": {
+    "class": "p-tooltip p-component p-tooltip-bottom",
+    "id": "pn_id_434_tooltip",
+    "label": null,
+    "tag": "div",
+    "text": "Predecessor job ID"
+   },
+   "t": 45950,
+   "type": "removed"
+  },
+  {
+   "attr": "aria-describedby",
+   "new": null,
+   "old": "pn_id_434_tooltip",
+   "t": 45950,
+   "target": "div#2416 > div:nth-of-type(1)",
+   "type": "attr"
+  }
+ ]
+}
