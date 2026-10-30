@@ -33,6 +33,6 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
     settings = settings or JsonSettingsStore()
     return [
         HomeModule(build_variant_service, settings),
-        CreationModule(lambda: WebFlowJobService(WebFlow), settings),
+        CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session), settings),
         ComparisonModule(),
     ]

@@ -36,6 +36,15 @@ class PartNumberDeleter(Protocol):
     def delete_variants_by_part_number(self, part_numbers: list[str], save: bool = True) -> int: ...
 
 
+@runtime_checkable
+class WebFlowLinkWriter(Protocol):
+    """A sheet with a column for the WebFlow job link of each variant."""
+
+    def write_webflow_links(self, links: dict[str, str], save: bool = True) -> int:
+        """Part number -> job link; returns how many variants got their link."""
+        ...
+
+
 class NewVariantSource(Protocol):
     def compute_new_variants(
         self, system_info: SystemMatrixData,

@@ -67,6 +67,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Selenium (Edge) opens the WebFlow dashboard and creates one job per selected variant.
   - It then fills the General, ECU and Customer tabs and saves each job.
   - A progress window (same as Home) shows each step: starting the browser, opening the dashboard, creating the jobs and filling every job; it ends with the job IDs or the error.
+  - After the jobs are created, each job link is shown next to its variant in the list and written to the Master Sheet column I ("Webflow No. with Link", MG1 layout) of that variant's request row. The links are read back when the variants are loaded. The Mx17 layout has no such column, so the window says the links were not written there.
   - A summary of part number and job ID is shown on success.
   - The browser session is closed on error or app exit.
 

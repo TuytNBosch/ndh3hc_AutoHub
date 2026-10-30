@@ -101,3 +101,42 @@ def test_create_jobs_reports_progress_and_forwards_it():
     config = WebFlowConfig(driver_path="", base_url="u", tool_version="t", routing="r")
     service.create_jobs([{"part_number": "P1"}], config, seen.append)
     assert seen == ["Starting the browser..."]
+
+
+class _LinkSheet:
+    def __init__(self, path):
+        self.written = None
+        self.closed = False
+
+    def open(self):
+        pass
+
+    def close(self):
+        self.closed = True
+
+    def write_webflow_links(self, links, save=True):
+        _LinkSheet.last = links
+        return len(links)
+
+
+class _FlowWithUrl(FakeWebFlow):
+    def create_and_fill_jobs(self, variants, tool_version, routing, progress=None):
+        return [{"PartNumber": v["part_number"], "JobId": "7", "Url": "http://x/app/ShowJob/7"} for v in variants]
+
+
+def test_create_jobs_writes_links_to_the_master_sheet():
+    service = WebFlowJobService(_FlowWithUrl, _LinkSheet)
+    config = WebFlowConfig(driver_path="", base_url="u", tool_version="t", routing="r")
+    results = service.create_jobs([{"part_number": "P1"}], config, master_sheet_path="m.xlsx")
+    assert _LinkSheet.last == {"P1": "http://x/app/ShowJob/7"}
+    assert "LinkError" not in results[0]
+
+
+def test_create_jobs_reports_a_sheet_without_a_link_column():
+    class NoLinks(_LinkSheet):
+        write_webflow_links = None
+
+    service = WebFlowJobService(_FlowWithUrl, NoLinks)
+    config = WebFlowConfig(driver_path="", base_url="u", tool_version="t", routing="r")
+    results = service.create_jobs([{"part_number": "P1"}], config, master_sheet_path="m.xlsx")
+    assert "no WebFlow link column" in results[0]["LinkError"]
