@@ -229,3 +229,4 @@ dist/
 *.log
 .vscode/
 output/
+logs/webflow_trace/
