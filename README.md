@@ -54,7 +54,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Right-click a column header to filter it by text and/or values (marked with ▼); filters combine across columns. Hidden rows are still considered on update.
   - "Update Master Sheet" is enabled only after a user edit.
 - **Update Master Sheet**:
-  - Existing rows are updated only when their Part Number changed; the confirmation lists each old-to-new Part Number. Edits to other fields alone are not saved.
+  - Only changed existing rows are updated; the confirmation lists each affected Part Number. Changes to any field in a row qualify.
   - New rows are inserted from the variant template and stamped with the created date.
   - The table is then reloaded from the sheet.
 - After Create/Load/Update, the WebFlow-ready variant list is sent to the Creation page.

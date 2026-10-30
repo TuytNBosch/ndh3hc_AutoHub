@@ -103,11 +103,12 @@ def test_update_saves_the_table_rows_and_publishes_webflow_variants(tmp_path):
     assert "Updated 1 variant" in dialogs.infos[-1][1]
 
 
-def test_update_saves_only_rows_with_changed_part_numbers_and_lists_them(tmp_path):
+def test_update_saves_only_changed_rows_and_lists_their_part_numbers(tmp_path):
     master = FakeMasterSheet(
         rows=[
             {"_row": 11, "J": "P1", "A": "before"},
             {"_row": 14, "J": "P2", "A": "before"},
+            {"_row": 17, "J": "P3", "A": "unchanged"},
         ],
         webflow=[],
     )
@@ -115,24 +116,26 @@ def test_update_saves_only_rows_with_changed_part_numbers_and_lists_them(tmp_pat
     presenter.load_variants()
     view.rows = [
         {"_row": 11, "J": "P1-new", "A": "after"},
-        {"_row": 14, "J": "P2", "A": "not saved"},
-        {"_row": None, "J": "P3", "A": "new"},
+        {"_row": 14, "J": "P2", "A": "changed without changing part number"},
+        {"_row": 17, "J": "P3", "A": "unchanged"},
+        {"_row": None, "J": "P4", "A": "new"},
     ]
 
     presenter.update_master_sheet()
 
     assert master.saved == [
         {"_row": 11, "J": "P1-new", "A": "after"},
-        {"_row": None, "J": "P3", "A": "new"},
+        {"_row": 14, "J": "P2", "A": "changed without changing part number"},
+        {"_row": None, "J": "P4", "A": "new"},
     ]
     confirmation = dialogs.confirmed[-1][1]
-    assert "P1 -> P1-new" in confirmation
-    assert "New variants to add:\n- P3" in confirmation
-    assert "P2" not in confirmation
-    assert "Other field changes" in confirmation
+    assert "Changed variants:\n- P1-new\n- P2" in confirmation
+    assert "New variants to add:\n- P4" in confirmation
+    assert "P3" not in confirmation
+    assert "Only changed existing rows will be updated." in confirmation
 
 
-def test_update_does_not_save_other_field_changes_without_part_number_changes(tmp_path):
+def test_update_saves_other_field_changes_even_when_part_number_is_unchanged(tmp_path):
     master = FakeMasterSheet(rows=[{"_row": 11, "J": "P", "A": "before"}])
     presenter, view, dialogs, _ = _presenter(tmp_path, build_service(master=master))
     presenter.load_variants()
@@ -140,11 +143,8 @@ def test_update_does_not_save_other_field_changes_without_part_number_changes(tm
 
     presenter.update_master_sheet()
 
-    assert master.saved is None
-    assert dialogs.infos[-1] == (
-        "Update variants",
-        "No existing variants have a changed Part Number. Other field changes were not saved.",
-    )
+    assert master.saved == [{"_row": 11, "J": "P", "A": "after"}]
+    assert "Changed variants:\n- P" in dialogs.confirmed[-1][1]
 
 
 def test_update_without_rows_does_nothing(tmp_path):

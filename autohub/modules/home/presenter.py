@@ -88,7 +88,7 @@ class HomePresenter:
         self._paths: dict[str, str] = {}
         self._edited = False  # the table holds changes that are not in the Master Sheet yet
         self._loaded_rows: list[dict] | None = None  # every variant of the last Load, before the "latest" limit
-        self._original_part_numbers: dict[int, str] = {}
+        self._original_rows: dict[int, dict[str, str]] = {}
         self._deleted_rows: list[int] = []  # Master Sheet rows of variants deleted here, removed on Update
         self._deleted_parts: dict[int, str] = {}  # the same variants' part numbers, by sheet row
 
@@ -151,8 +151,8 @@ class HomePresenter:
 
     def _show_rows(self, rows: list[dict]) -> None:
         self._view.show_rows(rows)
-        self._original_part_numbers = {
-            int(row["_row"]): _part_number_value(row.get("J"))
+        self._original_rows = {
+            int(row["_row"]): _row_values(row)
             for row in rows
             if row.get("_row") is not None
         }
@@ -189,14 +189,14 @@ class HomePresenter:
             return len(rows)
         existing = self._view.read_rows()
         unsaved, deleted, deleted_parts = self._edited, self._deleted_rows, self._deleted_parts
-        original_part_numbers = dict(self._original_part_numbers)
+        original_rows = dict(self._original_rows)
         known = {_row_identity(row) for row in existing}
         added = [row for row in rows if _row_identity(row) not in known]
         self._show_rows(existing + added)
-        self._original_part_numbers.update(original_part_numbers)
-        self._original_part_numbers.update(
+        self._original_rows.update(original_rows)
+        self._original_rows.update(
             {
-                int(row["_row"]): _part_number_value(row.get("J"))
+                int(row["_row"]): _row_values(row)
                 for row in added
                 if row.get("_row") is not None
             }
@@ -250,7 +250,7 @@ class HomePresenter:
     def _clear_rows(self) -> None:
         self._loaded_rows = None
         self._edited = False
-        self._original_part_numbers = {}
+        self._original_rows = {}
         self._deleted_rows = []
         self._deleted_parts = {}
         self._view.clear_rows()
@@ -334,20 +334,19 @@ class HomePresenter:
             for row in variants
             if row.get("_row") is None
             or (
-                int(row["_row"]) in self._original_part_numbers
-                and _part_number_value(row.get("J")) != self._original_part_numbers[int(row["_row"])]
+                int(row["_row"]) in self._original_rows
+                and _row_values(row) != self._original_rows[int(row["_row"])]
             )
         ]
         if not variants_to_save and not deleted:
             self._dialogs.info(
                 "Update variants",
-                "No existing variants have a changed Part Number. Other field changes were not saved.",
+                "No changed variants to update.",
             )
             return
 
-        changed_parts = [
-            f"- {self._original_part_numbers[int(row['_row'])] or '(blank)'} -> "
-            f"{_part_number_value(row.get('J')) or '(blank)'}"
+        changed_rows = [
+            f"- {_part_number_value(row.get('J')) or '(blank)'}"
             for row in variants_to_save
             if row.get("_row") is not None
         ]
@@ -358,11 +357,10 @@ class HomePresenter:
         ]
         text = (
             f"Are you sure you want to update the Master Sheet with {len(variants_to_save)} variant(s)?"
-            "\n\nOnly existing rows with a changed Part Number will be updated. Other field changes "
-            "on rows without a Part Number change will not be saved."
+            "\n\nOnly changed existing rows will be updated."
         )
-        if changed_parts:
-            text += "\n\nPart Number changes:\n" + "\n".join(changed_parts)
+        if changed_rows:
+            text += "\n\nChanged variants:\n" + "\n".join(changed_rows)
         if new_parts:
             text += "\n\nNew variants to add:\n" + "\n".join(new_parts)
         if deleted:
@@ -459,4 +457,16 @@ def _row_identity(row: dict) -> tuple:
 
 
 def _part_number_value(value) -> str:
-    return "" if value is None else str(value)
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value)
+
+
+def _row_values(row: dict) -> dict[str, str]:
+    return {
+        key: _part_number_value(value)
+        for key, value in row.items()
+        if not key.startswith("_")
+    }
