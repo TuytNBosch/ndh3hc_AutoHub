@@ -71,3 +71,18 @@ def test_run_step_reports_to_the_observer_and_it_can_be_removed(tmp_path):
         step_log.set_step_observer(None)
     step_log.run_step(log, "d", lambda: True)
     assert seen == [("a", True, ""), ("b", False, ""), ("c", False, "raised an exception")]
+
+
+def test_an_observer_without_on_step_is_rejected_at_once():
+    import pytest
+
+    with pytest.raises(TypeError):
+        step_log.set_step_observer(lambda *args: None)  # a bare function, as WebFlow once passed
+    step_log.set_step_observer(None)
+
+
+def test_webflow_hands_the_recorder_object_to_the_observer():
+    from pathlib import Path
+
+    source = Path(step_log.__file__).with_name("WebFlow.py").read_text(encoding="utf-8")
+    assert "set_step_observer(StepTrace(self, Path(trace_dir)))" in source

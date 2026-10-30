@@ -61,7 +61,7 @@ class WebFlow(webdriver.Edge):
         self.body = Body(self)
         _logger.info("Edge browser started")
         if trace_dir:  # record the page after every step
-            set_step_observer(StepTrace(self, Path(trace_dir)).on_step)
+            set_step_observer(StepTrace(self, Path(trace_dir)))
 
     def quit(self):
         set_step_observer(None)

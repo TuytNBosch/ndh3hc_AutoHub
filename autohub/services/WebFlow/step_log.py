@@ -18,6 +18,8 @@ _observer: StepObserver | None = None
 
 def set_step_observer(observer: StepObserver | None) -> None:
     """Every finished step is reported to the observer (e.g. a page recorder); None switches it off."""
+    if observer is not None and not callable(getattr(observer, "on_step", None)):
+        raise TypeError("a step observer needs an on_step(name, ok, seconds, error) method")
     global _observer
     _observer = observer
 
