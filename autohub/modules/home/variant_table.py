@@ -86,6 +86,17 @@ class VariantTable(QTableWidget):
             self._limits.apply()
             self.setColumnWidth(self._link_column, max(self.columnWidth(self._link_column), 110))
 
+    def set_webflow_links(self, links: dict[str, str]) -> None:
+        part_column = 1 + VARIANT_FIELD_ORDER.index("J")
+        blocked = self.blockSignals(True)
+        try:
+            for row in range(self.rowCount()):
+                part = self.item(row, part_column)
+                if part is not None and part.text() in links:
+                    self._set_link_item(row, links[part.text()])
+        finally:
+            self.blockSignals(blocked)
+
     def _set_link_item(self, row: int, link: str) -> None:
         """The link column is read-only: it shows "WF<number>" and opens the job when clicked."""
         item = QTableWidgetItem(webflow_link_text(link) or link)
@@ -138,6 +149,9 @@ class VariantTable(QTableWidget):
             for col, column_name in enumerate(VARIANT_FIELD_ORDER):
                 item = self.item(row, col + 1)
                 values[column_name] = item.text() if item else ""
+            link_item = self.item(row, self._link_column)
+            if link_item is not None and link_item.data(Qt.UserRole):
+                values["_webflow_link"] = link_item.data(Qt.UserRole)
             variants.append(values)
         return variants
 

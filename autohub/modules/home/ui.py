@@ -115,6 +115,10 @@ class HomeWidget(QWidget):
     def show_rows(self, rows: list[dict]) -> None:
         self._variant_table.populate(rows)
 
+    def set_webflow_links(self, links: dict[str, str]) -> None:
+        self._variant_table.set_webflow_links(links)
+        self._presenter.set_webflow_links(links)
+
     def _open_settings(self) -> None:
         dialog = HomeSettingsDialog(
             self._presenter.latest_count(), LATEST_COUNT_CHOICES, self._show_webflow_link(), self

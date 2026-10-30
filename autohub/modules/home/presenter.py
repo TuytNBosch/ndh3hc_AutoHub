@@ -142,6 +142,12 @@ class HomePresenter:
 
     # -- Table -----------------------------------------------------------------------
 
+    def set_webflow_links(self, links: dict[str, str]) -> None:
+        if self._loaded_rows is not None:
+            for row in self._loaded_rows:
+                if row.get("J") in links:
+                    row["_webflow_link"] = links[row["J"]]
+
     def _show_rows(self, rows: list[dict]) -> None:
         self._view.show_rows(rows)
         self._edited = False

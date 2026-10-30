@@ -23,6 +23,18 @@ class VariantSink(Protocol):
 
 
 @runtime_checkable
+class WebFlowLinkSource(Protocol):
+    """Page publishing part-number-to-job-link updates through a Qt ``Signal(dict)``."""
+
+    webflowLinksUpdated: Any
+
+
+@runtime_checkable
+class WebFlowLinkSink(Protocol):
+    def set_webflow_links(self, links: dict[str, str]) -> None: ...
+
+
+@runtime_checkable
 class Closable(Protocol):
     """Page that must release external resources when the app closes."""
 
