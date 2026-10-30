@@ -27,6 +27,7 @@ SIDEMENUBAR_JOBCREATION_NEWJOBXML_BTN_CSS = 'li[aria-label="New Job from XML"]' 
 
 
 BODY_TIMEOUT                    = 10                    # Timeout in seconds for the body to load completely
+SAVE_TIMEOUT                    = 30                    # Save confirmation may take longer than a regular page action
 BODY_JOBCREATION_PAGE_CLASS     = "create-job-title"  # Class name of the body job creation page
 BODY_JOBCREATION_BTN_CSS        = 'div[id*="_id_"]'              # CSS selector for the buttons in the body job creation form
 BODY_JOBCREATION_CONFIRM_BTN_CSS   = 'button[label="Confirm"]'   # CSS selector for the "Confirm" button in the body job creation form

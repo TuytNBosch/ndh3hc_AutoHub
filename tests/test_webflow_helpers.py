@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock
+from selenium.common.exceptions import TimeoutException
 
 from autohub.services.WebFlow.Body.Tab import GeneralTab as general_tab_module
 from autohub.services.WebFlow.Body.Tab.GeneralTab import (
@@ -7,6 +8,8 @@ from autohub.services.WebFlow.Body.Tab.GeneralTab import (
     _checkbox_value,
     _click_count,
 )
+from autohub.services.WebFlow.Body import Actions as actions_module
+from autohub.services.WebFlow.Body.Actions import Actions
 from autohub.services.WebFlow.dropdown import read_options
 from autohub.services.WebFlow.toast import toast_severity
 
@@ -15,6 +18,49 @@ def test_toast_severity_from_the_primeng_class():
     assert toast_severity("ng-trigger p-toast-message-success p-toast-message") == "success"
     assert toast_severity("p-toast-message-error p-toast-message") == "error"
     assert toast_severity("p-toast-message") is None and toast_severity(None) is None
+
+
+@pytest.mark.parametrize(
+    ("toast_class", "toast_text", "expected"),
+    [
+        ("p-toast-message-success", "Success Message Saved successfully", True),
+        ("p-toast-message-error", "Error Message Save failed", False),
+        ("p-toast-message-success", "Success Message Unexpected confirmation", False),
+        (None, "", False),
+    ],
+)
+def test_save_waits_for_confirmation_without_waiting_for_activity_indicator(
+    monkeypatch, toast_class, toast_text, expected
+):
+    toast = Mock()
+    toast.get_attribute.return_value = toast_class
+    toast.text = toast_text
+    driver = Mock()
+    driver.find_elements.return_value = [toast]
+    button = Mock()
+    button.get_attribute.return_value = ""
+    actions = Actions(driver)
+    actions.get_button_by_text = Mock(return_value=button)
+    waits = []
+
+    class Wait:
+        def __init__(self, _driver, timeout):
+            waits.append(timeout)
+
+        def until(self, condition):
+            result = condition(driver)
+            if not result:
+                raise TimeoutException()
+            return result
+
+    monkeypatch.setattr(actions_module, "WebDriverWait", Wait)
+    monkeypatch.setattr(
+        actions_module, "wait_until_idle", Mock(side_effect=AssertionError("unexpected idle wait"))
+    )
+
+    assert actions.save() is expected
+    button.click.assert_called_once_with()
+    assert waits == [actions_module.Constants.SAVE_TIMEOUT]
 
 
 class El:
