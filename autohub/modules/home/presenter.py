@@ -85,6 +85,7 @@ class HomePresenter:
         self._start_task = start_task
         self._paths: dict[str, str] = {}
         self._edited = False  # the table holds changes that are not in the Master Sheet yet
+        self._loaded_rows: list[dict] | None = None  # every variant of the last Load, before the "latest" limit
         self._deleted_rows: list[int] = []  # Master Sheet rows of variants deleted here, removed on Update
 
     # -- File paths ------------------------------------------------------------------
@@ -100,7 +101,19 @@ class HomePresenter:
         return normalize_latest_count(self._settings.load().get(LATEST_COUNT_KEY, 0))
 
     def set_latest_count(self, count: int) -> None:
-        self._settings.update(**{LATEST_COUNT_KEY: normalize_latest_count(count)})
+        """Saves the limit and, when variants were loaded, shows the table again with the new limit."""
+        count = normalize_latest_count(count)
+        changed = count != self.latest_count()
+        self._settings.update(**{LATEST_COUNT_KEY: count})
+        if not changed or self._loaded_rows is None:
+            return
+        if self._edited and not self._dialogs.confirm(
+            "Latest variants",
+            "The table has changes that are not in the Master Sheet yet. Showing the new number of latest "
+            "variants discards them.\n\nContinue?",
+        ):
+            return
+        self._show_rows(latest_rows(self._loaded_rows, count))
 
     def browse_master_sheet(self) -> None:
         self._pick(MASTER_SHEET, "Select file", _EXCEL_FILTER)
@@ -209,6 +222,7 @@ class HomePresenter:
         self.on_table_edited()
 
     def _clear_rows(self) -> None:
+        self._loaded_rows = None
         self._edited = False
         self._deleted_rows = []
         self._view.clear_rows()
@@ -337,6 +351,7 @@ class HomePresenter:
     def _finish_load(self, result, window: ProgressWindow, keep_rows: bool) -> None:
         rows, available = result
         self._view.set_load_state(True, LOAD_TEXT)
+        self._loaded_rows = rows
         shown = latest_rows(rows, self.latest_count())
         self._show_added_rows(shown, keep_rows)
         count, total = len(shown), len(rows)
