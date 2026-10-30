@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -20,6 +21,9 @@ from autohub.ui.link_label import LinkLabel
 
 _ALL_EVENTS = "All events"
 _NO_EVENT = NO_EVENT
+_HEADERS = (
+    "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
+)
 
 
 class VariantChecklist(QWidget):
@@ -52,10 +56,10 @@ class VariantChecklist(QWidget):
         toolbar.addWidget(select_all_btn)
         toolbar.addWidget(clear_btn)
 
-        self._list_layout = QVBoxLayout()
+        self._list_layout = QGridLayout()
         self._list_layout.setAlignment(Qt.AlignTop)
         self._empty_label = QLabel("Load variants from a Master Sheet on Home, or create them from all three files.")
-        self._list_layout.addWidget(self._empty_label)
+        self._list_layout.addWidget(self._empty_label, 1, 0, 1, len(_HEADERS))
 
         container = QWidget()
         container.setLayout(self._list_layout)
@@ -118,17 +122,38 @@ class VariantChecklist(QWidget):
         else:
             filtered = [v for v in self._variants if (v.get("event") or _NO_EVENT) == event_filter]
 
+        for column, title in enumerate(_HEADERS):
+            header = QLabel(title)
+            font = header.font()
+            font.setBold(True)
+            header.setFont(font)
+            self._list_layout.addWidget(header, 0, column)
+
         if not filtered:
             self._empty_label.show()
-            self._list_layout.addWidget(self._empty_label)
+            self._list_layout.addWidget(self._empty_label, 1, 0, 1, len(_HEADERS))
         else:
-            for variant in filtered:
+            for row, variant in enumerate(filtered, start=1):
                 part_number = variant["part_number"]
-                checkbox = QCheckBox(f"{part_number}    {variant['ecu_type']}")
+                checkbox = QCheckBox(part_number)
                 checkbox.setChecked(part_number in self._selected)
                 checkbox.toggled.connect(lambda checked, pn=part_number: self._on_toggled(pn, checked))
                 self._checkboxes[part_number] = checkbox
-                self._list_layout.addWidget(self._variant_row(checkbox, self._links.get(part_number, "")))
+                self._list_layout.addWidget(checkbox, row, 0)
+                ecu = variant.get("ecu", {})
+                for column, value in enumerate((
+                    ecu.get("family_name") or variant["ecu_type"],
+                    ecu.get("project_version", ""),
+                    ecu.get("program_version", ""),
+                ), start=1):
+                    label = QLabel(str(value or ""))
+                    label.setTextFormat(Qt.PlainText)
+                    self._list_layout.addWidget(label, row, column)
+                link = self._links.get(part_number, "")
+                if link:
+                    self._list_layout.addWidget(
+                        LinkLabel(webflow_link_text(link) or link, link), row, 4
+                    )
 
         self._count_label.setText(f"Variants ({len(filtered)})")
 
@@ -136,18 +161,6 @@ class VariantChecklist(QWidget):
         """Shows the WebFlow job link of the variants that just got a job."""
         self._links.update(links)
         self._apply_filter()
-
-    @staticmethod
-    def _variant_row(checkbox: QCheckBox, link: str) -> QWidget:
-        row = QWidget()
-        layout = QHBoxLayout(row)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(checkbox)
-        layout.addStretch(1)
-        if link:
-            label = LinkLabel(webflow_link_text(link) or link, link)
-            layout.addWidget(label)
-        return row
 
     def _on_toggled(self, part_number: str, checked: bool) -> None:
         if checked:
