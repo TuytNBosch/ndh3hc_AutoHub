@@ -21,6 +21,7 @@ NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Ma
 
 # Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
 SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
+LATEST_COUNT_CHOICES = (5, 10, 20, 50, 100, 0)  # 0 = All
 LATEST_COUNT_KEY = "latest_variant_count"  # how many of the newest variants Load shows; 0 = all
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
@@ -354,10 +355,12 @@ class HomePresenter:
 
 
 def normalize_latest_count(value) -> int:
+    """A listed choice, else 0 (All)."""
     try:
-        return max(0, int(value))
+        count = int(value)
     except (TypeError, ValueError):
         return 0
+    return count if count in LATEST_COUNT_CHOICES else 0
 
 
 def latest_rows(rows: list[dict], count: int) -> list[dict]:
