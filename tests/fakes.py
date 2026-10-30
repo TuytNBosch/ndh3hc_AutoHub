@@ -25,7 +25,7 @@ class FakeWebFlow:
         self.quit_calls = 0
         FakeWebFlow.instances.append(self)
 
-    def create_and_fill_jobs(self, variants, tool_version, routing):
+    def create_and_fill_jobs(self, variants, tool_version, routing, progress=None):
         return [{"PartNumber": v["part_number"], "JobId": "1"} for v in variants]
 
     def quit(self):

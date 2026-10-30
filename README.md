@@ -66,6 +66,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Validation: at least one variant is selected, tool version and routing are filled, and all selected variants share the same ECU type.
   - Selenium (Edge) opens the WebFlow dashboard and creates one job per selected variant.
   - It then fills the General, ECU and Customer tabs and saves each job.
+  - A progress window (same as Home) shows each step: starting the browser, opening the dashboard, creating the jobs and filling every job; it ends with the job IDs or the error.
   - A summary of part number and job ID is shown on success.
   - The browser session is closed on error or app exit.
 

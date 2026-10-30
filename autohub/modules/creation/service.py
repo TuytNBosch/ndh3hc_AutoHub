@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
+from autohub.core.progress import ProgressCallback, no_progress
+
 
 @dataclass(frozen=True)
 class WebFlowConfig:
@@ -16,7 +18,7 @@ class WebFlowConfig:
 class WebFlowSession(Protocol):
     """The part of the WebFlow browser automation this service uses."""
 
-    def create_and_fill_jobs(self, variants: list, tool_version: str, routing: str) -> list: ...
+    def create_and_fill_jobs(self, variants: list, tool_version: str, routing: str, progress: ProgressCallback = no_progress) -> list: ...
 
     def quit(self) -> None: ...
 
@@ -26,10 +28,13 @@ class WebFlowJobService:
         self._webflow_factory = webflow_factory
         self._webflow: WebFlowSession | None = None
 
-    def create_jobs(self, variants: list[dict], config: WebFlowConfig) -> list[dict]:
+    def create_jobs(self, variants: list[dict], config: WebFlowConfig, progress: ProgressCallback = no_progress) -> list[dict]:
         self.shutdown()
+        progress("Starting the browser...")
         self._webflow = self._webflow_factory(driver_path=config.driver_path, base_url=config.base_url)
-        return self._webflow.create_and_fill_jobs(variants, tool_version=config.tool_version, routing=config.routing)
+        return self._webflow.create_and_fill_jobs(
+            variants, tool_version=config.tool_version, routing=config.routing, progress=progress
+        )
 
     def shutdown(self) -> None:
         if self._webflow is None:
