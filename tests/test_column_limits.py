@@ -82,3 +82,17 @@ def test_hidden_webflow_link_column_leaves_no_gap():
     assert header.visualIndex(link) == 2
     table.set_webflow_link_visible(False)
     assert header.visualIndex(link) == link and table.columnWidth(link) == 0
+
+
+def test_hand_cursor_over_a_webflow_link_cell_only():
+    from PySide6.QtWidgets import QApplication
+
+    from autohub.modules.home.variant_table import VariantTable
+
+    QApplication.instance() or QApplication([])
+    table = VariantTable()
+    table.populate([{"_row": 1, "J": "P1", "_webflow_link": "https://h/app/ShowJob/1"}, {"_row": 2, "J": "P2"}])
+    link = table.columnCount() - 1
+    assert table._is_link_cell(table.model().index(0, link))
+    assert not table._is_link_cell(table.model().index(1, link))
+    assert not table._is_link_cell(table.model().index(0, 1))
