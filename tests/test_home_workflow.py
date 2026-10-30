@@ -362,3 +362,40 @@ def test_latest_count_is_saved_and_never_negative(tmp_path):
     assert presenter.latest_count() == 5
     presenter.set_latest_count(7)  # not one of the list box choices
     assert presenter.latest_count() == 0
+
+
+def _loaded(tmp_path, count, answer=True):
+    master = FakeMasterSheet(rows=[{"_row": 11 + 3 * i} for i in range(100)], webflow=[])
+    settings = MemorySettings({"master_sheet_path": str(tmp_path / "master.xlsx"), "latest_variant_count": count})
+    dialogs = FakeDialogs()
+    dialogs.confirm_answer = answer
+    presenter, view, dialogs, _ = _presenter(tmp_path, build_service(master=master), dialogs, settings=settings)
+    presenter.load_variants()
+    return presenter, view, dialogs
+
+
+def test_changing_latest_count_refreshes_the_table(tmp_path):
+    presenter, view, _ = _loaded(tmp_path, 5)
+    assert len(view.rows) == 5
+    presenter.set_latest_count(20)
+    assert len(view.rows) == 20 and view.rows[-1]["_row"] == 11 + 3 * 99
+    presenter.set_latest_count(50)
+    assert len(view.rows) == 50
+    presenter.set_latest_count(0)
+    assert len(view.rows) == 100
+
+
+def test_changing_latest_count_asks_before_discarding_changes(tmp_path):
+    presenter, view, dialogs = _loaded(tmp_path, 5, answer=False)
+    presenter.on_table_edited()
+    presenter.set_latest_count(20)
+    assert len(view.rows) == 5 and dialogs.confirmed[-1][0] == "Latest variants"
+    dialogs.confirm_answer = True
+    presenter.set_latest_count(50)
+    assert len(view.rows) == 50
+
+
+def test_changing_latest_count_before_any_load_changes_nothing(tmp_path):
+    presenter, view, _, _ = _presenter(tmp_path, build_service())
+    presenter.set_latest_count(20)
+    assert view.rows == []
