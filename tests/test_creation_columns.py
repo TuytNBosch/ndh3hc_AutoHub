@@ -1,4 +1,5 @@
-from PySide6.QtWidgets import QHeaderView, QLabel
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from tests.fakes import MemorySettings
@@ -59,12 +60,14 @@ def test_event_is_left_aligned_and_extra_width_goes_to_part_number(qapp):
     assert toolbar.itemAt(0).widget().text() == "Event:"
     assert toolbar.itemAt(1).widget() is checklist._event_filter
     header = checklist._table.horizontalHeader()
-    assert header.sectionResizeMode(1) == QHeaderView.Stretch
-    assert header.sectionResizeMode(5) == QHeaderView.ResizeToContents
     assert not header.stretchLastSection()
-    link_width = checklist._table.columnWidth(5)
-    checklist.resize(1100, 300)
-    qapp.processEvents()
-    assert checklist._table.columnWidth(5) == link_width
-    assert checklist._table.columnWidth(1) > link_width
+    for width in (800, 950, 1100):
+        checklist.resize(width, 300)
+        qapp.processEvents()
+        table = checklist._table
+        assert len({table.columnWidth(col) for col in range(2, 6)}) == 1
+        assert table.columnWidth(1) > table.columnWidth(2)
+        assert table.columnWidth(1) > table.columnWidth(0)
+        assert all(table.item(0, col).textAlignment() == Qt.AlignCenter for col in range(1, 5))
+        assert table.cellWidget(0, 5).alignment() == Qt.AlignCenter
     checklist.close()
