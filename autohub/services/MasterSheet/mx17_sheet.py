@@ -192,22 +192,48 @@ class Mx17MasterSheet(MasterSheet):
 
     def _write(self, worksheet, row: int, values: dict[str, Any]) -> None:
         for column, value in values.items():
-            cell = worksheet.Range(f"{column}{row}")
-            if cell.HasFormula:
-                continue  # formulas (running number, hex of the program id) stay as they are
-            if needs_text_format(value):
-                cell.NumberFormat = "@"  # keep leading zeros and values like 4E5 as typed
-            cell.Value = value
+            address = f"{column}{row}"
+            try:
+                self._write_cell(worksheet.Range(address), value)
+            except Exception as error:
+                raise RuntimeError(f"Could not write {worksheet.Name}!{address}: {error}") from error
+
+    @staticmethod
+    def _write_cell(cell, value) -> None:
+        if cell.MergeCells:
+            anchor = cell.MergeArea.Cells(1, 1)
+            if anchor.Address != cell.Address:
+                return  # only the top-left cell of a merged area holds a value
+            cell = anchor
+        if cell.HasFormula:
+            return  # formulas (running number, hex of the program id) stay as they are
+        if needs_text_format(value):
+            cell.NumberFormat = "@"  # keep leading zeros and values like 4E5 as typed
+        cell.Value = value
+
+    def _clear_constants(self, worksheet, row: int, last_column: str) -> None:
+        """Empties the typed-in cells of a copied row; formulas stay. Merged cells are cleared through their anchor."""
+        try:
+            worksheet.Range(f"A{row}:{last_column}{row}").SpecialCells(_XL_CELL_TYPE_CONSTANTS).ClearContents()
+            return
+        except Exception:
+            pass  # nothing to clear, or a merged cell stops the bulk clear: go cell by cell
+        for index in range(1, column_index_from_string(last_column) + 1):
+            cell = worksheet.Cells(row, index)
+            if cell.MergeCells:
+                cell = cell.MergeArea.Cells(1, 1)
+            if not cell.HasFormula and cell.Value not in (None, ""):
+                cell.Value = None
 
     def _copy_row_below(self, worksheet, row: int, last_column: str) -> int:
         """Copies `row` (formats and formulas) to the row below and clears the copied constants."""
         new_row = row + 1
-        worksheet.Rows(row).Copy(worksheet.Rows(new_row))
-        self.excel_app.CutCopyMode = False
         try:
-            worksheet.Range(f"A{new_row}:{last_column}{new_row}").SpecialCells(_XL_CELL_TYPE_CONSTANTS).ClearContents()
-        except Exception:  # no constants to clear
-            pass
+            worksheet.Rows(row).Copy(worksheet.Rows(new_row))
+        except Exception as error:
+            raise RuntimeError(f"Could not copy {worksheet.Name} row {row} to row {new_row}: {error}") from error
+        self.excel_app.CutCopyMode = False
+        self._clear_constants(worksheet, new_row, last_column)
         return new_row
 
     def _append_main_row(self, worksheet) -> int:

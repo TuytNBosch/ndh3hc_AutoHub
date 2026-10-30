@@ -10,6 +10,7 @@ class Cell:
     def __init__(self, sheet, address):
         self.sheet, self.address = sheet, address
         self.HasFormula = False
+        self.MergeCells = False
         self.NumberFormat = "General"
 
     @property
@@ -97,3 +98,30 @@ def test_unmapped_columns_are_reported():
     row = master.load_variant_rows()[0]
     row["R"] = "Acura"
     assert master.save_variant_rows([row], save=False)[0]["Unmapped"] == ["R"]
+
+
+def test_writing_into_merged_cells_goes_through_the_anchor_and_names_failures():
+    import pytest
+
+    class Merged:
+        MergeCells = True
+        HasFormula = False
+        NumberFormat = "General"
+
+        def __init__(self, address, anchor):
+            self.Address, self._anchor, self.Value = address, anchor, None
+            self.MergeArea = SimpleNamespace(Cells=lambda *_: SimpleNamespace(Address=anchor))
+
+    master = Mx17MasterSheet("x.xlsx")
+    skipped = Merged("AL7", "AK7")
+    Mx17MasterSheet._write_cell(skipped, "v")
+    assert skipped.Value is None  # not the anchor
+
+    class Broken:
+        Name = "S"
+
+        def Range(self, address):
+            raise OSError("We can't do that to a merged cell.")
+
+    with pytest.raises(RuntimeError, match="S!AK7"):
+        master._write(Broken(), 7, {"AK": "x"})
