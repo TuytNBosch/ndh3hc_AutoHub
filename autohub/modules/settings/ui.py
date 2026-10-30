@@ -37,7 +37,7 @@ class SettingsWidget(QWidget):
         self._apply = QPushButton("Apply")
         self._apply.setToolTip("Save and apply the selected theme.")
         self._apply.clicked.connect(self._on_apply)
-        layout.addWidget(self._apply, alignment=Qt.AlignLeft)
+        layout.addWidget(self._apply, alignment=Qt.AlignRight)
 
     def _on_apply(self) -> None:
         mode = self._theme.currentData()
