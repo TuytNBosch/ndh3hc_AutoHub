@@ -72,3 +72,22 @@ def test_settings_page_turns_logging_off_and_on_with_apply():
         assert logging.root.manager.disable == logging.NOTSET
     finally:
         logging.disable(logging.NOTSET)
+
+
+def test_checklist_selects_the_latest_event_until_the_user_chooses():
+    from datetime import datetime
+
+    from autohub.modules.creation.variant_checklist import VariantChecklist
+
+    QApplication.instance() or QApplication([])
+    box = VariantChecklist(MemorySettings())
+    rows = [
+        {"part_number": "1", "ecu_type": "x", "event": "OLD", "created_at": datetime(2025, 1, 1)},
+        {"part_number": "2", "ecu_type": "x", "event": "NEW", "created_at": datetime(2025, 6, 1)},
+    ]
+    box.set_variants(rows)
+    assert box._event_filter.currentText() == "NEW" and list(box._checkboxes) == ["2"]
+    box._event_filter.setCurrentText("OLD")
+    box._on_event_chosen(0)
+    box.set_variants(rows)
+    assert box._event_filter.currentText() == "OLD"

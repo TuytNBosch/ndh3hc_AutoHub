@@ -59,7 +59,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 
 - Variant checklist:
   - Fed from Home.
-  - Filter by event, select all or clear.
+  - Filter by event (the latest event is selected automatically when variants are loaded, until you pick one yourself), select all or clear.
   - The selection is persisted.
 - **Settings** module (pinned at the bottom of the sidebar; a module opts in with `pinned_bottom = True`): Theme = System / Light / Dark, saved as `theme` and applied only when you click **Apply** (button at the right, grey while nothing has changed; in Light the buttons use dark text); System follows the Windows setting, also when it changes. Default is Dark. Muted text (file names, hints), links and drop-down highlights follow the theme.
 - Every push / tool button and drop-down list (and the sidebar module list) shows a hand cursor while it is enabled (`autohub/ui/button_cursor.py`).
