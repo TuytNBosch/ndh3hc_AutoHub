@@ -13,6 +13,7 @@ from ...components import Section, checkbox_value, pause, scroll_into_view_if_hi
 
 _logger = logging.getLogger(__name__)
 _FIELDS = {key: (label, kind) for _, key, label, kind in HARDWARE_FIELDS}
+_FIELDS["software_name"] = ("Software name", "text")
 _PANEL_FIELDS = {
     "General info": (
         "vehicle_model", "engine_family", "power", "emission_norm", "immobilizer",
@@ -26,7 +27,7 @@ _PANEL_FIELDS = {
         "customer_order_number", "customer_hardware_part_number",
         "customer_software_part_number", "car", "customer_name",
     ),
-    "Ident Numbers": ("lead_plant", "program_version", "software_part_number", "data_version"),
+    "Ident Numbers": ("lead_plant", "program_version", "software_part_number", "software_name", "data_version"),
     "ECR Information": ("ecr_number",),
     "Classification": (),
 }
@@ -36,6 +37,7 @@ _FIELD_PANELS = {key: panel for panel, keys in _PANEL_FIELDS.items() for key in 
 class HardwareFields:
     def __init__(self, driver):
         self.driver = driver
+        self.imported_software_part_number = ""
         self.sections = {
             panel: Section(driver, f'//span[normalize-space(.)="{panel}"]', 'div[style^="display:"]')
             for panel in _PANEL_FIELDS
@@ -116,6 +118,7 @@ class HardwareFields:
         return True
 
     def import_software_part_number(self) -> bool:
+        self.imported_software_part_number = ""
         section = self.sections["Ident Numbers"]
         if not section.expand():
             return False
@@ -132,9 +135,26 @@ class HardwareFields:
             self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
             # Allocating a number may have server-side effects: never retry the click.
             button.click()
-            wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
+            confirmed = False
 
             def imported(_driver):
+                nonlocal confirmed
+                for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"], [role="alertdialog"]'):
+                    if not dialog.is_displayed():
+                        continue
+                    if "Data filled in by you will be saved before import." not in dialog.text:
+                        continue
+                    if not confirmed:
+                        yes = dialog.find_element(
+                            By.XPATH, './/button[normalize-space(.)="Yes" or .//span[normalize-space(.)="Yes"]]'
+                        )
+                        if not yes.is_displayed() or not yes.is_enabled():
+                            return False
+                        # Do not repeat confirmation if a subsequent DOM refresh is stale.
+                        confirmed = True
+                        yes.click()
+                        _logger.info("Confirmed saving changes before software pool import: Yes")
+                    return False
                 field = section.body().find_element(
                     By.XPATH,
                     './/div[contains(@class,"form-group") and '
@@ -148,7 +168,14 @@ class HardwareFields:
                 self.driver, Constants.WEBFLOW_TIMEOUT,
                 ignored_exceptions=(StaleElementReferenceException,),
             ).until(imported)
+            self.imported_software_part_number = value
+            wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
             _logger.info("WebFlow imported Software part number = %s", value)
+            for key in ("software_name", "customer_software_part_number"):
+                if not self.fill(key, value):
+                    _logger.error("Could not copy imported software part number %s into %s", value, key)
+                    return False
+                _logger.info("WebFlow %s = %s", _FIELDS[key][0], value)
             return True
         except Exception:
             _logger.exception("Could not import the software part number from pool")

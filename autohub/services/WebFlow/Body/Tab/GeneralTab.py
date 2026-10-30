@@ -47,6 +47,10 @@ class GeneralTab:
     def import_software_part_number(self) -> bool:
         return self._hardware.import_software_part_number()
 
+    @property
+    def imported_software_part_number(self) -> str:
+        return self._hardware.imported_software_part_number
+
     def prepare_classification(self) -> bool:
         return self._hardware.prepare_classification()
 
@@ -86,6 +90,8 @@ class GeneralTab:
         return self._select(Constants.GENERAL_LIMITATIONS_TITLE_XPATH, limitations)
 
     def _select_tristate_checkbox(self, title_xpath: str, checkbox_css: str, check: bool | None, label: str) -> bool:
+        if check is None:
+            check = False
         if not self.expand_configurator_items():
             return False
         try:
@@ -99,6 +105,9 @@ class GeneralTab:
                 return True
 
             if _checkbox_is_disabled(form_element, checkbox_element):
+                if current is None:
+                    _logger.error("%s: WebFlow disabled the checkbox while it is blank", label)
+                    return False
                 warning = (
                     f"{label}: WebFlow disabled the control (current value {current!r}, "
                     f"requested {check!r}); the value was not changed."
@@ -107,7 +116,7 @@ class GeneralTab:
                 _logger.warning(warning)
                 return True
 
-            for _ in range(_click_count(current, check)):
+            for _ in range(3):
                 checkbox_element.click()
                 time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
                 checkbox_element = form_element.find_element(By.CSS_SELECTOR, checkbox_css)
@@ -115,7 +124,8 @@ class GeneralTab:
                 if current is check:
                     return True
 
-            return current is check
+            _logger.error("WebFlow checkbox %s did not reach %s (current value %r)", label, check, current)
+            return False
         except Exception:
             _logger.exception("Could not set WebFlow checkbox %s", label)
             return False

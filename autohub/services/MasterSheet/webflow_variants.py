@@ -30,10 +30,10 @@ def _text(value: Any) -> str:
     return clean_text(value)
 
 
-def _checkbox(value: Any, column: str, part_number: str) -> bool | None:
+def _checkbox(value: Any, column: str, part_number: str) -> bool:
     text = _text(value).casefold()
     if not text:
-        return None
+        return False
     if text in ("true", "yes", "1", "x"):
         return True
     if text in ("false", "no", "0"):

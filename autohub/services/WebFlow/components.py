@@ -103,12 +103,12 @@ def checkbox_icon_value(checkbox: Any) -> bool | None:
 
 
 def checkbox_value(checkbox: Any) -> bool | None:
-    """A checkbox's current value from ``aria-checked``, falling back to its icons."""
+    """PrimeNG reports aria-checked=false for both blank and X; the icon distinguishes them."""
     value = checkbox.get_attribute("aria-checked")
     if value == "true":
         return True
     if value == "false":
-        return False
+        return checkbox_icon_value(checkbox)
     if value == "mixed":
         return None
     return checkbox_icon_value(checkbox)

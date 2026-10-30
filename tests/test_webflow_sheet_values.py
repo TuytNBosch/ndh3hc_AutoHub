@@ -21,7 +21,7 @@ def test_every_hardware_field_reads_its_sheet_column(column, key, label, kind):
 
 
 @pytest.mark.parametrize("value,expected", [(True, True), (False, False), (1.0, True), (0.0, False),
-                                            ("YES", True), ("No", False), ("X", True), ("", None), (None, None)])
+                                            ("YES", True), ("No", False), ("X", True), ("", False), (None, False)])
 def test_checkbox_sheet_values(value, expected):
     assert webflow_variant_from_row("PN", {"X": value})["general"]["safety_monitoring"] is expected
 
@@ -31,10 +31,15 @@ def test_invalid_checkbox_is_not_silently_replaced():
         webflow_variant_from_row("PN", {"X": "unexpected"})
 
 
-def test_blank_cells_never_become_hard_coded_values():
+def test_blank_cells_stay_empty_except_checkboxes_default_to_false():
     variant = webflow_variant_from_row("PN", {})
     assert not variant["ecu_generation"] and not variant["brand"] and not variant["ecu_type"]
-    assert all(value in ("", None) for value in variant["general"].values())
+    assert all(variant["general"][key] is False for key in (
+        "safety_monitoring", "safety_calibration", "calibration", "data_integration",
+    ))
+    assert all(variant["general"][key] == "" for key in (
+        "delivery_type", "release_class", "release_scope", "limitations",
+    ))
     assert all(value == "" for value in variant["ecu"].values())
     assert all(value == "" for value in variant["customer"].values())
 
@@ -68,8 +73,29 @@ def test_brand_and_ecu_type_are_taken_from_sheet_not_method_defaults():
     assert args["brand"] == "Sheet brand"
 
 
+def test_job_results_retain_each_variants_allocated_number():
+    session = Mock()
+    session.body.job_creation.get_new_jobs_ids.return_value = ["1", "2"]
+    variants = [
+        webflow_variant_from_row(part_number, {"Q": "MG1", "R": "Honda", "S": "MG1CS022"})
+        for part_number in ("PN1", "PN2")
+    ]
+    numbers = {"PN1": "10SW072930", "PN2": "10SW072931"}
+
+    def fill_job(variant):
+        variant["imported_software_part_number"] = numbers[variant["part_number"]]
+        return []
+
+    session._fill_job.side_effect = fill_job
+    results = WebFlow.create_and_fill_jobs(session, variants, "tool", "routing")
+    assert [(item["PartNumber"], item["JobId"], item["SoftwarePartNumber"]) for item in results] == [
+        ("PN1", "1", "10SW072930"), ("PN2", "2", "10SW072931"),
+    ]
+
+
 def _hardware(monkeypatch):
     fields = HardwareFields(Mock())
+    fields.driver.find_elements.return_value = []
     fields.sections = {panel: Mock() for panel in fields.sections}
     for section in fields.sections.values():
         section.body.return_value = fields.sections["General info"].body.return_value
@@ -151,6 +177,7 @@ def test_hardware_multiselect_missing_option_fails(monkeypatch):
 
 def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
     fields, _ = _hardware(monkeypatch)
+    fields.fill = Mock(return_value=True)
     button = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
     button.is_displayed.return_value = True
     button.is_enabled.return_value = True
@@ -163,10 +190,16 @@ def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
     locator = fields.sections["Ident Numbers"].body.return_value.find_element.call_args_list[0].args[1]
     assert locator.startswith(".//button") and "Import from pool" in locator
     assert "Software part number = 10SW137784" in caplog.text
+    assert fields.imported_software_part_number == "10SW137784"
+    assert fields.fill.call_args_list == [
+        (("software_name", "10SW137784"),),
+        (("customer_software_part_number", "10SW137784"),),
+    ]
 
 
 def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
     fields, _ = _hardware(monkeypatch)
+    fields.imported_software_part_number = "previous job number"
     monkeypatch.setattr(hardware_module.Constants, "WEBFLOW_TIMEOUT", 0)
     button = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
     button.is_displayed.return_value = True
@@ -174,6 +207,7 @@ def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
     field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
     field.get_attribute.return_value = ""
     assert fields.import_software_part_number() is False
+    assert fields.imported_software_part_number == ""
     button.click.assert_called_once()
 
 
@@ -185,6 +219,55 @@ def test_pool_import_does_not_retry_uncertain_click(monkeypatch):
     button.click.side_effect = RuntimeError("connection lost")
     assert fields.import_software_part_number() is False
     button.click.assert_called_once()
+
+
+def test_pool_import_confirms_save_warning_once_then_waits_for_number(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    fields.fill = Mock(return_value=True)
+    control = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    control.is_displayed.return_value = True
+    control.is_enabled.return_value = True
+    control.get_attribute.return_value = "10SW137784"
+    dialog = Mock()
+    dialog.text = "Data filled in by you will be saved before import. Do you want to continue?"
+    yes = dialog.find_element.return_value
+    fields.driver.find_elements.side_effect = [[dialog], [dialog], []]
+    assert fields.import_software_part_number() is True
+    yes.click.assert_called_once()
+    control.click.assert_called_once()
+    assert "Yes" in dialog.find_element.call_args.args[1]
+
+
+def test_pool_import_does_not_confirm_unrelated_dialog(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    fields.fill = Mock(return_value=True)
+    control = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    control.get_attribute.return_value = "10SW137784"
+    dialog = Mock()
+    dialog.text = "An unrelated confirmation"
+    fields.driver.find_elements.return_value = [dialog]
+    assert fields.import_software_part_number() is True
+    dialog.find_element.assert_not_called()
+
+
+@pytest.mark.parametrize("failed_key", ["software_name", "customer_software_part_number"])
+def test_pool_import_copy_failure_retains_allocated_number(monkeypatch, failed_key):
+    fields, _ = _hardware(monkeypatch)
+    fields.fill = Mock(side_effect=lambda key, value: key != failed_key)
+    control = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    control.get_attribute.return_value = "10SW072930"
+    assert fields.import_software_part_number() is False
+    assert fields.imported_software_part_number == "10SW072930"
+    control.click.assert_called_once()
+
+
+def test_software_name_is_written_in_ident_numbers(monkeypatch):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.get_attribute.side_effect = lambda name: "10SW072930" if name == "value" else None
+    assert fields.fill("software_name", "10SW072930") is True
+    control.send_keys.assert_called_once_with("10SW072930")
+    fields.sections["Ident Numbers"].expand.assert_called_once()
 
 
 def test_lead_plant_waits_until_requested_option_is_loaded(monkeypatch):
