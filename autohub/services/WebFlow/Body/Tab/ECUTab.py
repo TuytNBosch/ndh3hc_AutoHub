@@ -71,11 +71,14 @@ class ECUTab:
         return read_options(self.driver, Constants.ECU_TAB_OPTIONS_CLASS, Constants.ECU_TAB_OPTIONS_MAX_ITEMS)
 
     def _select(self, title_xpath: str, value: str) -> bool:
-        self.expand_ecu_specific_parameters()
+        if not self.expand_ecu_specific_parameters():
+            return False
         return select_dropdown(self.driver, title_xpath, Constants.ECU_TAB_BTN_CSS, value, self.get_options)
 
     def select_tp_level(self, tp_level: str = "---") -> bool:
-        return self._select(Constants.ECU_TP_LEVEL_TITLE_XPATH, tp_level)
+        # The sheet uses TP3 / TP9; WebFlow's corresponding option labels are 3 / 9.
+        value = tp_level[2:] if tp_level.upper().startswith("TP") else tp_level
+        return self._select(Constants.ECU_TP_LEVEL_TITLE_XPATH, value)
 
     def select_diagnostic_protocol(self, diagnostic_protocol: str = "---") -> bool:
         return self._select(Constants.ECU_DIAGNOSTIC_PROTOCOL_TITLE_XPATH, diagnostic_protocol)

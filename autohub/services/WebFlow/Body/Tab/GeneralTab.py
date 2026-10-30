@@ -16,6 +16,7 @@ from ...components import (
     select_dropdown,
 )
 from ...dropdown import read_options
+from .HardwareFields import HardwareFields
 
 _logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class GeneralTab:
     def __init__(self, driver: WebDriver):
         self.driver = driver
         self.skipped_fields: list[str] = []
+        self._hardware = HardwareFields(driver)
         self._tab = TabLink(driver, Constants.GENERAL_TAB_XPATH)
         self._configurator_items = Section(
             driver, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_BODY_CSS
@@ -38,6 +40,9 @@ class GeneralTab:
 
     def is_general_tab(self) -> bool:
         return self._tab.is_selected()
+
+    def fill_hardware_field(self, key: str, value: str) -> bool:
+        return self._hardware.fill(key, value)
 
     def select_general_tab(self) -> bool:
         return self._tab.select()
@@ -58,7 +63,8 @@ class GeneralTab:
         return self._configurator_items.collapse()
 
     def _select(self, title_xpath: str, value: str) -> bool:
-        self.expand_configurator_items()
+        if not self.expand_configurator_items():
+            return False
         return select_dropdown(self.driver, title_xpath, Constants.GENERAL_TAB_BTN_CSS, value, self.get_options)
 
     def select_delivery_type(self, delivery_type: str = "") -> bool:

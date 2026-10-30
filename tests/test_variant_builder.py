@@ -4,7 +4,6 @@ from datetime import datetime
 import pytest
 
 from autohub.core import normalizers as n
-from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS
 from autohub.services.MasterSheet.variant_builder import (
     build_request_values,
     compute_new_variant_rows,
@@ -167,14 +166,22 @@ def test_compute_new_rows_names_a_part_number_missing_from_the_matrix():
         compute_new_variant_rows(_ecu_info(), {"GeneralInfo": [], "FormB": [], "Setting": []}, set())
 
 
-def test_webflow_variant_uses_the_shared_defaults():
-    row = {"H": "62XS for DAN/MP1 event", "BD": "MG1CS022", "BE": "62XS", "BF": "V030", "BH": "FFFF", "CL": "33", "CM": "00", "CN": "FF", "CQ": "01"}
+def test_webflow_variant_uses_sheet_values_instead_of_defaults():
+    row = {"H": "62XS for DAN/MP1 event", "Q": "MED17", "R": "Honda", "S": "MED17.9", "BD": "Custom family",
+           "BC": "Custom spec", "BG": "TP9", "CR": "Custom component", "T": "Custom delivery", "U": "Pilot",
+           "V": "Program", "W": "YES", "X": "No", "Y": "Yes", "Z": False, "AA": True,
+           "BE": "62XS", "BF": "V030", "BH": "FFFF", "CL": "33", "CM": "00", "CN": "FF", "CQ": "01"}
     variant = webflow_variant_from_row("37820-62X-MD10-M6", row)
-    assert variant["event"] == "DAN" and variant["ecu_type"] == "MG1CS022"
-    assert variant["general"] == WEBFLOW_DEFAULTS.general()
-    assert variant["ecu"]["indi_spec"] == "Honda_MG1CS022_CS_IndiSpec_01"
-    assert variant["ecu"]["tp_level"] == WEBFLOW_DEFAULTS.tp_level
-    assert variant["customer"]["component_id"] == WEBFLOW_DEFAULTS.component_id
+    assert variant["event"] == "DAN" and variant["ecu_type"] == "MED17.9"
+    assert variant["ecu_generation"] == "MED17" and variant["brand"] == "Honda"
+    assert variant["general"] == {
+        "delivery_type": "Custom delivery", "release_class": "Pilot", "release_scope": "Program", "limitations": "YES",
+        "safety_monitoring": False, "safety_calibration": True, "calibration": False, "data_integration": True,
+    }
+    assert variant["ecu"]["family_name"] == "Custom family"
+    assert variant["ecu"]["indi_spec"] == "Custom spec"
+    assert variant["ecu"]["tp_level"] == "TP9"
+    assert variant["customer"]["component_id"] == "Custom component"
     assert webflow_variant_from_row("P", {})["ecu"]["indi_spec"] == ""
 
 
@@ -185,9 +192,9 @@ def test_webflow_release_class_comes_from_the_row(release_class):
 
 
 @pytest.mark.parametrize("release_class", [None, "", "   "])
-def test_webflow_release_class_uses_the_default_only_for_blank_cells(release_class):
+def test_webflow_release_class_leaves_blank_cells_blank(release_class):
     variant = webflow_variant_from_row("P", {"U": release_class})
-    assert variant["general"]["release_class"] == WEBFLOW_DEFAULTS.release_class
+    assert variant["general"]["release_class"] == ""
 
 
 def test_reader_preserves_release_class_for_both_reported_variants():

@@ -104,6 +104,19 @@ def test_create_jobs_reports_progress_and_forwards_it():
     assert seen == ["Starting the browser..."]
 
 
+def test_creation_completion_and_failure_show_total_time(qapp):
+    from unittest.mock import Mock
+
+    service = WebFlowJobService(FakeWebFlow)
+    service.last_elapsed_seconds = 125.5
+    creation = CreationWidget(service, MemorySettings())
+    window = Mock()
+    creation._finish_webflow_jobs([], window)
+    assert "Total time: 125.5 seconds." in window.succeed.call_args.args[0]
+    creation._fail_webflow_jobs("Failed", window)
+    assert "Failed\n\nTotal time: 125.5 seconds." == window.fail.call_args.args[0]
+
+
 class _LinkSheet:
     def __init__(self, path):
         self.written = None

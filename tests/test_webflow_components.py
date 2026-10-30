@@ -1,5 +1,6 @@
 """Shared WebFlow widgets and the job-fill step plan, exercised with fake Selenium elements."""
 import pytest
+from selenium.common.exceptions import NoSuchElementException
 
 from autohub.services.WebFlow import Constants, components
 from autohub.services.WebFlow.Body.Information.Information import Information
@@ -21,7 +22,7 @@ class Element:
 
     def find_element(self, by, value):
         if value not in self.children:
-            raise LookupError(value)
+            raise NoSuchElementException(value)
         return self.children[value]
 
     def is_displayed(self):
@@ -29,6 +30,9 @@ class Element:
 
     def is_selected(self):
         return self.selected
+
+    def is_enabled(self):
+        return True
 
     def click(self):
         self.clicks += 1
@@ -38,6 +42,7 @@ class Element:
 
     def send_keys(self, text):
         self.typed.append(text)
+        self.attrs["value"] = text
 
 
 class Driver:
@@ -62,11 +67,12 @@ def page(monkeypatch):
     monkeypatch.setattr(ecu_tab_module, "wait_for", wait_for)
     monkeypatch.setattr(components, "wait_until_idle", lambda driver, timeout=None: True)
     monkeypatch.setattr(Constants, "WEBFLOW_TIMEOUT_CSS", 0)
+    monkeypatch.setattr(Constants, "BODY_TIMEOUT", 0)
     return elements
 
 
 def dropdown(page, selected=None):
-    children = {f'.//span[text()="{selected}"]': Element()} if selected else {}
+    children = {f".//span[text()='{selected}']": Element()} if selected else {}
     button = Element(children=children)
     page["//title"] = Element(children={"..": Element(children={"div.btn": button})})
     return button
@@ -81,6 +87,10 @@ def test_dropdown_already_showing_the_value_is_not_clicked(page):
 def test_dropdown_opens_and_clicks_the_option(page):
     button = dropdown(page)
     option = Element()
+    def click_option():
+        option.clicks += 1
+        button.children[".//span[text()='MG1']"] = Element()
+    option.click = click_option
     assert select_dropdown(Driver(), "//title", "div.btn", "MG1", lambda: {"MG1": option, "MX17": Element()}) is True
     assert button.clicks == 1 and option.clicks == 1
 
@@ -88,12 +98,17 @@ def test_dropdown_opens_and_clicks_the_option(page):
 def test_dropdown_without_the_value_clicks_no_option(page):
     button = dropdown(page)
     other = Element()
-    assert select_dropdown(Driver(), "//title", "div.btn", "MG1", lambda: {"MX17": other}) is True  # legacy result
+    assert select_dropdown(Driver(), "//title", "div.btn", "MG1", lambda: {"MX17": other}) is False
     assert button.clicks == 1 and other.clicks == 0
 
 
 def test_dropdown_missing_title_is_a_failure(page):
     assert select_dropdown(Driver(), "//missing", "div.btn", "MG1", dict) is False
+
+
+def test_dropdown_rejects_a_value_that_does_not_stick(page):
+    dropdown(page)
+    assert select_dropdown(Driver(), "//title", "div.btn", "Pre-Production", lambda: {"Pre-Production": Element()}) is False
 
 
 def section(page, style):
@@ -149,7 +164,7 @@ def test_job_information_reports_whether_it_clicked(page, monkeypatch):
     info = Information(Driver())
     assert info.collapse_job_information() is True and header.clicks == 1
     body.attrs["style"] = "display: none;"
-    assert info.collapse_job_information() is False
+    assert info.collapse_job_information() is True
     assert info.expand_job_information() is True and header.clicks == 2
 
 
@@ -220,7 +235,6 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "General: release scope = S",
         "General: limitations = NO",
         "General: safety monitoring SW = True",
-        "General: safety calibration response = (none)",
         "General: Bosch calibration data response = False",
         "General: data integration response = True",
         "Select the ECU tab",
@@ -265,7 +279,7 @@ def test_job_filler_runs_every_step_and_returns_warnings():
     pages.skipped_fields.append("stale warning")
     assert job_filler.fill(VARIANT) == []  # warnings are cleared per job
     assert calls[0] == ("select_general_tab",)
-    assert ("select_safety_calibration_response", None) in calls
+    assert ("select_safety_calibration_response", None) not in calls
     assert ("select_tp_level", "3") in calls and calls[-1] == ("save",)
 
 
@@ -281,3 +295,16 @@ def test_job_filler_stops_when_the_general_tab_cannot_be_selected():
     with pytest.raises(RuntimeError, match="General tab"):
         job_filler.fill(VARIANT)
     assert calls == [("select_general_tab",)]
+
+
+def test_extra_sheet_fields_are_filled_and_unmapped_fields_reported():
+    from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
+
+    variant = webflow_variant_from_row("PN", {"AB": "62XS", "AC": 120.0, "AJ": "Brazil", "CS": "DWG"})
+    job_filler, calls, _ = filler()
+    warnings = job_filler.fill(variant)
+    assert ("fill_hardware_field", "vehicle_model", "62XS") in calls
+    assert ("fill_hardware_field", "power", "120") in calls
+    assert ("fill_hardware_field", "market", "Brazil") in calls
+    assert len(warnings) == 1 and "CS (DWG NO.) = DWG" in warnings[0]
+    assert not any(name.startswith("select_safety") for name, *_ in calls)
