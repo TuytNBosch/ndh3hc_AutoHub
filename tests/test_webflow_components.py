@@ -1,6 +1,7 @@
 """Shared WebFlow widgets and the job-fill step plan, exercised with fake Selenium elements."""
 import pytest
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.keys import Keys
 
 from autohub.services.WebFlow import Constants, components
 from autohub.services.WebFlow.Body.Information.Information import Information
@@ -313,7 +314,9 @@ def test_job_filler_does_not_save_when_no_pst_lib_matches_pver():
     assert ("save",) not in calls
 
 
-def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(monkeypatch):
+@pytest.mark.parametrize("pver", ["MG1CS022_62XSC_V020_CS", "MG1CS022_62XSC/V020_CS"])
+@pytest.mark.parametrize("revision_count", [0, 1, 2])
+def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(monkeypatch, pver, revision_count):
     class Cell:
         def __init__(self, text):
             self.text = text
@@ -353,9 +356,15 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
         def find_elements(self, by, value):
             return self.rows if value == "table tbody tr" else []
 
-    matching = Row("MG1CS022_6WZXSC/V037;1")
-    other = Row("MG1CS022_6WZYSC/V036;1")
-    dialog = Dialog([other, matching])
+    matching = Row("MG1CS022_62XSC/V020_CS;0")
+    other = Row("MG1CS022_62XSC/V020_CNT;0")
+    prefix_match = Row("MG1CS022_62XSC/V020_CS_TEST;0")
+    rows = [other, prefix_match]
+    if revision_count:
+        rows.append(matching)
+    if revision_count == 2:
+        rows.append(Row("MG1CS022_62XSC/V020_CS;1"))
+    dialog = Dialog(rows)
     open_button = Element()
     open_button.click = lambda: None
     body = Element(children={
@@ -378,10 +387,11 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
             return result
 
     monkeypatch.setattr(hardware_fields_module, "WebDriverWait", Wait)
-    assert hardware.pick_pst_lib("V037") is True
-    assert dialog.search.typed == ["V037"]
-    assert matching.clicks == 1 and other.clicks == 0
-    assert dialog.clicks == 1
+    assert hardware.pick_pst_lib(pver) is (revision_count == 1)
+    assert dialog.search.typed == ["MG1CS022_62XSC/V020_CS", Keys.ENTER]
+    assert matching.clicks == (1 if revision_count == 1 else 0)
+    assert other.clicks == 0 and prefix_match.clicks == 0
+    assert dialog.clicks == (1 if revision_count == 1 else 0)
 
 
 def test_extra_sheet_fields_without_webflow_controls_are_ignored():

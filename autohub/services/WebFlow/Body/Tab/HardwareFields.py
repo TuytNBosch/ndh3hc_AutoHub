@@ -2,6 +2,7 @@
 import logging
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -182,7 +183,14 @@ class HardwareFields:
             return False
 
     def pick_pst_lib(self, pver: str) -> bool:
-        """Selects the unique PST_Lib row whose Program Identification contains the sheet PVER."""
+        """Selects the unique Program Identification matching the sheet PVER, excluding its revision."""
+        pver = pver.strip()
+        if not pver:
+            _logger.error("Cannot select PST_Lib without a PVER")
+            return False
+        parts = pver.split("_", 2)
+        search_value = f"{parts[0]}_{parts[1]}/{parts[2]}" if "/" not in pver and len(parts) == 3 else pver
+        expected = pver.partition(";")[0].replace("/", "_").casefold()
         section = self.sections["Ident Numbers"]
         if not section.expand():
             return False
@@ -208,13 +216,17 @@ class HardwareFields:
                 By.CSS_SELECTOR, 'input[placeholder^="Search for Program identification"]'
             )
             search.clear()
-            search.send_keys(pver)
+            search.send_keys(search_value)
+            search.send_keys(Keys.ENTER)
 
             def matching_rows(_driver):
                 rows = []
                 for row in dialog.find_elements(By.CSS_SELECTOR, "table tbody tr"):
                     cells = row.find_elements(By.TAG_NAME, "td")
-                    if cells and pver.casefold() in cells[0].text.casefold():
+                    if (
+                        cells and row.is_displayed()
+                        and cells[0].text.strip().partition(";")[0].replace("/", "_").casefold() == expected
+                    ):
                         rows.append(row)
                 return rows or False
 
@@ -224,7 +236,7 @@ class HardwareFields:
             ).until(matching_rows)
             if len(rows) != 1:
                 _logger.error(
-                    "Expected one PST_Lib Program Identification containing PVER %r, found %d",
+                    "Expected one PST_Lib Program Identification matching PVER %r, found %d",
                     pver,
                     len(rows),
                 )
