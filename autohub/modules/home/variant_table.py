@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
 from autohub.core.variant_choices import VARIANT_CHOICES
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDER
 from autohub.modules.home.choice_delegate import ChoiceDelegate
+from autohub.modules.home.column_limits import ColumnLimits
 from autohub.modules.home.frozen_columns import FrozenColumns
 from autohub.modules.home.table_actions import TableActions
 from autohub.modules.home.table_clipboard import TableClipboard
@@ -39,6 +40,7 @@ class VariantTable(QTableWidget):
             if column_name in VARIANT_CHOICES:
                 self.setItemDelegateForColumn(col + 1, ChoiceDelegate(VARIANT_CHOICES[column_name], self))
 
+        self._limits = ColumnLimits(self)
         self._frozen = FrozenColumns(self, _FROZEN_COLUMNS)
         self._clipboard = TableClipboard(self)
         self._search = TableSearch(self, self._clipboard.set_cell_text)
@@ -64,7 +66,7 @@ class VariantTable(QTableWidget):
                 item = QTableWidgetItem("" if value is None else str(value))
                 self.setItem(row, col + 1, item)
         self.blockSignals(False)
-        self.resizeColumnsToContents()
+        self._limits.apply()
         self._frozen.update_geometry()
 
     def clear_rows(self) -> None:
