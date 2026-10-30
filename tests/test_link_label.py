@@ -3,15 +3,16 @@ from unittest.mock import Mock
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QCheckBox
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from autohub.ui import link_label
+from tests.fakes import MemorySettings
 
 
 def test_creation_link_requires_left_double_click(qapp, monkeypatch):
     url = "https://webflow/app/ShowJob/16409"
-    row = VariantChecklist._variant_row(QCheckBox("P"), url)
+    row = VariantChecklist(MemorySettings())
+    row.set_variants([{"part_number": "P", "ecu_type": "MG1CS022", "webflow_link": url}])
     row.show()
     qapp.processEvents()
     label = row.findChild(link_label.LinkLabel)
