@@ -258,12 +258,23 @@ class Mx17MasterSheet(MasterSheet):
         worksheet = self.workbook.ActiveSheet
         worksheet.Name = name
         last = max(self._last_used_row(worksheet), layout.INFO_TITLE_ROW)
-        worksheet.Range(f"A{layout.INFO_TITLE_ROW}:{layout.INFO_LAST_COLUMN}{last}").ClearContents()
-        worksheet.Range(f"A{layout.INFO_TITLE_ROW}").Value = title
+        cleared = worksheet.Range(f"A{layout.INFO_TITLE_ROW}:{layout.INFO_LAST_COLUMN}{last}")
+        try:
+            cleared.ClearContents()
+        except Exception:  # a partly covered merged cell blocks the clear
+            cleared.UnMerge()
+            cleared.ClearContents()
+        self._write(worksheet, layout.INFO_TITLE_ROW, {"A": title})
         return worksheet
 
     def _append_info_row(self, home: dict) -> None:
         name = layout.info_sheet_name(home.get("AB"))
+        try:
+            self._append_info_row_to(name, home)
+        except Exception as error:
+            raise RuntimeError(f"Could not add {home.get('J')} to the Info sheet '{name}': {error}") from error
+
+    def _append_info_row_to(self, name: str, home: dict) -> None:
         worksheet = self._find_sheet(name)
         if worksheet is None:
             worksheet = self._new_info_sheet(name, home.get("H") or name)
