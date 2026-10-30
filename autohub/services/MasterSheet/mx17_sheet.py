@@ -298,7 +298,7 @@ class Mx17MasterSheet(MasterSheet):
         if template is None:
             raise RuntimeError(f"The Info sheet '{layout.INFO_TEMPLATE_SHEET}' is needed as the template of new Info sheets.")
         before = self._sheet_names()
-        template.Copy(After=sheets[-1])
+        template.Copy(None, sheets[-1])  # positional: (Before, After); keyword args may be dropped by COM
         # Found by name: the active sheet is not reliable, and renaming or clearing it could hit the main sheet.
         added = [sheet_name for sheet_name in self._sheet_names() if sheet_name not in before]
         if len(added) != 1:
