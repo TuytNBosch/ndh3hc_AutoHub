@@ -5,11 +5,13 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QGridLayout,
+    QAbstractItemView,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -22,7 +24,7 @@ from autohub.ui.link_label import LinkLabel
 _ALL_EVENTS = "All events"
 _NO_EVENT = NO_EVENT
 _HEADERS = (
-    "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
+    "Select", "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
 )
 
 
@@ -37,7 +39,6 @@ class VariantChecklist(QWidget):
         self._links: dict[str, str] = {}  # part number -> WebFlow job link
         self._selected: set[str] = set(settings.load().get("selected_variants", []))
 
-        self._count_label = QLabel("Variants (0)")
         self._event_filter = QComboBox()
         self._event_filter.addItem(_ALL_EVENTS)
         self._event_filter.currentTextChanged.connect(self._apply_filter)
@@ -50,28 +51,28 @@ class VariantChecklist(QWidget):
 
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
-        toolbar.addWidget(self._count_label, stretch=1)
+        toolbar.addStretch(1)
         toolbar.addWidget(QLabel("Event:"))
         toolbar.addWidget(self._event_filter)
         toolbar.addWidget(select_all_btn)
         toolbar.addWidget(clear_btn)
 
-        self._list_layout = QGridLayout()
-        self._list_layout.setAlignment(Qt.AlignTop)
+        self._table = QTableWidget(0, len(_HEADERS))
+        self._table.setHorizontalHeaderLabels(_HEADERS)
+        self._table.setShowGrid(True)
+        self._table.setAlternatingRowColors(True)
+        self._table.verticalHeader().setVisible(False)
+        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._table.setMinimumHeight(150)
+        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self._table.horizontalHeader().setStretchLastSection(True)
         self._empty_label = QLabel("Load variants from a Master Sheet on Home, or create them from all three files.")
-        self._list_layout.addWidget(self._empty_label, 1, 0, 1, len(_HEADERS))
-
-        container = QWidget()
-        container.setLayout(self._list_layout)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setMinimumHeight(150)
-        scroll.setWidget(container)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(toolbar)
-        layout.addWidget(scroll)
+        layout.addWidget(self._table)
+        layout.addWidget(self._empty_label)
 
     @property
     def has_variants(self) -> bool:
@@ -105,16 +106,7 @@ class VariantChecklist(QWidget):
 
     def _apply_filter(self, *_args) -> None:
         self._checkboxes.clear()
-        while self._list_layout.count():
-            widget = self._list_layout.takeAt(0).widget()
-            if widget is None:
-                continue
-            if widget is self._empty_label:
-                # taking it out of the layout doesn't hide it; left visible it would
-                # float over whatever gets added next.
-                widget.hide()
-            else:
-                widget.deleteLater()
+        self._table.setRowCount(0)
 
         event_filter = self._event_filter.currentText() or _ALL_EVENTS
         if event_filter == _ALL_EVENTS:
@@ -122,40 +114,34 @@ class VariantChecklist(QWidget):
         else:
             filtered = [v for v in self._variants if (v.get("event") or _NO_EVENT) == event_filter]
 
-        for column, title in enumerate(_HEADERS):
-            header = QLabel(title)
-            font = header.font()
-            font.setBold(True)
-            header.setFont(font)
-            self._list_layout.addWidget(header, 0, column)
-
-        if not filtered:
-            self._empty_label.show()
-            self._list_layout.addWidget(self._empty_label, 1, 0, 1, len(_HEADERS))
-        else:
-            for row, variant in enumerate(filtered, start=1):
+        self._empty_label.setVisible(not filtered)
+        self._table.setRowCount(len(filtered))
+        if filtered:
+            for row, variant in enumerate(filtered):
                 part_number = variant["part_number"]
-                checkbox = QCheckBox(part_number)
+                checkbox = QCheckBox()
+                checkbox.setAccessibleName(f"Select {part_number}")
                 checkbox.setChecked(part_number in self._selected)
                 checkbox.toggled.connect(lambda checked, pn=part_number: self._on_toggled(pn, checked))
                 self._checkboxes[part_number] = checkbox
-                self._list_layout.addWidget(checkbox, row, 0)
+                container = QWidget()
+                layout = QHBoxLayout(container)
+                layout.setContentsMargins(0, 0, 0, 0)
+                layout.addWidget(checkbox, alignment=Qt.AlignCenter)
+                self._table.setCellWidget(row, 0, container)
                 ecu = variant.get("ecu", {})
                 for column, value in enumerate((
+                    part_number,
                     ecu.get("family_name") or variant["ecu_type"],
                     ecu.get("project_version", ""),
                     ecu.get("program_version", ""),
                 ), start=1):
-                    label = QLabel(str(value or ""))
-                    label.setTextFormat(Qt.PlainText)
-                    self._list_layout.addWidget(label, row, column)
+                    self._table.setItem(row, column, QTableWidgetItem(str(value or "")))
                 link = self._links.get(part_number, "")
                 if link:
-                    self._list_layout.addWidget(
-                        LinkLabel(webflow_link_text(link) or link, link), row, 4
+                    self._table.setCellWidget(
+                        row, 5, LinkLabel(webflow_link_text(link) or link, link)
                     )
-
-        self._count_label.setText(f"Variants ({len(filtered)})")
 
     def set_links(self, links: dict[str, str]) -> None:
         """Shows the WebFlow job link of the variants that just got a job."""

@@ -10,18 +10,21 @@ def test_creation_headers_and_ecu_values(qapp):
         "part_number": "P", "ecu_type": "MG1CS022",
         "ecu": {"family_name": "MG1CS022", "project_version": "6WZX", "program_version": "V037"},
     }])
-    layout = checklist._list_layout
-    assert [layout.itemAtPosition(0, col).widget().text() for col in range(5)] == [
-        "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
+    table = checklist._table
+    assert [table.horizontalHeaderItem(col).text() for col in range(6)] == [
+        "Select", "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
     ]
-    assert [layout.itemAtPosition(1, col).widget().text() for col in range(4)] == [
+    assert [table.item(0, col).text() for col in range(1, 5)] == [
         "P", "MG1CS022", "6WZX", "V037",
     ]
+    assert table.showGrid()
+    assert checklist._checkboxes["P"].text() == ""
+    assert not any(label.text().startswith("Variants (") for label in checklist.findChildren(QLabel))
     checklist._checkboxes["P"].setChecked(True)
     checklist.set_links({"P": "https://webflow/app/ShowJob/42"})
     assert checklist._checkboxes["P"].isChecked()
-    assert layout.itemAtPosition(1, 4).widget().text() == "WF42"
-    assert layout.itemAtPosition(1, 2).widget().text() == "6WZX"
+    assert table.cellWidget(0, 5).text() == "WF42"
+    assert table.item(0, 3).text() == "6WZX"
 
 
 def test_missing_ecu_values_and_event_filter(qapp):
@@ -31,11 +34,12 @@ def test_missing_ecu_values_and_event_filter(qapp):
         {"part_number": "Q", "ecu_type": "MG2", "event": "B"},
     ])
     checklist._event_filter.setCurrentText("A")
-    layout = checklist._list_layout
+    table = checklist._table
     assert set(checklist._checkboxes) == {"P"}
-    assert layout.itemAtPosition(1, 1).widget().text() == "MG1"
-    assert layout.itemAtPosition(1, 2).widget().text() == ""
-    assert layout.itemAtPosition(1, 3).widget().text() == ""
+    assert table.item(0, 2).text() == "MG1"
+    assert table.item(0, 3).text() == ""
+    assert table.item(0, 4).text() == ""
     checklist.set_variants([])
-    assert layout.itemAtPosition(0, 0).widget().text() == "Part Number"
+    assert table.horizontalHeaderItem(0).text() == "Select"
+    assert table.rowCount() == 0
     assert checklist._empty_label in checklist.findChildren(QLabel)
