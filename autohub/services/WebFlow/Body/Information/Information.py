@@ -25,6 +25,6 @@ class Information:
 
     def collapse_job_information(self) -> bool:
         if not self.is_job_information_expanded():
-            return False
+            return True
         self._job_information.toggle()
         return True

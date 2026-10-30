@@ -4,39 +4,66 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from autohub.core.normalizers import clean_text, parse_event
-from autohub.core.webflow_defaults import WEBFLOW_DEFAULTS, WebFlowDefaults
+from autohub.core.variant_schema import VARIANT_FIELD_LABELS
+from autohub.core.webflow_fields import HARDWARE_FIELDS
 
 #: Sheet columns a request row is read from to build a WebFlow variant.
-WEBFLOW_SOURCE_COLUMNS = ("C", "H", "U", "BC", "BD", "BE", "BF", "BH", "CL", "CM", "CN", "CQ")
+WEBFLOW_SOURCE_COLUMNS = tuple(dict.fromkeys(("C", *VARIANT_FIELD_LABELS, "CR")))
+
+_GENERAL_COLUMNS = {
+    "delivery_type": "T", "release_class": "U", "release_scope": "V", "limitations": "W",
+    "safety_monitoring": "X", "safety_calibration": "Y", "calibration": "Z", "data_integration": "AA",
+}
+_ECU_COLUMNS = {
+    "indi_spec": "BC", "family_name": "BD", "project_version": "BE",
+    "program_version": "BF", "tp_level": "BG",
+}
+_CUSTOMER_COLUMNS = {
+    "ecu_default_id": "BH", "ecu_program_id": "CL", "ecu_rewriting_id": "CM",
+    "security_coefficient": "CN", "sw_version": "CQ", "component_id": "CR",
+}
 
 
-def webflow_variant_from_row(
-    part_number: str, row: Mapping[str, Any], defaults: WebFlowDefaults = WEBFLOW_DEFAULTS
-) -> dict:
-    hardware = clean_text(row.get("BD"))
+def _text(value: Any) -> str:
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return clean_text(value)
+
+
+def _checkbox(value: Any, column: str, part_number: str) -> bool | None:
+    text = _text(value).casefold()
+    if not text:
+        return None
+    if text in ("true", "yes", "1", "x"):
+        return True
+    if text in ("false", "no", "0"):
+        return False
+    raise ValueError(f"{part_number}: invalid checkbox value {value!r} in Master Sheet column {column}.")
+
+
+def webflow_variant_from_row(part_number: str, row: Mapping[str, Any]) -> dict:
+    general: dict[str, Any] = {key: _text(row.get(column)) for key, column in _GENERAL_COLUMNS.items()}
+    for key in ("safety_monitoring", "safety_calibration", "calibration", "data_integration"):
+        general[key] = _checkbox(row.get(_GENERAL_COLUMNS[key]), _GENERAL_COLUMNS[key], part_number)
+    mapped = {
+        "C", "H", "J", "Q", "R", "S", "BI",
+        *_GENERAL_COLUMNS.values(), *_ECU_COLUMNS.values(), *_CUSTOMER_COLUMNS.values(),
+        *(field[0] for field in HARDWARE_FIELDS),
+    }
     return {
         "part_number": part_number,
-        "ecu_generation": defaults.ecu_generation,
-        "ecu_type": hardware,
+        "ecu_generation": _text(row.get("Q")),
+        "brand": _text(row.get("R")),
+        "ecu_type": _text(row.get("S")),
         "event": parse_event(row.get("H")),
         "created_at": row.get("C"),
-        "general": {
-            **defaults.general(),
-            "release_class": clean_text(row.get("U")) or defaults.release_class,
-        },
-        "ecu": {
-            "indi_spec": clean_text(row.get("BC")) or defaults.indi_spec(hardware),
-            "family_name": hardware,
-            "project_version": clean_text(row.get("BE")),
-            "program_version": clean_text(row.get("BF")),
-            "tp_level": defaults.tp_level,
-        },
-        "customer": {
-            "ecu_default_id": clean_text(row.get("BH")),
-            "ecu_program_id": clean_text(row.get("CL")),
-            "ecu_rewriting_id": clean_text(row.get("CM")),
-            "security_coefficient": clean_text(row.get("CN")),
-            "sw_version": clean_text(row.get("CQ")),
-            "component_id": defaults.component_id,
+        "general": general,
+        "hardware": {key: _text(row.get(column)) for column, key, _, _ in HARDWARE_FIELDS},
+        "ecu": {key: _text(row.get(column)) for key, column in _ECU_COLUMNS.items()},
+        "customer": {key: _text(row.get(column)) for key, column in _CUSTOMER_COLUMNS.items()},
+        "unmapped_fields": {
+            f"{column} ({VARIANT_FIELD_LABELS.get(column, column)})": _text(value)
+            for column, value in row.items()
+            if column in VARIANT_FIELD_LABELS and column not in mapped and _text(value)
         },
     }

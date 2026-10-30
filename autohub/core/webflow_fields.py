@@ -1,0 +1,30 @@
+"""Master Sheet columns with controls in WebFlow's Hardware/Plant information panel."""
+
+# (column, payload key, WebFlow label, control type)
+HARDWARE_FIELDS = (
+    ("AB", "vehicle_model", "Model", "text"),
+    ("AC", "power", "Power [kW]", "text"),
+    ("AD", "immobilizer", "Immobilizer", "multi"),
+    ("AE", "displacement", "Displacement", "text"),
+    ("AF", "model_year", "Model year", "multi"),
+    ("AG", "engine_family", "Engine family", "text"),
+    ("AH", "emission_norm", "Emission norm", "multi"),
+    ("AI", "transmission", "Transmission", "multi"),
+    ("AJ", "market", "Market", "multi"),
+    ("AK", "cylinders", "Cylinders", "text"),
+    ("AL", "project_number_first", "Project number (1st part, Customer Code Number)", "text"),
+    ("AM", "project_number_second", "Project number (2nd part, Project Code Number)", "text"),
+    ("AN", "hardware_part_number", "Hardware part number", "text"),
+    ("AO", "development_number", "Development number", "text"),
+    ("AP", "ecu_hardware_name", "ECU hardware name", "text"),
+    ("AQ", "customer_order_number", "Customer order number", "text"),
+    ("AR", "customer_hardware_part_number", "Customer hardware part number", "text"),
+    ("AS", "customer_software_part_number", "Customer software part number", "text"),
+    ("AT", "car", "Car", "text"),
+    ("AU", "customer_name", "Customer name", "text"),
+    ("AV", "lead_plant", "Lead Plant", "dropdown"),
+    ("AW", "ecr_number", "ECR number", "text"),
+    ("AX", "software_part_number", "Software part number", "text"),
+    ("AY", "program_version", "Program version", "text"),
+    ("AZ", "data_version", "Data version", "text"),
+)

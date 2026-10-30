@@ -125,14 +125,22 @@ Their internals were not reviewed for this document.
     field is one line (OCP). `JobFiller` depends only on the page objects it is given (DIP).
   - Unused `Header` / `Footer` stubs were removed. `JobCreation.is_job_creation_page` used a misspelt
     constant and always returned `False`; it now uses `BODY_JOBCREATION_PAGE_CLASS` (it is not called).
-  - Kept as is: `Information.expand_job_information` / `collapse_job_information` return `False` when
-    nothing had to be clicked, and a drop-down whose value is not offered still reports the idle wait.
+  - Subsequent correctness changes: collapsing already-collapsed job information succeeds; dropdown
+    selection fails if an option is missing or the requested value does not stick. Text inputs are
+    checked for read-only state and verified after typing.
   - Tested with fake elements in `tests/test_webflow_components.py`; still to be confirmed by a run
     against a real WebFlow.
 - **WF-2:** Any change must keep `WebFlow.create_and_fill_jobs(variants, tool_version, routing)` and the
   variant dict shape unchanged, because `WebFlowJobService` and the tests depend on them.
 - **WF-3:** Page-object classes receive the driver by injection (already the case for `SideMenuBar` and
   `Body`); keep it that way for new classes.
+- **WF-5 (sheet-authoritative values):** `MasterSheet/webflow_variants.py` reads all mapped fields from
+  their sheet columns; it does not substitute `WebFlowDefaults`. Blank optional values are skipped,
+  invalid checkbox cells and missing required creation fields are errors. `core/webflow_fields.py`
+  maps additional Hardware/Plant fields, filled by `HardwareFields` using the captured WebFlow form
+  labels. Columns without a corresponding control are returned as unfilled warnings, not guessed.
+  Configuration still supplies fields without a sheet column. The creation service measures the entire
+  operation with `perf_counter`, exposing elapsed seconds to the completion/failure dialog and log.
 
 ## 9. Order of work
 

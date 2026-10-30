@@ -108,6 +108,14 @@ class WebFlow(webdriver.Edge):
         if not variants:
             _logger.info("No variants given, nothing to create")
             return []
+        for variant in variants:
+            missing = [key for key in ("ecu_generation", "brand", "ecu_type") if not variant.get(key)]
+            if missing:
+                raise ValueError(f"{variant['part_number']}: Master Sheet is missing required values: {', '.join(missing)}.")
+        creation_values = {(v["ecu_generation"], v["brand"], v["ecu_type"]) for v in variants}
+        if len(creation_values) != 1:
+            raise ValueError("Selected variants must have the same Master Sheet ECU Generation, Brand and ECU Type.")
+        brand = variants[0]["brand"]
         _logger.info(
             "WebFlow creation started: %d variant(s) %s, tool version %s, routing %s, brand %s, customer group %s, working mode %s",
             len(variants), [v["part_number"] for v in variants], tool_version, routing, brand, customer_group, working_mode,

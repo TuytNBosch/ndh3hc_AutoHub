@@ -80,8 +80,8 @@ class CreationWidget(QWidget):
             QMessageBox.critical(self, "Create WebFlow jobs", "Tool version and routing are required.")
             return
 
-        if len({variant["ecu_type"] for variant in selected}) != 1:
-            QMessageBox.critical(self, "Create WebFlow jobs", "Selected variants must use the same ECU type.")
+        if len({(v.get("ecu_generation"), v.get("brand"), v["ecu_type"]) for v in selected}) != 1:
+            QMessageBox.critical(self, "Create WebFlow jobs", "Selected variants must use the same ECU Generation, Brand and ECU Type.")
             return
 
         _logger.info("Create WebFlow jobs clicked (%d variant(s), config=%s)", len(selected), config)
@@ -143,13 +143,14 @@ class CreationWidget(QWidget):
         link_error = next((item["LinkError"] for item in results if item.get("LinkError")), "")
         if link_error:
             message += f"\n\nThe links were not written to the Master Sheet: {link_error}"
+        message += f"\n\nTotal time: {self._service.last_elapsed_seconds:.1f} seconds."
         window.succeed(message)
 
     def _fail_webflow_jobs(self, error: str, window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
         _logger.error("Create WebFlow jobs failed: %s", error)
-        window.fail(error)
+        window.fail(f"{error}\n\nTotal time: {self._service.last_elapsed_seconds:.1f} seconds.")
 
     def shutdown(self) -> None:
         """Called by MainWindow on close so we don't leave a browser session running."""

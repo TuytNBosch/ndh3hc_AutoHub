@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from contextlib import AbstractContextManager, nullcontext
 from typing import Callable, Protocol
@@ -40,8 +41,30 @@ class WebFlowJobService:
         self._master_sheet_factory = master_sheet_factory
         self._session = session_factory
         self._webflow: WebFlowSession | None = None
+        self.last_elapsed_seconds = 0.0
 
     def create_jobs(
+        self,
+        variants: list[dict],
+        config: WebFlowConfig,
+        progress: ProgressCallback = no_progress,
+        master_sheet_path: str = "",
+    ) -> list[dict]:
+        started = time.perf_counter()
+        self.last_elapsed_seconds = 0.0
+        completed = False
+        try:
+            results = self._create_jobs(variants, config, progress, master_sheet_path)
+            completed = True
+            return results
+        finally:
+            self.last_elapsed_seconds = time.perf_counter() - started
+            _logger.info(
+                "WebFlow jobs %s: %d requested; total time %.1f seconds (browser, filling, saving and link writing)",
+                "completed" if completed else "failed", len(variants), self.last_elapsed_seconds,
+            )
+
+    def _create_jobs(
         self,
         variants: list[dict],
         config: WebFlowConfig,

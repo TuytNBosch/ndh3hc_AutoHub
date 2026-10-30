@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from autohub.core.webflow_fields import HARDWARE_FIELDS
 
 from .step_log import Step, run_step, run_steps
 
@@ -54,6 +55,12 @@ class JobFiller:
         steps += [
             (f"General: {label} = {display_value(variant['general'][key])}", getattr(general, method), variant["general"][key])
             for label, method, key in GENERAL_FIELDS
+            if variant["general"].get(key) not in (None, "")
+        ]
+        steps += [
+            (f"General: {label} = {value}", general.fill_hardware_field, key, value)
+            for _, key, label, _ in HARDWARE_FIELDS
+            if (value := variant.get("hardware", {}).get(key))
         ]
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
@@ -70,6 +77,10 @@ class JobFiller:
         general = self.body.tab.generaltab
         general.skipped_fields.clear()
         _logger.info("[%s] Values to fill: %s", part_number, describe_values(variant))
+        for field, value in variant.get("unmapped_fields", {}).items():
+            warning = f"Master Sheet {field} = {value}: no matching control in the recorded WebFlow form; not filled."
+            general.skipped_fields.append(warning)
+            _logger.warning("[%s] %s", part_number, warning)
         if not run_step(_logger, f"[{part_number}] Select the General tab", general.select_general_tab):
             raise RuntimeError("Could not select the General tab.")
 
@@ -92,7 +103,7 @@ def describe_values(variant: dict) -> str:
     """Every value of the General, ECU and Customer tabs, e.g. ``General[delivery_type=X, ...]; ECU[...]``."""
     return "; ".join(
         f"{title}[" + ", ".join(f"{key}={display_value(value)}" for key, value in variant.get(section, {}).items()) + "]"
-        for title, section in (("General", "general"), ("ECU", "ecu"), ("Customer", "customer"))
+        for title, section in (("General", "general"), ("Hardware/Plant", "hardware"), ("ECU", "ecu"), ("Customer", "customer"))
     )
 
 

@@ -11,6 +11,7 @@ import logging
 import time
 from typing import Any, Callable
 
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -49,30 +50,40 @@ def pause() -> None:
 def select_dropdown(driver: Any, title_xpath: str, button_css: str, value: str, read_options: OptionsReader) -> bool:
     """Selects ``value`` in the drop-down next to the title; True if it is (or was already) chosen.
 
-    The drop-down is the ``button_css`` element in the title's parent form. When the value is not
-    offered, nothing is clicked and the result is that of the final idle wait (legacy behaviour)."""
+    Missing options or a value that does not stick are failures, never successful idle waits."""
     try:
-        title = wait_for(driver, By.XPATH, title_xpath)
-        button = title.find_element(By.XPATH, "..").find_element(By.CSS_SELECTOR, button_css)
+        def button_element():
+            title = wait_for(driver, By.XPATH, title_xpath)
+            return title.find_element(By.XPATH, "..").find_element(By.CSS_SELECTOR, button_css)
 
-        try:
-            button.find_element(By.XPATH, f'.//span[text()="{value}"]')
+        # XPath literals must also support option text containing quotation marks.
+        literal = "'" + value + "'" if "'" not in value else 'concat(' + ', "\'", '.join(
+            "'" + part + "'" for part in value.split("'")
+        ) + ')'
+
+        def selected(_driver):
+            try:
+                button_element().find_element(By.XPATH, f'.//span[text()={literal}]')
+                return True
+            except NoSuchElementException:
+                return False
+
+        if selected(driver):
             return True
-        except Exception:
-            pass  # another value is selected
-
-        button.click()
+        button_element().click()
         pause()
         if not wait_until_idle(driver):
             return False
 
         options = read_options()
-        if options and value in options:
-            options[value].click()
-        else:
-            _logger.warning("Drop-down %s does not offer %r", title_xpath, value)
-
-        return wait_until_idle(driver)
+        if not options or value not in options:
+            _logger.error("Drop-down %s does not offer %r; available values: %s", title_xpath, value, list(options or {}))
+            return False
+        options[value].click()
+        if not wait_until_idle(driver):
+            return False
+        WebDriverWait(driver, Constants.BODY_TIMEOUT).until(selected)
+        return True
     except Exception:
         _logger.warning("Could not select %r in drop-down %s", value, title_xpath, exc_info=True)
         return False
@@ -196,13 +207,20 @@ class Section:
 
     def fill_input(self, input_css: str, value: str) -> bool:
         """Expands the section and types ``value`` into its ``input_css`` field."""
-        self.expand()
+        if not self.expand():
+            return False
         try:
             field = self.body().find_element(By.CSS_SELECTOR, input_css)
             scroll_into_view_if_hidden(self.driver, field)
+            if not field.is_enabled() or field.get_attribute("readonly") is not None:
+                _logger.error("WebFlow input %s is read-only; requested %r", input_css, value)
+                return False
             field.clear()
             field.send_keys(value)
             pause()
+            if field.get_attribute("value") != value:
+                _logger.error("WebFlow input %s did not retain requested value %r", input_css, value)
+                return False
             return True
         except Exception:
             _logger.warning("Could not fill %s", input_css, exc_info=True)
