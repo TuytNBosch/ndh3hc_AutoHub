@@ -65,3 +65,20 @@ def test_webflow_link_column_is_frozen_right_after_the_part_number():
     assert frozen.width == before + table.columnWidth(link) and table.columnWidth(link) >= 60
     table.set_webflow_link_visible(False)
     assert frozen.view.isColumnHidden(link) and frozen.width == before
+
+
+def test_hidden_webflow_link_column_leaves_no_gap():
+    from PySide6.QtWidgets import QApplication
+
+    from autohub.modules.home.variant_table import VariantTable
+
+    QApplication.instance() or QApplication([])
+    table = VariantTable()
+    table.populate([{"_row": 1, "J": "P1"}])
+    link = table.columnCount() - 1
+    header = table.horizontalHeader()
+    assert header.visualIndex(link) == link
+    table.set_webflow_link_visible(True)
+    assert header.visualIndex(link) == 2
+    table.set_webflow_link_visible(False)
+    assert header.visualIndex(link) == link and table.columnWidth(link) == 0
