@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QCheckBox, QPushButton, QToolButton
+from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QPushButton, QToolButton
 
 from autohub.ui.button_cursor import install_button_cursor
 
@@ -12,6 +12,11 @@ def test_buttons_get_a_hand_cursor_while_enabled():
         widget.ensurePolished()
     assert push.cursor().shape() == Qt.PointingHandCursor
     assert tool.cursor().shape() == Qt.PointingHandCursor
+    combo = QComboBox()
+    combo.addItems(["a", "b"])
+    combo.ensurePolished()
+    assert combo.cursor().shape() == Qt.PointingHandCursor
+    assert combo.view().viewport().cursor().shape() == Qt.PointingHandCursor
     assert check.cursor().shape() == Qt.ArrowCursor
     push.setEnabled(False)
     assert push.cursor().shape() == Qt.ArrowCursor

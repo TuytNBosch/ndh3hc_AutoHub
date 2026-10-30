@@ -6,6 +6,7 @@ from PySide6.QtGui import QFont, QIcon, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
 
 from autohub.config import APP_NAME, ICONS_DIR, LOGO_PATH
+from autohub.ui.hover_cursor import HoverCursor
 
 _EXPANDED_WIDTH = 220
 _COLLAPSED_WIDTH = 56
@@ -72,6 +73,7 @@ class Sidebar(QWidget):
         for icon_file, title in items:
             self._list.addItem(QListWidgetItem(self._resolve_icon(icon_file), title))
         self._list.currentRowChanged.connect(self.moduleSelected)
+        self._hover = HoverCursor((self._list,), lambda index: index.isValid())  # hand over the modules
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
