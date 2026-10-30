@@ -103,6 +103,50 @@ def test_update_saves_the_table_rows_and_publishes_webflow_variants(tmp_path):
     assert "Updated 1 variant" in dialogs.infos[-1][1]
 
 
+def test_update_saves_only_rows_with_changed_part_numbers_and_lists_them(tmp_path):
+    master = FakeMasterSheet(
+        rows=[
+            {"_row": 11, "J": "P1", "A": "before"},
+            {"_row": 14, "J": "P2", "A": "before"},
+        ],
+        webflow=[],
+    )
+    presenter, view, dialogs, _ = _presenter(tmp_path, build_service(master=master))
+    presenter.load_variants()
+    view.rows = [
+        {"_row": 11, "J": "P1-new", "A": "after"},
+        {"_row": 14, "J": "P2", "A": "not saved"},
+        {"_row": None, "J": "P3", "A": "new"},
+    ]
+
+    presenter.update_master_sheet()
+
+    assert master.saved == [
+        {"_row": 11, "J": "P1-new", "A": "after"},
+        {"_row": None, "J": "P3", "A": "new"},
+    ]
+    confirmation = dialogs.confirmed[-1][1]
+    assert "P1 -> P1-new" in confirmation
+    assert "New variants to add:\n- P3" in confirmation
+    assert "P2" not in confirmation
+    assert "Other field changes" in confirmation
+
+
+def test_update_does_not_save_other_field_changes_without_part_number_changes(tmp_path):
+    master = FakeMasterSheet(rows=[{"_row": 11, "J": "P", "A": "before"}])
+    presenter, view, dialogs, _ = _presenter(tmp_path, build_service(master=master))
+    presenter.load_variants()
+    view.rows = [{"_row": 11, "J": "P", "A": "after"}]
+
+    presenter.update_master_sheet()
+
+    assert master.saved is None
+    assert dialogs.infos[-1] == (
+        "Update variants",
+        "No existing variants have a changed Part Number. Other field changes were not saved.",
+    )
+
+
 def test_update_without_rows_does_nothing(tmp_path):
     master = FakeMasterSheet()
     presenter, _, _, _ = _presenter(tmp_path, build_service(master=master))
@@ -266,9 +310,11 @@ def test_replaced_rows_stay_until_the_new_ones_arrive(tmp_path):
 
 
 def test_clear_and_update_buttons_ask_for_confirmation(tmp_path):
-    master = FakeMasterSheet(rows=[{"_row": 11}])
+    master = FakeMasterSheet(rows=[{"_row": 11, "J": "old"}])
     dialogs = FakeDialogs(confirm_answer=False)
     presenter, view, _, _ = _presenter(tmp_path, build_service(master=master), dialogs)
+    presenter.load_variants()
+    dialogs.windows.clear()
     view.rows = [{"J": "a", "_row": 11}]
 
     presenter.clear_table()
