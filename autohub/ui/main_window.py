@@ -24,7 +24,10 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(LOGO_PATH)))
         self.setFixedSize(1024, 700)
 
-        self._sidebar = Sidebar([(module.icon_file, module.display_name) for module in modules])
+        self._sidebar = Sidebar(
+            [(module.icon_file, module.display_name) for module in modules],
+            [index for index, module in enumerate(modules) if module.pinned_bottom],
+        )
         self._pages = QStackedWidget()
 
         widgets = [module.create_widget() for module in modules]
