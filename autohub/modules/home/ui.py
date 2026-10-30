@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from autohub.config import HOME_BANNER_PATH
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -53,6 +53,12 @@ class HomeWidget(QWidget):
         self._create_btn.setToolTip(NEW_VARIANT_TIP)
         self._load_btn = QPushButton(LOAD_TEXT)
         self._load_btn.setMinimumWidth(120)
+        self._latest_spin = QSpinBox()
+        self._latest_spin.setRange(0, 99999)
+        self._latest_spin.setSpecialValueText("All")
+        self._latest_spin.setToolTip("How many of the latest variants Load variants shows (All = no limit).")
+        files_row.addWidget(QLabel("Latest variants:"))
+        files_row.addWidget(self._latest_spin)
         files_row.addWidget(self._create_btn)
         files_row.addWidget(self._load_btn)
 
@@ -90,6 +96,7 @@ class HomeWidget(QWidget):
         self._variant_table.selectionModel().selectionChanged.connect(
             lambda *_: self._presenter.on_selection_changed()
         )
+        self._latest_spin.valueChanged.connect(self._presenter.set_latest_count)
         self._presenter.restore_saved_paths()
 
     # -- HomeView ----------------------------------------------------------------------
@@ -104,6 +111,9 @@ class HomeWidget(QWidget):
 
     def show_rows(self, rows: list[dict]) -> None:
         self._variant_table.populate(rows)
+
+    def show_latest_count(self, count: int) -> None:
+        self._latest_spin.setValue(count)
 
     def read_rows(self) -> list[dict]:
         return self._variant_table.read()
