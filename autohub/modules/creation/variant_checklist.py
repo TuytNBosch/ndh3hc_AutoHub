@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from autohub.core.webflow_links import webflow_link_text
 from autohub.core.settings import SettingsStore
 
 _ALL_EVENTS = "All events"
@@ -134,7 +135,7 @@ class VariantChecklist(QWidget):
         layout.addWidget(checkbox)
         layout.addStretch(1)
         if link:
-            label = QLabel(f'<a href="{link}">WebFlow job {link.rstrip("/").rsplit("/", 1)[-1]}</a>')
+            label = QLabel(f'<a href="{link}">{webflow_link_text(link) or link}</a>')
             label.setOpenExternalLinks(True)
             label.setToolTip(link)
             layout.addWidget(label)

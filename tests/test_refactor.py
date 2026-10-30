@@ -140,3 +140,12 @@ def test_create_jobs_reports_a_sheet_without_a_link_column():
     config = WebFlowConfig(driver_path="", base_url="u", tool_version="t", routing="r")
     results = service.create_jobs([{"part_number": "P1"}], config, master_sheet_path="m.xlsx")
     assert "no WebFlow link column" in results[0]["LinkError"]
+
+
+def test_webflow_link_text_is_wf_plus_the_job_number():
+    from autohub.core.webflow_links import is_link, webflow_link_text
+
+    assert webflow_link_text("https://h:8881/app/ShowJob/16406") == "WF16406"
+    assert webflow_link_text("https://h:8881/app/ShowJob/16406/") == "WF16406"
+    assert webflow_link_text("nothing") == ""
+    assert is_link("https://x") and not is_link("WF218076")

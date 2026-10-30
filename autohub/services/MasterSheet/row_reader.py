@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Iterator
 
 from autohub.core.normalizers import clean_text, normalize_part_number
+from autohub.core.webflow_links import is_link
 from autohub.core.variant_schema import  VARIANT_FIELD_ORDER
 from autohub.services.MasterSheet.variant_builder import variant_key
 from autohub.services.MasterSheet.webflow_variants import WEBFLOW_SOURCE_COLUMNS, webflow_variant_from_row
@@ -35,6 +36,17 @@ class VariantRowReader:
             if part_number:
                 yield row, part_number
 
+    def _webflow_link(self, row: int) -> str:
+        """The address of the cell's hyperlink; a cell holding the plain link text counts too."""
+        cell = self._worksheet.Range(f"{WEBFLOW_LINK_COLUMN}{row}")
+        try:
+            if cell.Hyperlinks.Count:
+                return clean_text(cell.Hyperlinks(1).Address)
+        except Exception:
+            pass
+        text = clean_text(cell.Value)
+        return text if is_link(text) else ""
+
     def latest_request_rows(self) -> dict[str, int]:
         """Upper-case part number -> its last REQ row (the one the WebFlow variant is built from)."""
         return {part.upper(): row for row, part in self.request_rows_with_part_number()}
@@ -59,7 +71,7 @@ class VariantRowReader:
         for row, part_number in self.request_rows_with_part_number():
             values = {column: self._value(column, row) for column in WEBFLOW_SOURCE_COLUMNS}
             variant = webflow_variant_from_row(part_number, values)
-            variant["webflow_link"] = clean_text(self._value(WEBFLOW_LINK_COLUMN, row))
+            variant["webflow_link"] = self._webflow_link(row)
             variants_by_part_number[part_number.upper()] = variant
         return list(variants_by_part_number.values())
 
