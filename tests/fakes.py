@@ -184,9 +184,6 @@ class FakeView:
     def show_rows(self, rows):
         self.rows = list(rows)
 
-    def show_latest_count(self, count):
-        self.latest_count = count
-
     def read_rows(self):
         return list(self.rows)
 

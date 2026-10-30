@@ -19,3 +19,12 @@ def test_columns_stay_within_limits(qtbot=None):
     assert table.columnWidth(3) == MIN_COLUMN_WIDTH
     table.setColumnWidth(3, 5000)
     assert table.columnWidth(3) == MAX_COLUMN_WIDTH
+
+
+def test_settings_dialog_returns_the_chosen_latest_count():
+    from PySide6.QtWidgets import QApplication
+    from autohub.modules.home.presenter import LATEST_COUNT_CHOICES
+    from autohub.modules.home.settings_dialog import HomeSettingsDialog
+    QApplication.instance() or QApplication([])
+    assert HomeSettingsDialog(20, LATEST_COUNT_CHOICES).latest_count() == 20
+    assert HomeSettingsDialog(7, LATEST_COUNT_CHOICES).latest_count() == 5

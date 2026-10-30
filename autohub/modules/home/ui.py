@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QComboBox, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from autohub.config import HOME_BANNER_PATH
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -20,6 +20,7 @@ from autohub.modules.home.presenter import (
     UPDATE_TEXT,
     HomePresenter,
 )
+from autohub.modules.home.settings_dialog import HomeSettingsDialog
 from autohub.modules.home.service import VariantService
 from autohub.modules.home.variant_table import VariantTable
 
@@ -54,12 +55,6 @@ class HomeWidget(QWidget):
         self._create_btn.setToolTip(NEW_VARIANT_TIP)
         self._load_btn = QPushButton(LOAD_TEXT)
         self._load_btn.setMinimumWidth(120)
-        self._latest_combo = QComboBox()
-        for count in LATEST_COUNT_CHOICES:
-            self._latest_combo.addItem(str(count) if count else "All", count)
-        self._latest_combo.setToolTip("How many of the latest variants Load variants shows.")
-        files_row.addWidget(QLabel("Latest variants:"))
-        files_row.addWidget(self._latest_combo)
         files_row.addWidget(self._create_btn)
         files_row.addWidget(self._load_btn)
 
@@ -74,6 +69,9 @@ class HomeWidget(QWidget):
         write_row = QHBoxLayout()
         write_row.addWidget(self._clear_btn)
         write_row.addWidget(self._delete_btn)
+        self._settings_btn = QPushButton("Settings")
+        self._settings_btn.setToolTip("Home settings, e.g. how many latest variants Load variants shows.")
+        write_row.addWidget(self._settings_btn)
         write_row.addStretch(1)
         write_row.addWidget(self._update_btn)
 
@@ -97,9 +95,7 @@ class HomeWidget(QWidget):
         self._variant_table.selectionModel().selectionChanged.connect(
             lambda *_: self._presenter.on_selection_changed()
         )
-        self._latest_combo.currentIndexChanged.connect(
-            lambda _index: self._presenter.set_latest_count(self._latest_combo.currentData())
-        )
+        self._settings_btn.clicked.connect(self._open_settings)
         self._presenter.restore_saved_paths()
 
     # -- HomeView ----------------------------------------------------------------------
@@ -115,9 +111,10 @@ class HomeWidget(QWidget):
     def show_rows(self, rows: list[dict]) -> None:
         self._variant_table.populate(rows)
 
-    def show_latest_count(self, count: int) -> None:
-        index = self._latest_combo.findData(count)
-        self._latest_combo.setCurrentIndex(index if index >= 0 else self._latest_combo.findData(0))
+    def _open_settings(self) -> None:
+        dialog = HomeSettingsDialog(self._presenter.latest_count(), LATEST_COUNT_CHOICES, self)
+        if dialog.exec() == HomeSettingsDialog.Accepted:
+            self._presenter.set_latest_count(dialog.latest_count())
 
     def read_rows(self) -> list[dict]:
         return self._variant_table.read()
