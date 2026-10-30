@@ -35,14 +35,13 @@ class Actions:
             return None
 
     def save(self) -> bool:
-        """Clicks Save and confirms WebFlow's "Saved successfully" toast; an error toast or no toast is a failure."""
+        """Clicks Save and confirms its success toast; an error toast or no toast is a failure."""
         button = self.get_button_by_text("save")
         if button is None:
             return False
         if "disabled" in button.get_attribute("class"):
             return True
         button.click()
-        wait_until_idle(self.driver)
         return self._saved_toast_shown()
 
     def _saved_toast_shown(self) -> bool:
@@ -54,12 +53,15 @@ class Actions:
             return False
 
         try:
-            found, text = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(severity)
+            found, text = WebDriverWait(self.driver, Constants.SAVE_TIMEOUT).until(severity)
         except TimeoutException:
             _logger.error("WebFlow showed no confirmation after Save")
             return False
         if found == "error":
             _logger.error("WebFlow could not save: %s", text)
+            return False
+        if "saved successfully" not in text.casefold():
+            _logger.error("WebFlow showed an unexpected save confirmation: %s", text)
             return False
         _logger.info("WebFlow confirmed the save: %s", text)
         return True
