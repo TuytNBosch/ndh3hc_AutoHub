@@ -412,3 +412,21 @@ def test_update_reloads_only_the_latest_variants_from_the_setting(tmp_path):
     assert [row["_row"] for row in view.rows] == [56, 59, 62, 65, 68]
     presenter.set_latest_count(10)
     assert len(view.rows) == 10
+
+
+class _ByPartNumber(FakeMasterSheet):
+    def delete_variants_by_part_number(self, part_numbers, save=True):
+        self.deleted_parts = list(part_numbers)
+        return len(part_numbers)
+
+
+def test_sheets_that_find_variants_by_part_number_are_given_the_part_numbers(tmp_path):
+    master = _ByPartNumber(rows=[{"_row": 11, "J": "P1"}, {"_row": 14, "J": "P2"}])
+    presenter, view, _, _ = _presenter(tmp_path, build_service(master=master))
+    presenter.load_variants()
+    view.selected = [0]
+
+    presenter.delete_selected()
+    presenter.update_master_sheet()
+
+    assert master.deleted_parts == ["P1"] and master.deleted is None
