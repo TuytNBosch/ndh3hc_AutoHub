@@ -176,15 +176,17 @@ class Mx17MasterSheet(MasterSheet):
                 if not changed:
                     saved.append({"PartNumber": home.get("J"), "RequestRow": row, "Unmapped": []})
                     continue  # an unchanged variant is not touched
-                self._write(worksheet, row, layout.main_values_from_home(changed, keep_blank=True))
+                self._write(worksheet, row, layout.main_values_from_home(changed, keep_blank=True), layout.LAST_DATA_COLUMN)
                 known = info.get(normalize_part_number(before.get("J")).upper())
                 if known:
-                    self._write(known[0], known[1], layout.info_values_from_home(changed, keep_blank=True))
+                    self._write(
+                        known[0], known[1], layout.info_values_from_home(changed, keep_blank=True), layout.INFO_LAST_COLUMN
+                    )
                 elif layout.needs_info_row(changed):
                     self._append_info_row({**before, **home})  # the edit has no place in the main sheet
             else:
                 row = self._append_main_row(worksheet)
-                self._write(worksheet, row, layout.new_main_values(home, datetime.now()))
+                self._write(worksheet, row, layout.new_main_values(home, datetime.now()), layout.LAST_DATA_COLUMN)
                 self._append_info_row(home)
             saved.append({"PartNumber": home.get("J"), "RequestRow": row, "Unmapped": layout.unmapped_keys(written)})
         if save:
@@ -222,8 +224,12 @@ class Mx17MasterSheet(MasterSheet):
             self.save()
         return len(rows)
 
-    def _write(self, worksheet, row: int, values: dict[str, Any]) -> None:
+    def _write(self, worksheet, row: int, values: dict[str, Any], last_column: str) -> None:
+        """Writes into the existing columns A..`last_column` only; the sheet never gets a new column."""
+        limit = column_index_from_string(last_column)
         for column, value in values.items():
+            if column_index_from_string(column) > limit:
+                continue
             address = f"{column}{row}"
             try:
                 self._write_cell(worksheet.Range(address), value)
@@ -281,11 +287,13 @@ class Mx17MasterSheet(MasterSheet):
         return None
 
     def _new_info_sheet(self, name: str, title: str):
-        """A new Info sheet for a project: the Mx17 Info sheet (else the first one) without its variants."""
+        """A new Info sheet for a project: a copy of the Mx17_5xFx_Info sheet without its variants."""
         sheets = self._info_sheets()
         if not sheets:
             raise RuntimeError("The Master Sheet has no Info sheet to copy for the new project.")
-        template = next((sheet for sheet in sheets if sheet.Name == layout.INFO_TEMPLATE_SHEET), sheets[0])
+        template = next((sheet for sheet in sheets if sheet.Name == layout.INFO_TEMPLATE_SHEET), None)
+        if template is None:
+            raise RuntimeError(f"The Info sheet '{layout.INFO_TEMPLATE_SHEET}' is needed as the template of new Info sheets.")
         template.Copy(After=sheets[-1])
         worksheet = self.workbook.ActiveSheet
         worksheet.Name = name
@@ -296,7 +304,7 @@ class Mx17MasterSheet(MasterSheet):
         except Exception:  # a partly covered merged cell blocks the clear
             cleared.UnMerge()
             cleared.ClearContents()
-        self._write(worksheet, layout.INFO_TITLE_ROW, {"A": title})
+        self._write(worksheet, layout.INFO_TITLE_ROW, {"A": title}, layout.INFO_LAST_COLUMN)
         return worksheet
 
     def _append_info_row(self, home: dict) -> None:
@@ -323,4 +331,6 @@ class Mx17MasterSheet(MasterSheet):
                 if last >= layout.INFO_FIRST_DATA_ROW
                 else layout.INFO_FIRST_DATA_ROW
             )
-        self._write(worksheet, row, layout.info_values_from_home(home, defaults_for_blanks=True))
+        self._write(
+            worksheet, row, layout.info_values_from_home(home, defaults_for_blanks=True), layout.INFO_LAST_COLUMN
+        )
