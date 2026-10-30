@@ -62,6 +62,12 @@ class JobFiller:
                 continue  # WebFlow allocates this number through Import from pool.
             value = variant.get("hardware", {}).get(key)
             if value:
+                if key == "lead_plant":
+                    steps.append((
+                        "General: Number of variants = 1; Time limitation required = False (X); "
+                        "Successor to Time Limited Delivery ECU = False (X)",
+                        general.prepare_classification,
+                    ))
                 steps.append((f"General: {label} = {value}", general.fill_hardware_field, key, value))
                 if key == "lead_plant":
                     steps.append(("General: Import software part number from pool", general.import_software_part_number))

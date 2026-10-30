@@ -47,6 +47,9 @@ class GeneralTab:
     def import_software_part_number(self) -> bool:
         return self._hardware.import_software_part_number()
 
+    def prepare_classification(self) -> bool:
+        return self._hardware.prepare_classification()
+
     def select_general_tab(self) -> bool:
         return self._tab.select()
 

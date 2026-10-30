@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
 from ... import Constants
-from ...components import Section, pause, scroll_into_view_if_hidden, select_dropdown, wait_until_idle
+from ...components import Section, checkbox_value, pause, scroll_into_view_if_hidden, select_dropdown, wait_until_idle
 from ...dropdown import read_options
 
 _logger = logging.getLogger(__name__)
@@ -29,6 +29,7 @@ _PANEL_FIELDS = {
     ),
     "Ident Numbers": ("lead_plant", "program_version", "software_part_number", "data_version"),
     "ECR Information": ("ecr_number",),
+    "Classification": (),
 }
 _FIELD_PANELS = {key: panel for panel, keys in _PANEL_FIELDS.items() for key in keys}
 
@@ -40,6 +41,48 @@ class HardwareFields:
             panel: Section(driver, f'//span[normalize-space(.)="{panel}"]', 'div[style^="display:"]')
             for panel in _PANEL_FIELDS
         }
+
+    def prepare_classification(self) -> bool:
+        section = self.sections["Classification"]
+        if not section.fill_input(
+            'input[placeholder="Has to match to number of variants (Calibration hex files) selected in input files"]', "1"
+        ):
+            return False
+        try:
+            for label in ("Time limitation required?", "Successor to Time Limited Delivery ECU?"):
+                form = section.body().find_element(
+                    By.XPATH, f'.//div[contains(@class,"control-label") and normalize-space(.)="{label}"]/..'
+                )
+                for _ in range(3):
+                    checkbox = form.find_element(By.CSS_SELECTOR, 'div[role="checkbox"]')
+                    if checkbox_value(checkbox) is False:
+                        break
+                    if checkbox.get_attribute("aria-disabled") == "true":
+                        _logger.error("Classification checkbox %s is disabled", label)
+                        return False
+                    checkbox.click()
+                    pause()
+                else:
+                    _logger.error("Classification checkbox %s did not reach X (false)", label)
+                    return False
+                _logger.info("WebFlow %s = False (X)", label)
+            _logger.info("WebFlow Number of variants = 1")
+            return True
+        except Exception:
+            _logger.exception("Could not prepare Classification before Lead Plant")
+            return False
+
+    def _loaded_options(self, value: str) -> dict:
+        def loaded(_driver):
+            options = read_options(
+                self.driver, Constants.GENERAL_TAB_OPTIONS_CLASS, Constants.GENERAL_TAB_OPTIONS_MAX_ITEMS
+            )
+            return options if options and value in options else False
+
+        return WebDriverWait(
+            self.driver, Constants.WEBFLOW_TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(loaded)
 
     def import_software_part_number(self) -> bool:
         section = self.sections["Ident Numbers"]
@@ -91,7 +134,7 @@ class HardwareFields:
                     self.driver,
                     f'//div[contains(@class,"control-label") and normalize-space(.)="{label}"]',
                     Constants.GENERAL_TAB_BTN_CSS, value,
-                    lambda: read_options(self.driver, Constants.GENERAL_TAB_OPTIONS_CLASS, Constants.GENERAL_TAB_OPTIONS_MAX_ITEMS),
+                    lambda: self._loaded_options(value),
                 )
             if kind == "multi":
                 return self._select_multiple(form, value)
