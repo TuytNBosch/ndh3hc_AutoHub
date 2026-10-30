@@ -221,6 +221,7 @@ VARIANT = {
     "part_number": "37820-ABC",
     "general": {"delivery_type": "Plant", "release_class": "C", "release_scope": "S", "limitations": "NO",
                 "safety_monitoring": True, "safety_calibration": None, "calibration": False, "data_integration": True},
+    "hardware": {"program_version": "PV01"},
     "ecu": {"indi_spec": "Spec", "family_name": "", "project_version": "P001", "program_version": None, "tp_level": "3"},
     "customer": {"ecu_default_id": "1", "ecu_program_id": "", "ecu_rewriting_id": "3", "security_coefficient": "",
                  "sw_version": "01", "component_id": "C"},
@@ -241,7 +242,8 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "General: safety calibration response = False",
         "General: Bosch calibration data response = False",
         "General: data integration response = True",
-        "General: Pick PST_Lib for project version P001",
+        "General: Program version = PV01",
+        "General: Pick PST_Lib for PVER PV01",
         "Select the ECU tab",
         "ECU: indi_spec = Spec",
         "ECU: project_version = P001",
@@ -303,11 +305,11 @@ def test_job_filler_stops_when_the_general_tab_cannot_be_selected():
     assert calls == [("select_general_tab",)]
 
 
-def test_job_filler_does_not_save_when_no_pst_lib_matches_project_version():
+def test_job_filler_does_not_save_when_no_pst_lib_matches_pver():
     job_filler, calls, _ = filler({"pick_pst_lib": False})
-    with pytest.raises(RuntimeError, match="PST_Lib entry matching project version 'P001'"):
+    with pytest.raises(RuntimeError, match="PST_Lib entry matching PVER 'PV01'"):
         job_filler.fill(VARIANT)
-    assert ("pick_pst_lib", "P001") in calls
+    assert ("pick_pst_lib", "PV01") in calls
     assert ("save",) not in calls
 
 
@@ -352,7 +354,7 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
             return self.rows if value == "table tbody tr" else []
 
     matching = Row("MG1CS022_6WZXSC/V037;1")
-    other = Row("MG1CS022_6WZYSC/V037;1")
+    other = Row("MG1CS022_6WZYSC/V036;1")
     dialog = Dialog([other, matching])
     open_button = Element()
     open_button.click = lambda: None
@@ -376,8 +378,8 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
             return result
 
     monkeypatch.setattr(hardware_fields_module, "WebDriverWait", Wait)
-    assert hardware.pick_pst_lib("6WZX") is True
-    assert dialog.search.typed == ["6WZX"]
+    assert hardware.pick_pst_lib("V037") is True
+    assert dialog.search.typed == ["V037"]
     assert matching.clicks == 1 and other.clicks == 0
     assert dialog.clicks == 1
 
@@ -432,7 +434,7 @@ def test_job_filler_uses_requested_priority_then_form_order():
     assert field_calls[11] == hardware_calls[2]
     assert field_calls[12] == ("import_software_part_number",)
     assert field_calls[13:10 + len(hardware_calls)] == hardware_calls[3:]
-    assert field_calls[10 + len(hardware_calls)] == ("pick_pst_lib", "P001")
+    assert field_calls[10 + len(hardware_calls)] == ("pick_pst_lib", "program_version")
     assert field_calls[11 + len(hardware_calls)] == ("select_ecu_tab",)
     assert calls[-1] == ("save",)
 

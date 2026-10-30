@@ -75,12 +75,12 @@ class JobFiller:
                 steps.append((f"General: {label} = {value}", general.fill_hardware_field, key, value))
                 if key == "lead_plant":
                     steps.append(("General: Import software part number from pool", general.import_software_part_number))
-        project_version = variant["ecu"].get("project_version")
-        if project_version:
+        pver = variant.get("hardware", {}).get("program_version")
+        if pver:
             steps.append((
-                f"General: Pick PST_Lib for project version {project_version}",
+                f"General: Pick PST_Lib for PVER {pver}",
                 general.pick_pst_lib,
-                project_version,
+                pver,
             ))
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
@@ -118,7 +118,7 @@ class JobFiller:
             picker = steps[picker_index]
             if not run_step(_logger, f"[{part_number}] {picker[0]}", picker[1], *picker[2:]):
                 raise RuntimeError(
-                    f"Could not select a PST_Lib entry matching project version {picker[2]!r} for {part_number}."
+                    f"Could not select a PST_Lib entry matching PVER {picker[2]!r} for {part_number}."
                 )
             failed += run_steps(
                 _logger,
