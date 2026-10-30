@@ -52,7 +52,7 @@ class JobFiller:
             ("Collapse the job information", self.body.information.collapse_job_information),
         ]
         steps += [
-            (f"General: {label}", getattr(general, method), variant["general"][key])
+            (f"General: {label} = {display_value(variant['general'][key])}", getattr(general, method), variant["general"][key])
             for label, method, key in GENERAL_FIELDS
         ]
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
@@ -69,6 +69,7 @@ class JobFiller:
         part_number = variant["part_number"]
         general = self.body.tab.generaltab
         general.skipped_fields.clear()
+        _logger.info("[%s] Values to fill: %s", part_number, describe_values(variant))
         if not run_step(_logger, f"[{part_number}] Select the General tab", general.select_general_tab):
             raise RuntimeError("Could not select the General tab.")
 
@@ -76,6 +77,23 @@ class JobFiller:
         if failed:
             raise RuntimeError(f"Could not fill all values for {part_number}. Failed: {'; '.join(failed)}")
         return list(general.skipped_fields)
+
+
+def display_value(value: Any) -> str:
+    """How a value appears in the log: empty text and None (a cleared checkbox) are spelled out."""
+    if value is None:
+        return "(none)"
+    if value == "":
+        return "(empty)"
+    return str(value)
+
+
+def describe_values(variant: dict) -> str:
+    """Every value of the General, ECU and Customer tabs, e.g. ``General[delivery_type=X, ...]; ECU[...]``."""
+    return "; ".join(
+        f"{title}[" + ", ".join(f"{key}={display_value(value)}" for key, value in variant.get(section, {}).items()) + "]"
+        for title, section in (("General", "general"), ("ECU", "ecu"), ("Customer", "customer"))
+    )
 
 
 def _optional_steps(section: str, page: Any, fields: tuple, values: dict) -> list[Step]:

@@ -215,14 +215,14 @@ def test_job_filler_plans_the_legacy_steps_in_order():
     assert names == [
         "Close the side menu",
         "Collapse the job information",
-        "General: delivery type",
-        "General: release class",
-        "General: release scope",
-        "General: limitations",
-        "General: safety monitoring SW",
-        "General: safety calibration response",
-        "General: Bosch calibration data response",
-        "General: data integration response",
+        "General: delivery type = Plant",
+        "General: release class = C",
+        "General: release scope = S",
+        "General: limitations = NO",
+        "General: safety monitoring SW = True",
+        "General: safety calibration response = (none)",
+        "General: Bosch calibration data response = False",
+        "General: data integration response = True",
         "Select the ECU tab",
         "ECU: indi_spec = Spec",
         "ECU: project_version = P001",
@@ -234,6 +234,17 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "Customer: component_id = C",
         "Save the job",
     ]
+
+
+def test_job_filler_logs_every_value(caplog):
+    job_filler, _, _ = filler()
+    with caplog.at_level("INFO", logger="autohub.services.WebFlow"):
+        job_filler.fill(VARIANT)
+    summary = next(r.getMessage() for r in caplog.records if "Values to fill" in r.getMessage())
+    assert "[37820-ABC] Values to fill: General[delivery_type=Plant" in summary
+    assert "safety_calibration=(none)" in summary and "family_name=(empty)" in summary
+    assert "Customer[ecu_default_id=1" in summary and "component_id=C]" in summary
+    assert any("Step: [37820-ABC] General: limitations = NO" == r.getMessage() for r in caplog.records)
 
 
 def test_job_filler_runs_every_step_and_returns_warnings():
