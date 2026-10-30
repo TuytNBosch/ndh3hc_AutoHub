@@ -16,7 +16,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - The window title shows the active module.
 - Cross-module wiring: variants loaded on Home are passed to Creation automatically.
 - On close, pages that hold resources (the WebFlow browser session) are shut down.
-- Logging to `logs/autohub.log` and the console.
+- Logging to `logs/autohub.log` and the console; turn it off or on with the **Logging** checkbox in the Settings module (saved as `logging_enabled`, applied with **Apply**, default on).
 - User settings are persisted to `%APPDATA%/AutoHub/settings.json`: file paths, WebFlow config and selected variants.
 
 ### Home module
