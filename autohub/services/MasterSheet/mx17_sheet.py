@@ -64,15 +64,24 @@ class Mx17MasterSheet(MasterSheet):
     # -- Reading ---------------------------------------------------------------------
 
     def _last_used_row(self, worksheet) -> int:
-        used = worksheet.UsedRange
-        return used.Row + used.Rows.Count - 1
+        try:
+            used = worksheet.UsedRange
+            return used.Row + used.Rows.Count - 1
+        except Exception as error:
+            raise RuntimeError(f"Could not read the used range of {worksheet.Name}: {error}") from error
 
     def _block(self, worksheet, first_row: int, last_row: int, last_column: str) -> list[tuple]:
         """The cells A{first_row}:{last_column}{last_row} in one call (a COM call per cell would be far too slow)."""
         if last_row < first_row:
             return []
-        value = worksheet.Range(f"A{first_row}:{last_column}{last_row}").Value
-        return list(value) if value else []
+        address = f"A{first_row}:{last_column}{last_row}"
+        try:
+            value = worksheet.Range(address).Value
+        except Exception as error:
+            raise RuntimeError(f"Could not read {worksheet.Name}!{address}: {error}") from error
+        if not isinstance(value, tuple):
+            return [(value,)] if value is not None else []
+        return list(value)
 
     def _main_rows(self) -> list[tuple[int, dict[str, Any]]]:
         worksheet = self._worksheet()
@@ -84,8 +93,11 @@ class Mx17MasterSheet(MasterSheet):
     def _info_sheets(self) -> list:
         sheets = []
         for index in range(1, self.workbook.Worksheets.Count + 1):
-            worksheet = self.workbook.Worksheets(index)
-            marker = worksheet.Range(f"{layout.INFO_MARKER_COLUMN}{layout.INFO_HEADER_ROW}").Value
+            try:
+                worksheet = self.workbook.Worksheets(index)
+                marker = worksheet.Range(f"{layout.INFO_MARKER_COLUMN}{layout.INFO_HEADER_ROW}").Value
+            except Exception:
+                continue  # not a worksheet we can read (e.g. a chart sheet)
             if isinstance(marker, str) and layout.INFO_MARKER_TEXT in marker:
                 sheets.append(worksheet)
         return sheets
