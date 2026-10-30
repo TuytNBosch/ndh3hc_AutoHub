@@ -182,3 +182,10 @@ def test_no_question_when_no_selected_variant_has_a_link(qapp):
     creation, dialogs = _creation_with_link(qapp, None)
     only_new = [v for v in creation._checklist.selected_variants() if v["part_number"] == "P2"]
     assert creation._without_declined_duplicates(only_new) == only_new and dialogs.asked == []
+
+
+def test_load_config_records_pages_unless_switched_off():
+    from autohub.modules.creation.config_form import load_config
+
+    assert "webflow_trace" in load_config(MemorySettings()).trace_dir
+    assert load_config(MemorySettings({"record_webflow_pages": False})).trace_dir == ""

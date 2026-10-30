@@ -16,7 +16,10 @@ from autohub.core.progress import ProgressCallback, no_progress
 from . import Constants as Constants
 from .SideMenuBar import SideMenuBar
 from .Body.Body import Body
-from .step_log import run_step, run_steps
+from pathlib import Path
+
+from .step_log import run_step, run_steps, set_step_observer
+from .step_trace import StepTrace
 
 _logger = logging.getLogger(__name__)
 
@@ -36,7 +39,12 @@ class CustomHttpClient(HttpClient):
 
 class WebFlow(webdriver.Edge):
 
-    def __init__(self, driver_path: str = "", base_url: str = "https://rb-pde-int.bosch.com:8881/app/dashboard"):
+    def __init__(
+        self,
+        driver_path: str = "",
+        base_url: str = "https://rb-pde-int.bosch.com:8881/app/dashboard",
+        trace_dir: str = "",
+    ):
         _logger.info("Starting the Edge browser (driver path: %s, base URL: %s)", driver_path or "auto", base_url)
         self.driver_path = driver_path
         self.base_url =base_url
@@ -52,6 +60,12 @@ class WebFlow(webdriver.Edge):
         self.side_menu_bar = SideMenuBar(self)
         self.body = Body(self)
         _logger.info("Edge browser started")
+        if trace_dir:  # record the page after every step
+            set_step_observer(StepTrace(self, Path(trace_dir)).on_step)
+
+    def quit(self):
+        set_step_observer(None)
+        super().quit()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         _logger.info("Closing the browser")
@@ -121,7 +135,7 @@ class WebFlow(webdriver.Edge):
             len(variants), [v["part_number"] for v in variants], tool_version, routing, brand, customer_group, working_mode,
         )
         progress("Opening the WebFlow dashboard...")
-        if not self.open_dashboard_page():
+        if not run_step(_logger, "Open the WebFlow dashboard", self.open_dashboard_page):
             raise RuntimeError("Could not open the WebFlow dashboard.")
         progress("Opening the new job page...")
         if not run_step(_logger, "Open the new job page from the side menu", self.side_menu_bar.click_new_job):
@@ -152,7 +166,7 @@ class WebFlow(webdriver.Edge):
         for number, (job_id, variant) in enumerate(zip(job_ids, variants), start=1):
             progress(f"Filling job {job_id} for {variant['part_number']} ({number}/{len(variants)})...")
             _logger.info("Job %s (%d/%d): filling variant %s", job_id, number, len(variants), variant["part_number"])
-            if not self.open_job(job_id):
+            if not run_step(_logger, f"Open job {job_id}", self.open_job, job_id):
                 raise RuntimeError(f"Could not open WebFlow job {job_id}.")
             self._fill_job(variant)
             _logger.info("Job %s saved for variant %s: %s", job_id, variant["part_number"], self.job_url(job_id))

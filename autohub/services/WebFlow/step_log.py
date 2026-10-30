@@ -3,10 +3,28 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Protocol, Sequence
 
 #: (description, action, *arguments) - the action returns True on success.
 Step = tuple
+
+
+class StepObserver(Protocol):
+    def on_step(self, name: str, ok: bool, seconds: float, error: str = "") -> None: ...
+
+
+_observer: StepObserver | None = None
+
+
+def set_step_observer(observer: StepObserver | None) -> None:
+    """Every finished step is reported to the observer (e.g. a page recorder); None switches it off."""
+    global _observer
+    _observer = observer
+
+
+def _report(name: str, ok: bool, seconds: float, error: str = "") -> None:
+    if _observer is not None:
+        _observer.on_step(name, ok, seconds, error)
 
 
 def run_step(logger: logging.Logger, name: str, action: Callable[..., Any], *args: Any) -> bool:
@@ -15,13 +33,16 @@ def run_step(logger: logging.Logger, name: str, action: Callable[..., Any], *arg
     try:
         ok = bool(action(*args))
     except Exception:
-        logger.exception("Step raised: %s (after %.1fs)", name, time.perf_counter() - started)
+        elapsed = time.perf_counter() - started
+        logger.exception("Step raised: %s (after %.1fs)", name, elapsed)
+        _report(name, False, elapsed, "raised an exception")
         raise
     elapsed = time.perf_counter() - started
     if ok:
         logger.info("Step OK: %s (%.1fs)", name, elapsed)
     else:
         logger.warning("Step FAILED: %s (%.1fs)", name, elapsed)
+    _report(name, ok, elapsed)
     return ok
 
 

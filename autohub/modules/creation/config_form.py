@@ -1,9 +1,13 @@
 """WebFlow connection settings: stored values and the dialog that edits them."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QWidget
 
+from autohub.config import LOG_DIR
 from autohub.core.settings import SettingsStore
+from autohub.core.settings_keys import RECORD_PAGES_KEY
 from autohub.modules.creation.service import WebFlowConfig
 
 _DEFAULTS = {
@@ -13,6 +17,10 @@ _DEFAULTS = {
 }
 
 
+def _trace_dir() -> str:
+    return str(LOG_DIR / "webflow_trace" / datetime.now().strftime("%Y%m%d_%H%M%S"))
+
+
 def load_config(settings: SettingsStore) -> WebFlowConfig:
     saved = settings.load()
     return WebFlowConfig(
@@ -20,6 +28,7 @@ def load_config(settings: SettingsStore) -> WebFlowConfig:
         base_url=str(saved.get("webflow_base_url", _DEFAULTS["webflow_base_url"])).strip(),
         tool_version=str(saved.get("tool_version", _DEFAULTS["tool_version"])).strip(),
         routing=str(saved.get("routing", _DEFAULTS["routing"])).strip(),
+        trace_dir=_trace_dir() if saved.get(RECORD_PAGES_KEY, True) else "",
     )
 
 
