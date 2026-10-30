@@ -10,6 +10,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .page_recorder import DRAIN_SCRIPT, INSTALL_SCRIPT
+
 _logger = logging.getLogger(__name__)
 
 #: Collected inside the browser in one call: every control a step might need to find or fix.
@@ -57,6 +59,16 @@ class StepTrace:
     def directory(self) -> Path:
         return self._directory
 
+    def on_step_start(self, name: str) -> None:
+        """Starts watching the page's changes and requests (again after a reload)."""
+        self._install()
+
+    def _install(self) -> None:
+        try:
+            self._driver.execute_script(INSTALL_SCRIPT)
+        except Exception:
+            _logger.debug("Could not install the page recorder", exc_info=True)
+
     def on_step(self, name: str, ok: bool, seconds: float, error: str = "") -> None:
         """Observer called by ``run_step`` once a step ended."""
         try:
@@ -69,16 +81,19 @@ class StepTrace:
         outcome = "OK" if ok else ("ERROR" if error else "FAILED")
         base = self._directory / f"{self._number:03d}_{slug(name)}_{outcome}"
         driver = self._driver
-        saved = {"html": False, "screenshot": False, "elements": False}
+        saved = {"html": False, "screenshot": False, "elements": False, "changes": False}
+        changes = self._drain_changes()
 
         for key, suffix, write in (
             ("html", ".html", lambda path: path.write_text(driver.page_source, encoding="utf-8")),
             ("screenshot", ".png", lambda path: driver.save_screenshot(str(path))),
             ("elements", ".json", lambda path: path.write_text(
                 json.dumps(driver.execute_script(_ELEMENTS_SCRIPT), indent=1, ensure_ascii=False), encoding="utf-8")),
+            ("changes", ".changes.json", lambda path: path.write_text(
+                json.dumps({"step": name, **changes}, indent=1, ensure_ascii=False), encoding="utf-8")),
         ):
             try:
-                write(base.with_suffix(suffix))
+                write(Path(str(base) + suffix))
                 saved[key] = True
             except Exception as problem:  # one missing artefact must not lose the others
                 _logger.warning("Could not save the %s of step %r: %s", key, name, problem)
@@ -87,9 +102,22 @@ class StepTrace:
             "n": self._number, "step": name, "outcome": outcome, "seconds": round(seconds, 2),
             "url": self._safe(lambda: driver.current_url), "title": self._safe(lambda: driver.title),
             "error": error, "files": base.name, "saved": saved,
+            "changes": len(changes["events"]), "requests": sum(e.get("type") == "request" for e in changes["events"]),
+            "navigated": changes["navigated"],
         }
         with (self._directory / "index.jsonl").open("a", encoding="utf-8") as index:
             index.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    def _drain_changes(self) -> dict:
+        """What changed on the page during the step; ``navigated`` when the page was reloaded (the recorder was lost)."""
+        try:
+            drained = self._driver.execute_script(DRAIN_SCRIPT)
+        except Exception:
+            drained = None
+        if not isinstance(drained, dict):
+            self._install()
+            return {"navigated": True, "dropped": 0, "events": []}
+        return {"navigated": False, "dropped": drained.get("dropped", 0), "events": drained.get("events", [])}
 
     @staticmethod
     def _safe(read) -> str:
