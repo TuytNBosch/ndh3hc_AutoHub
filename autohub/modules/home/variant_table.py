@@ -5,7 +5,7 @@ Clipboard, search, column filters, the context menu and the frozen leading colum
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
 
 from autohub.core.variant_choices import VARIANT_CHOICES
@@ -19,7 +19,7 @@ from autohub.modules.home.table_clipboard import TableClipboard
 from autohub.modules.home.table_filter import TableFilter
 from autohub.modules.home.table_search import TableSearch
 
-# "No." + "Part Number" stay visible while the other columns scroll horizontally.
+# "No." + "Part Number" (and the WebFlow link, when shown) stay visible while the other columns scroll horizontally.
 _FROZEN_COLUMNS = 2
 
 
@@ -48,7 +48,8 @@ class VariantTable(QTableWidget):
                 self.setItemDelegateForColumn(col + 1, ChoiceDelegate(VARIANT_CHOICES[column_name], self))
 
         self._limits = ColumnLimits(self)
-        self._frozen = FrozenColumns(self, _FROZEN_COLUMNS)
+        self._frozen = FrozenColumns(self, _FROZEN_COLUMNS, extra=(self._link_column,))
+        self._frozen.set_hidden(self._link_column, True)
         self._clipboard = TableClipboard(self)
         self._search = TableSearch(self, self._clipboard.set_cell_text)
         self._filter = TableFilter(self, (self._frozen.view,))
@@ -78,7 +79,10 @@ class VariantTable(QTableWidget):
         self._frozen.update_geometry()
 
     def set_webflow_link_visible(self, visible: bool) -> None:
-        self.setColumnHidden(self._link_column, not visible)
+        self._frozen.set_hidden(self._link_column, not visible)
+        if visible:
+            self._limits.apply()
+            self.setColumnWidth(self._link_column, max(self.columnWidth(self._link_column), 110))
 
     def _set_link_item(self, row: int, link: str) -> None:
         """The link column is read-only: it shows "WF<number>" and opens the job when clicked."""
@@ -86,6 +90,11 @@ class VariantTable(QTableWidget):
         item.setFlags(item.flags() & ~Qt.ItemIsEditable)
         item.setData(Qt.UserRole, link)
         item.setToolTip(link)
+        if link:  # looks like a link
+            font = item.font()
+            font.setUnderline(True)
+            item.setFont(font)
+            item.setForeground(QColor("#4da3ff"))
         self.setItem(row, self._link_column, item)
 
     def _open_link(self, row: int, column: int) -> None:

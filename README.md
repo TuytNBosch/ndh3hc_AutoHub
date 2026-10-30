@@ -61,7 +61,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Fed from Home.
   - Filter by event, select all or clear.
   - The selection is persisted.
-- **Home Settings** also has "Show the WebFlow link column": a read-only "WebFlow Link" column (WF<number>, click to open the job) at the end of the table; off by default.
+- **Home Settings** also has "Show the WebFlow link column": a read-only "WebFlow Link" column (WF<number>, blue and underlined, click to open the job), fixed right after Part Number like No. and Part Number; off by default.
 - **Settings** button (next to Create WebFlow jobs) opens a dialog for Base URL, Tool version and Routing; OK saves them. The variant list now grows with the window, so more variants are visible at once.
 - **Create WebFlow jobs**:
   - Validation: at least one variant is selected, tool version and routing are filled, and all selected variants share the same ECU type.
