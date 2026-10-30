@@ -34,7 +34,13 @@ class Sheet:
         from openpyxl.utils import column_index_from_string, get_column_letter
         last_col, last_row = column_index_from_string(match.group(1)), int(match.group(2))
         first_row = int(re.sub(r"\D", "", first))
-        return SimpleNamespace(Value=tuple(
+        def clear():
+            for address in list(self.cells):
+                column, row = re.fullmatch(r"([A-Z]+)(\d+)", address).groups()
+                if first_row <= int(row) <= last_row and column_index_from_string(column) <= last_col:
+                    del self.cells[address]
+
+        return SimpleNamespace(ClearContents=clear, Value=tuple(
             tuple(self.cells.get(f"{get_column_letter(c)}{r}") for c in range(1, last_col + 1))
             for r in range(first_row, last_row + 1)
         ))
@@ -162,3 +168,23 @@ def test_writes_never_go_past_the_last_existing_column():
     master._write(sheets[0], 7, {"DA": "in", "DB": "out", "XFD": "out"}, "DA")
     assert sheets[0].cells["DA7"] == "in"
     assert "DB7" not in sheets[0].cells and "XFD7" not in sheets[0].cells
+
+
+def test_new_info_sheet_never_renames_or_clears_the_main_sheet():
+    """Excel's active sheet can still be the main sheet after a copy; the new sheet must be found by name."""
+    main = {**_main_row(), "W8": "OTHER"}
+    info = {"B4": "[General]\nDelivery Type", "A5": "title", "A6": "37820-X"}
+    master, sheets = _sheet(main, info)
+    sheets[1].Name = layout.INFO_TEMPLATE_SHEET
+    book = master.workbook
+    book.ActiveSheet = sheets[0]  # the main sheet stays active
+
+    def copy(After=None):
+        sheets.append(Sheet(f"{layout.INFO_TEMPLATE_SHEET} (2)", sheets[1].cells))
+        book.Worksheets.Count = len(sheets)
+
+    sheets[1].Copy = copy
+    before = dict(sheets[0].cells)
+    created = master._new_info_sheet("5BFT_Info", "title")
+    assert sheets[0].Name == layout.MAIN_SHEET_NAME and sheets[0].cells == before
+    assert created.Name == "5BFT_Info" and sheets[1].Name == layout.INFO_TEMPLATE_SHEET
