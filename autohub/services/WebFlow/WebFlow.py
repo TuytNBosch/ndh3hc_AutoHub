@@ -11,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
+from autohub.core.progress import ProgressCallback, no_progress
 from . import Constants as Constants
 from .SideMenuBar import SideMenuBar
 from .Body.Body import Body
@@ -92,16 +93,20 @@ class WebFlow(webdriver.Edge):
         routing: str,
         brand: str = "Honda",
         customer_group: str = "JAP",
-        working_mode: str = "Honda_PreRun"
+        working_mode: str = "Honda_PreRun",
+        progress: ProgressCallback = no_progress,
     ) -> list:
         if not variants:
             return []
+        progress("Opening the WebFlow dashboard...")
         if not self.open_dashboard_page():
             raise RuntimeError("Could not open the WebFlow dashboard.")
+        progress("Opening the new job page...")
         if not self.side_menu_bar.click_new_job():
             raise RuntimeError("Could not open WebFlow job creation.")
 
         first_variant = variants[0]
+        progress(f"Creating {len(variants)} job(s)...")
         created = self.body.job_creation.jobs_creation(
             ecu_generation=first_variant["ecu_generation"],
             ecu_type=first_variant["ecu_type"],
@@ -120,7 +125,8 @@ class WebFlow(webdriver.Edge):
             raise RuntimeError("WebFlow returned an unexpected number of job IDs.")
 
         results = []
-        for job_id, variant in zip(job_ids, variants):
+        for number, (job_id, variant) in enumerate(zip(job_ids, variants), start=1):
+            progress(f"Filling job {job_id} for {variant['part_number']} ({number}/{len(variants)})...")
             if not self.open_job(job_id):
                 raise RuntimeError(f"Could not open WebFlow job {job_id}.")
             self._fill_job(variant)

@@ -5,6 +5,8 @@ import logging
 
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
+from autohub.core.dialogs import QtDialogs
+from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
 from autohub.core.workers import TaskRunner
 from autohub.modules.creation.config_form import WebFlowSettingsDialog, load_config
@@ -84,28 +86,29 @@ class CreationWidget(QWidget):
         self._create_jobs_btn.setEnabled(False)
         self._create_jobs_btn.setText("Creating jobs...")
         self._webflow_status_label.setText(f"Creating {len(selected)} WebFlow job(s)...")
+        window = QtDialogs(self).open_progress("Create WebFlow jobs")
         self._tasks.start(
-            lambda: self._service.create_jobs(selected, config),
-            self._finish_webflow_jobs,
-            self._fail_webflow_jobs,
+            lambda: self._service.create_jobs(selected, config, window.step),
+            lambda results: self._finish_webflow_jobs(results, window),
+            lambda error: self._fail_webflow_jobs(error, window),
         )
 
-    def _finish_webflow_jobs(self, results: list[dict]) -> None:
+    def _finish_webflow_jobs(self, results: list[dict], window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
         self._webflow_status_label.setStyleSheet("color: #3fa66a;")
         self._webflow_status_label.setText(f"Created and filled {len(results)} WebFlow job(s).")
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
-        QMessageBox.information(self, "Create WebFlow jobs", summary)
+        window.succeed(f"Created and filled {len(results)} WebFlow job(s).\n{summary}")
 
-    def _fail_webflow_jobs(self, error: str) -> None:
+    def _fail_webflow_jobs(self, error: str, window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
         self._webflow_status_label.setStyleSheet("color: #d9534f;")
         self._webflow_status_label.setText("WebFlow job creation failed.")
         _logger.error("Create WebFlow jobs failed: %s", error)
-        QMessageBox.critical(self, "Create WebFlow jobs", error)
+        window.fail(error)
 
     def shutdown(self) -> None:
         """Called by MainWindow on close so we don't leave a browser session running."""

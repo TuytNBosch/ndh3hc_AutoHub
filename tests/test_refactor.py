@@ -93,3 +93,11 @@ def test_file_form_dialog_needs_the_required_files(tmp_path):
     assert not ok.isEnabled() and "not found" in dialog._message.text()
     dialog._edits["HW"].setText("")
     assert ok.isEnabled() and dialog.values() == {"ECU": str(real), "HW": ""}
+
+
+def test_create_jobs_reports_progress_and_forwards_it():
+    seen = []
+    service = WebFlowJobService(FakeWebFlow)
+    config = WebFlowConfig(driver_path="", base_url="u", tool_version="t", routing="r")
+    service.create_jobs([{"part_number": "P1"}], config, seen.append)
+    assert seen == ["Starting the browser..."]
