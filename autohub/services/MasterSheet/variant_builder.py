@@ -13,7 +13,7 @@ from autohub.core.normalizers import (
     hex_text,
     normalize_displacement,
     normalize_emission,
-    normalize_key_text,
+    normalize_project_purpose,
     normalize_model_year,
     normalize_part_number,
     normalize_program_version,
@@ -29,7 +29,7 @@ _PROJECT_NUMBER_FIRST_PART = 159
 
 def variant_key(customer_event_purpose, part_number, initial_software_id) -> tuple[str, str, str]:
     return (
-        normalize_key_text(customer_event_purpose),
+        normalize_project_purpose(customer_event_purpose),
         normalize_part_number(part_number).upper(),
         normalize_part_number(initial_software_id).upper(),
     )
@@ -125,7 +125,7 @@ def build_request_values(
     part_number = normalize_part_number(main.get("NumCompID"))
     program_id = clean_text(main.get("NumProgID"))
     hardware = clean_text(system_variant.get("Hardware"))
-    project_purpose = f"{project} for {event}/{milestone} event" if project and event and milestone else ""
+    project_purpose = f"{project} - {event} Lot / {milestone}" if project and event and milestone else ""
 
     request_values = {
         "C": now or datetime.now(),
