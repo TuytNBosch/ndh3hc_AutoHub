@@ -39,6 +39,17 @@ class Sheet:
             for r in range(first_row, last_row + 1)
         ))
 
+    def Rows(self, number):
+        def delete():
+            moved = {}
+            for address, value in self.cells.items():
+                column, row = re.fullmatch(r"([A-Z]+)(\d+)", address).groups()
+                row = int(row)
+                if row != number:
+                    moved[f"{column}{row - 1 if row > number else row}"] = value
+            self.cells = moved
+        return SimpleNamespace(Delete=delete)
+
     @property
     def UsedRange(self):
         rows = [int(re.sub(r"\D", "", a)) for a in self.cells] or [1]
@@ -125,3 +136,22 @@ def test_writing_into_merged_cells_goes_through_the_anchor_and_names_failures():
 
     with pytest.raises(RuntimeError, match="S!AK7"):
         master._write(Broken(), 7, {"AK": "x"})
+
+
+def test_delete_finds_variants_by_part_number_not_by_row():
+    main = {"W7": "A-1", "W8": "B-2", "W9": "C-3"}
+    master, sheets = _sheet(main)
+    assert master.delete_variants_by_part_number(["a-1", "C-3"], save=False) == 2
+    assert sheets[0].cells == {"W7": "B-2"}
+    assert master.delete_variants_by_part_number(["missing"], save=False) == 0
+    assert [s.Name for s in sheets] == [layout.MAIN_SHEET_NAME]
+
+
+def test_unchanged_variants_are_not_written():
+    master, sheets = _sheet({**_main_row(), "W8": "OTHER", "E8": "MED17.9.3"})
+    rows = master.load_variant_rows()
+    rows[1]["AT"] = "NEW"
+    before = dict(sheets[0].cells)
+    master.save_variant_rows(rows, save=False)
+    assert {a: v for a, v in sheets[0].cells.items() if a.endswith("7")} == {a: v for a, v in before.items() if a.endswith("7")}
+    assert sheets[0].cells["F8"] == "NEW"

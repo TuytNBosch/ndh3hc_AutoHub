@@ -4,7 +4,7 @@ Each protocol lists only what one client needs, so a fake can stand in for Excel
 """
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from autohub.core.records import DocumentReader, EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
 
@@ -27,6 +27,13 @@ class VariantWriter(Protocol):
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]: ...
 
     def delete_variant_rows(self, request_rows: list[int], save: bool = True) -> int: ...
+
+
+@runtime_checkable
+class PartNumberDeleter(Protocol):
+    """A sheet whose rows move (rows deleted or inserted), so variants are found by part number, not row number."""
+
+    def delete_variants_by_part_number(self, part_numbers: list[str], save: bool = True) -> int: ...
 
 
 class NewVariantSource(Protocol):

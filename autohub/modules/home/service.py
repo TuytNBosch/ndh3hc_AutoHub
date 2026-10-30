@@ -5,7 +5,7 @@ from contextlib import AbstractContextManager
 from typing import Callable, Sequence
 
 from autohub.core.progress import ProgressCallback, no_progress
-from autohub.core.ports import EcuInfoDocument, HWInfoDocument, KickOffDocument, SystemMatrixDocument, VariantSheet
+from autohub.core.ports import EcuInfoDocument, HWInfoDocument, KickOffDocument, PartNumberDeleter, SystemMatrixDocument, VariantSheet
 
 #: Opens whatever per-thread resource the documents need (COM) around one operation.
 SessionFactory = Callable[[], AbstractContextManager]
@@ -86,8 +86,11 @@ class VariantService:
         variants: list[dict],
         progress: ProgressCallback = no_progress,
         deleted_rows: Sequence[int] = (),
+        deleted_part_numbers: Sequence[str] = (),
     ) -> tuple[list, list[dict], list[dict]]:
         """Writes `variants`, then deletes the variants at `deleted_rows` (their sheet rows).
+
+        A sheet that finds variants by part number (`PartNumberDeleter`) deletes by `deleted_part_numbers` instead.
 
         Deleting comes last so the "_row" numbers of the written variants are still right while writing.
         Returns (saved, reloaded table rows, WebFlow-ready variants)."""
@@ -100,7 +103,10 @@ class VariantService:
                 saved = master_sheet.save_variant_rows(variants, save=not deleted_rows)
                 if deleted_rows:
                     progress(f"Deleting {len(deleted_rows)} variant(s)...")
-                    master_sheet.delete_variant_rows(list(deleted_rows))
+                    if isinstance(master_sheet, PartNumberDeleter) and deleted_part_numbers and all(deleted_part_numbers):
+                        master_sheet.delete_variants_by_part_number(list(deleted_part_numbers))
+                    else:
+                        master_sheet.delete_variant_rows(list(deleted_rows))
                 progress("Reloading the variants...")
                 rows = master_sheet.load_variant_rows()
                 available = master_sheet.load_webflow_variants()

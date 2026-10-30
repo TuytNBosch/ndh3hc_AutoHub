@@ -173,6 +173,9 @@ class Mx17MasterSheet(MasterSheet):
                 row = int(row)
                 before = current.get(row, {})
                 changed = written = layout.changed_home_values(before, home)
+                if not changed:
+                    saved.append({"PartNumber": home.get("J"), "RequestRow": row, "Unmapped": []})
+                    continue  # an unchanged variant is not touched
                 self._write(worksheet, row, layout.main_values_from_home(changed, keep_blank=True))
                 known = info.get(normalize_part_number(before.get("J")).upper())
                 if known:
@@ -201,6 +204,23 @@ class Mx17MasterSheet(MasterSheet):
         if save and deleted:
             self.save()
         return deleted
+
+    def delete_variants_by_part_number(self, part_numbers: list[str], save: bool = True) -> int:
+        """Deletes the main sheet rows whose part number matches, wherever they are now (never by remembered row).
+
+        Only main sheet rows go; no worksheet is deleted or renamed and the Info rows stay."""
+        self._require_writable()
+        worksheet = self._worksheet()
+        wanted = {normalize_part_number(part).upper() for part in part_numbers if normalize_part_number(part)}
+        rows = [
+            row for row, values in self._main_rows()
+            if normalize_part_number(values.get(layout.PART_NUMBER_COLUMN)).upper() in wanted
+        ]
+        for row in sorted(rows, reverse=True):
+            worksheet.Rows(row).Delete()
+        if save and rows:
+            self.save()
+        return len(rows)
 
     def _write(self, worksheet, row: int, values: dict[str, Any]) -> None:
         for column, value in values.items():
