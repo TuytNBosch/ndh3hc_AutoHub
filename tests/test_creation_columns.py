@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QHeaderView, QLabel
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from tests.fakes import MemorySettings
@@ -43,3 +43,28 @@ def test_missing_ecu_values_and_event_filter(qapp):
     assert table.horizontalHeaderItem(0).text() == "Select"
     assert table.rowCount() == 0
     assert checklist._empty_label in checklist.findChildren(QLabel)
+
+
+def test_event_is_left_aligned_and_extra_width_goes_to_part_number(qapp):
+    checklist = VariantChecklist(MemorySettings())
+    checklist.set_variants([{
+        "part_number": "37820-6WZ-M610-M6", "ecu_type": "MG1CS022",
+        "webflow_link": "https://webflow/app/ShowJob/16413",
+        "ecu": {"project_version": "6WZX", "program_version": "V037"},
+    }])
+    checklist.resize(950, 300)
+    checklist.show()
+    qapp.processEvents()
+    toolbar = checklist.layout().itemAt(0).layout()
+    assert toolbar.itemAt(0).widget().text() == "Event:"
+    assert toolbar.itemAt(1).widget() is checklist._event_filter
+    header = checklist._table.horizontalHeader()
+    assert header.sectionResizeMode(1) == QHeaderView.Stretch
+    assert header.sectionResizeMode(5) == QHeaderView.ResizeToContents
+    assert not header.stretchLastSection()
+    link_width = checklist._table.columnWidth(5)
+    checklist.resize(1100, 300)
+    qapp.processEvents()
+    assert checklist._table.columnWidth(5) == link_width
+    assert checklist._table.columnWidth(1) > link_width
+    checklist.close()
