@@ -75,6 +75,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - It then fills the General, ECU and Customer tabs and saves each job.
   - A progress window (same as Home) shows each step: starting the browser, opening the dashboard, creating the jobs and filling every job; it ends with the job IDs or the error.
   - After the jobs are created, each variant shows its WebFlow link as "WF<job number>" in the list, and the link is written to the Master Sheet column I ("Webflow No. with Link", MG1 layout) of that variant's request row as a hyperlink whose text is "WF<job number>". Loading the variants reads the hyperlink address back from that cell. The Mx17 layout has no such column, so the window says the links were not written there.
+  - Completed job links also update matching rows in Home immediately, without reloading or discarding edits, filters or pending deletions. Enable "Show the WebFlow link column" in Home Settings to see them. Links remain visible in the session even if writing them to the Master Sheet fails.
   - Selecting variants that already have a WebFlow link asks before creating: **Create anyway**, **Skip them** (only the others are created) or Cancel.
   - A summary of part number and job ID is shown on success.
   - The browser session is closed on error or app exit.

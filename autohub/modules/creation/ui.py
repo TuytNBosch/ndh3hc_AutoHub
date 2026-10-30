@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from autohub.core.dialogs import Dialogs, QtDialogs
@@ -18,6 +19,8 @@ _logger = logging.getLogger(__name__)
 
 
 class CreationWidget(QWidget):
+    webflowLinksUpdated = Signal(dict)
+
     def __init__(self, service: WebFlowJobService, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
         self._dialogs = dialogs or QtDialogs(self)
@@ -120,7 +123,9 @@ class CreationWidget(QWidget):
     def _finish_webflow_jobs(self, results: list[dict], window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
-        self._checklist.set_links({item["PartNumber"]: item["Url"] for item in results if item.get("Url")})
+        links = {item["PartNumber"]: item["Url"] for item in results if item.get("Url")}
+        self._checklist.set_links(links)
+        self.webflowLinksUpdated.emit(links)
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
         warnings = [
