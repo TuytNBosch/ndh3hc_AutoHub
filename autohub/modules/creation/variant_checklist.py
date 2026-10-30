@@ -13,11 +13,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from autohub.core.latest_event import NO_EVENT, latest_event
 from autohub.core.webflow_links import webflow_link_text
 from autohub.core.settings import SettingsStore
 
 _ALL_EVENTS = "All events"
-_NO_EVENT = "(No event)"
+_NO_EVENT = NO_EVENT
 
 
 class VariantChecklist(QWidget):
@@ -35,6 +36,8 @@ class VariantChecklist(QWidget):
         self._event_filter = QComboBox()
         self._event_filter.addItem(_ALL_EVENTS)
         self._event_filter.currentTextChanged.connect(self._apply_filter)
+        self._event_filter.activated.connect(self._on_event_chosen)
+        self._event_chosen = False  # once the user picks an event, reloads keep it
         select_all_btn = QPushButton("Select all")
         select_all_btn.clicked.connect(lambda: self._set_all(True))
         clear_btn = QPushButton("Clear")
@@ -80,7 +83,7 @@ class VariantChecklist(QWidget):
 
         events = sorted({v.get("event") or _NO_EVENT for v in variants})
         self._event_filter.blockSignals(True)
-        current = self._event_filter.currentText() or _ALL_EVENTS
+        current = self._event_filter.currentText() if self._event_chosen else (latest_event(variants) or _ALL_EVENTS)
         self._event_filter.clear()
         self._event_filter.addItem(_ALL_EVENTS)
         self._event_filter.addItems(events)
@@ -88,6 +91,9 @@ class VariantChecklist(QWidget):
         self._event_filter.blockSignals(False)
 
         self._apply_filter()
+
+    def _on_event_chosen(self, _index: int) -> None:
+        self._event_chosen = True
 
     def _apply_filter(self, *_args) -> None:
         self._checkboxes.clear()

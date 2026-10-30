@@ -47,6 +47,7 @@ def test_checklist_selection_persists_through_injected_settings(qapp):
         ]
     )
     assert [v["part_number"] for v in creation._checklist.selected_variants()] == ["P2"]
+    creation._checklist._event_filter.setCurrentText("All events")  # the latest event is picked on load
     creation._checklist._checkboxes["P1"].setChecked(True)
     assert settings.data["selected_variants"] == ["P1", "P2"]
 
