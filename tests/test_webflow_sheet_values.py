@@ -84,6 +84,7 @@ def test_job_results_retain_each_variants_allocated_number():
 
     def fill_job(variant):
         variant["imported_software_part_number"] = numbers[variant["part_number"]]
+        variant["imported_ecr_number"] = f"ECR-{variant['part_number']}"
         return []
 
     session._fill_job.side_effect = fill_job
@@ -91,6 +92,97 @@ def test_job_results_retain_each_variants_allocated_number():
     assert [(item["PartNumber"], item["JobId"], item["SoftwarePartNumber"]) for item in results] == [
         ("PN1", "1", "10SW072930"), ("PN2", "2", "10SW072931"),
     ]
+    assert [item["ECRNumber"] for item in results] == ["ECR-PN1", "ECR-PN2"]
+
+
+def test_ecr_settings_are_loaded_and_editable(qapp):
+    from autohub.modules.creation.config_form import load_config, WebFlowSettingsDialog
+    from tests.fakes import MemorySettings
+
+    values = {
+        "change_engineer": "Configured engineer",
+        "cost_allocation": "Configured allocation",
+        "change_reason": "Correction",
+        "ecr_notes": "Release notes\nSecond line",
+    }
+    config = load_config(MemorySettings(values))
+    dialog = WebFlowSettingsDialog(config)
+    assert {key: dialog.values()[key] for key in values} == values
+    dialog._ecr_notes.setPlainText("New notes")
+    assert dialog.values()["ecr_notes"] == "New notes"
+
+
+def test_creation_service_passes_ecr_settings_without_mutating_sheet_variants():
+    factory = Mock()
+    factory.return_value.create_and_fill_jobs.return_value = []
+    service = WebFlowJobService(factory)
+    variants = [{"part_number": "PN"}]
+    config = WebFlowConfig(
+        "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation",
+        change_reason="Reason", ecr_notes="Notes",
+    )
+    service.create_jobs(variants, config)
+    sent = factory.return_value.create_and_fill_jobs.call_args.args[0]
+    assert sent[0]["ecr"] == {
+        "change_engineer": "Engineer", "cost_allocation": "Allocation",
+        "change_reason": "Reason", "ecr_notes": "Notes",
+    }
+    assert variants == [{"part_number": "PN"}]
+
+
+def test_partial_ecr_settings_fail_before_opening_browser():
+    factory = Mock()
+    service = WebFlowJobService(factory)
+    with pytest.raises(ValueError, match="Complete ECR settings"):
+        service.create_jobs([{"part_number": "PN"}], WebFlowConfig("", "", "", "", ecr_notes="Notes"))
+    factory.assert_not_called()
+
+
+@pytest.mark.parametrize("fails_later", [False, True])
+def test_creation_service_retains_allocated_ecr_on_original_variant(fails_later):
+    factory = Mock()
+    def create(variants, **_kwargs):
+        variants[0]["imported_ecr_number"] = "ECR123"
+        if fails_later:
+            raise RuntimeError("later tab failed")
+        return [{"PartNumber": "PN", "ECRNumber": "ECR123"}]
+    factory.return_value.create_and_fill_jobs.side_effect = create
+    service = WebFlowJobService(factory)
+    variants = [{"part_number": "PN", "imported_ecr_number": "previous run"}]
+    config = WebFlowConfig(
+        "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation",
+        change_reason="Reason", ecr_notes="Notes",
+    )
+    if fails_later:
+        with pytest.raises(RuntimeError, match="later tab failed"):
+            service.create_jobs(variants, config)
+    else:
+        assert service.create_jobs(variants, config)[0]["ECRNumber"] == "ECR123"
+    assert variants == [{"part_number": "PN", "imported_ecr_number": "ECR123"}]
+
+
+def test_ecr_notes_use_a_textarea(monkeypatch):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.get_attribute.side_effect = lambda name: "Notes" if name == "value" else None
+    assert fields.fill("ecr_notes", "Notes") is True
+    form.find_element.assert_called_once_with(hardware_module.By.CSS_SELECTOR, "textarea")
+
+
+@pytest.mark.parametrize("value,expected", [("ECR123", True), ("", False), ("0", False)])
+def test_ecr_import_is_scoped_single_click_and_retains_number(monkeypatch, value, expected):
+    fields, _ = _hardware(monkeypatch)
+    fields.imported_ecr_number = "previous job"
+    monkeypatch.setattr(hardware_module.Constants, "WEBFLOW_TIMEOUT", 0)
+    body = fields.sections["ECR Information"].body.return_value
+    button = Mock()
+    field = Mock()
+    field.get_attribute.return_value = value
+    body.find_element.side_effect = lambda _by, locator: button if locator.startswith(".//button") else field
+    assert fields.import_ecr() is expected
+    assert fields.imported_ecr_number == (value if expected else "")
+    button.click.assert_called_once()
+    assert "ECR Import" in body.find_element.call_args_list[0].args[1]
 
 
 def _hardware(monkeypatch):
@@ -211,20 +303,26 @@ def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
     button.click.assert_called_once()
 
 
-def test_pool_import_does_not_retry_uncertain_click(monkeypatch):
+@pytest.mark.parametrize("panel,method", [
+    ("Ident Numbers", "import_software_part_number"), ("ECR Information", "import_ecr"),
+])
+def test_import_does_not_retry_uncertain_click(monkeypatch, panel, method):
     fields, _ = _hardware(monkeypatch)
-    button = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    button = fields.sections[panel].body.return_value.find_element.return_value
     button.is_displayed.return_value = True
     button.is_enabled.return_value = True
     button.click.side_effect = RuntimeError("connection lost")
-    assert fields.import_software_part_number() is False
+    assert getattr(fields, method)() is False
     button.click.assert_called_once()
 
 
-def test_pool_import_confirms_save_warning_once_then_waits_for_number(monkeypatch):
+@pytest.mark.parametrize("panel,method", [
+    ("Ident Numbers", "import_software_part_number"), ("ECR Information", "import_ecr"),
+])
+def test_import_confirms_save_warning_once_then_waits_for_number(monkeypatch, panel, method):
     fields, _ = _hardware(monkeypatch)
     fields.fill = Mock(return_value=True)
-    control = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    control = fields.sections[panel].body.return_value.find_element.return_value
     control.is_displayed.return_value = True
     control.is_enabled.return_value = True
     control.get_attribute.return_value = "10SW137784"
@@ -232,7 +330,7 @@ def test_pool_import_confirms_save_warning_once_then_waits_for_number(monkeypatc
     dialog.text = "Data filled in by you will be saved before import. Do you want to continue?"
     yes = dialog.find_element.return_value
     fields.driver.find_elements.side_effect = [[dialog], [dialog], []]
-    assert fields.import_software_part_number() is True
+    assert getattr(fields, method)() is True
     yes.click.assert_called_once()
     control.click.assert_called_once()
     assert "Yes" in dialog.find_element.call_args.args[1]
