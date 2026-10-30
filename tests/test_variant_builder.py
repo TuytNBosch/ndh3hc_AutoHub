@@ -178,6 +178,40 @@ def test_webflow_variant_uses_the_shared_defaults():
     assert webflow_variant_from_row("P", {})["ecu"]["indi_spec"] == ""
 
 
+@pytest.mark.parametrize("release_class", ["Pre-Production", "Production", "Pilot", "  Pre-Production  "])
+def test_webflow_release_class_comes_from_the_row(release_class):
+    variant = webflow_variant_from_row("P", {"U": release_class})
+    assert variant["general"]["release_class"] == release_class.strip()
+
+
+@pytest.mark.parametrize("release_class", [None, "", "   "])
+def test_webflow_release_class_uses_the_default_only_for_blank_cells(release_class):
+    variant = webflow_variant_from_row("P", {"U": release_class})
+    assert variant["general"]["release_class"] == WEBFLOW_DEFAULTS.release_class
+
+
+def test_reader_preserves_release_class_for_both_reported_variants():
+    from autohub.services.MasterSheet.row_reader import VariantRowReader
+
+    class Reader(VariantRowReader):
+        def request_rows_with_part_number(self):
+            return iter(((4, "37820-6WZ-M610-M6"), (5, "37820-6WZ-M710-M6")))
+
+        def _value(self, column, row):
+            return "Pre-Production" if column == "U" else None
+
+        def _webflow_link(self, row):
+            return ""
+
+    variants = Reader(None).load_webflow_variants()
+    assert [variant["part_number"] for variant in variants] == [
+        "37820-6WZ-M610-M6", "37820-6WZ-M710-M6",
+    ]
+    assert [variant["general"]["release_class"] for variant in variants] == [
+        "Pre-Production", "Pre-Production",
+    ]
+
+
 def test_security_type_1_drops_the_excel_float_suffix():
     assert security_type_1_value({"SK1": "2025.0", "SK2": "020B9", "SK3": "010.0"}) == "2025020B9010"
     assert security_type_1_value({"SK1": 20250901.0, "SK2": "1A2B"}) == "202509011A2B"

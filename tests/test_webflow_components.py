@@ -236,6 +236,19 @@ def test_job_filler_plans_the_legacy_steps_in_order():
     ]
 
 
+@pytest.mark.parametrize("part_number", ["37820-6WZ-M610-M6", "37820-6WZ-M710-M6"])
+def test_sheet_release_class_reaches_the_webflow_selector(part_number, caplog):
+    from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
+
+    variant = webflow_variant_from_row(part_number, {"U": "Pre-Production"})
+    job_filler, calls, _ = filler()
+    with caplog.at_level("INFO", logger="autohub.services.WebFlow"):
+        job_filler.fill(variant)
+    assert ("select_release_class", "Pre-Production") in calls
+    assert ("select_release_class", "Production") not in calls
+    assert f"[{part_number}] General: release class = Pre-Production" in caplog.text
+
+
 def test_job_filler_logs_every_value(caplog):
     job_filler, _, _ = filler()
     with caplog.at_level("INFO", logger="autohub.services.WebFlow"):
