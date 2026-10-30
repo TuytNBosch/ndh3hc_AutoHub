@@ -10,7 +10,7 @@ from autohub.core.webflow_links import job_number
 _logger = logging.getLogger(__name__)
 
 
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -57,7 +57,8 @@ class JobCreation:
                            brand: str = "Honda",
                            customer_group: str = "JAP", 
                            working_mode: str = "Honda_PreRun",) -> bool:
-        success = True
+        self.number_of_jobs = 0
+        self.new_jobs_ids = []
 
         for label, value, select in (
             ("ECU generation", ecu_generation, self.select_ecu_generation),
@@ -70,17 +71,14 @@ class JobCreation:
             ("number of jobs", number_of_jobs, self.select_number_of_jobs),
         ):
             if value:
-                success &= run_step(_logger, f"Job creation form: select {label} = {value}", select, value)
+                if not run_step(_logger, f"Job creation form: select {label} = {value}", select, value):
+                    _logger.error("WebFlow job creation stopped: could not select %s = %s", label, value)
+                    return False
 
-        confirm = self.confirm_button()
-        if confirm is not None:
-            _logger.info("Step: confirm the job creation")
-            confirm.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-        else:
-            _logger.warning("The job creation confirm button was not found")
+        if not run_step(_logger, "Confirm the job creation", self._confirm_creation):
+            return False
 
-        success &= run_step(_logger, "Wait for WebFlow to finish creating the jobs", self._wait_until_jobs_created)
+        success = run_step(_logger, "Wait for WebFlow to finish creating the jobs", self._wait_until_jobs_created)
 
         if success:
             self.number_of_jobs = number_of_jobs
@@ -97,6 +95,28 @@ class JobCreation:
 
         return success
 
+    def _confirm_creation(self) -> bool:
+        def click_confirm(driver) -> bool:
+            button = EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, Constants.BODY_JOBCREATION_CONFIRM_BTN_CSS)
+            )(driver)
+            if not button:
+                return False
+            button.click()
+            return True
+
+        try:
+            # Angular can replace the button between lookup and click. Only a rejected
+            # stale click is retried; a successful submission must never be repeated.
+            WebDriverWait(
+                self.driver, Constants.BODY_TIMEOUT,
+                ignored_exceptions=(StaleElementReferenceException,),
+            ).until(click_confirm)
+            return True
+        except TimeoutException:
+            _logger.exception("Could not click the WebFlow job creation confirm button")
+            return False
+
     def _wait_until_jobs_created(self) -> bool:
         """Creating several jobs is slow: wait (up to WEBFLOW_TIMEOUT) for the spinner to go and the URL to end in the new job number."""
         def done(driver) -> bool:
@@ -104,7 +124,10 @@ class JobCreation:
             return not any(element.is_displayed() for element in busy) and job_number(driver.current_url) is not None
 
         try:
-            WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(done)
+            WebDriverWait(
+                self.driver, Constants.WEBFLOW_TIMEOUT,
+                ignored_exceptions=(StaleElementReferenceException,),
+            ).until(done)
             return True
         except TimeoutException:
             _logger.error(
