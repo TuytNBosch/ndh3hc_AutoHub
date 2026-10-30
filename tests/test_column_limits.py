@@ -46,3 +46,22 @@ def test_webflow_link_column_is_hidden_until_enabled_and_read_only():
     assert not table.isColumnHidden(column) and item.text() == "WF16406"
     assert not item.flags() & Qt.ItemIsEditable
     assert "_webflow_link" not in table.read()[0]
+
+
+def test_webflow_link_column_is_frozen_right_after_the_part_number():
+    from PySide6.QtWidgets import QApplication
+
+    from autohub.modules.home.variant_table import VariantTable
+
+    QApplication.instance() or QApplication([])
+    table = VariantTable()
+    table.populate([{"_row": 1, "J": "P1", "_webflow_link": "https://h/app/ShowJob/1"}])
+    link = table.columnCount() - 1
+    frozen = table._frozen
+    before = frozen.width
+    table.set_webflow_link_visible(True)
+    assert table.horizontalHeader().visualIndex(link) == 2
+    assert frozen.is_frozen(link) and not frozen.view.isColumnHidden(link)
+    assert frozen.width == before + table.columnWidth(link) and table.columnWidth(link) >= 60
+    table.set_webflow_link_visible(False)
+    assert frozen.view.isColumnHidden(link) and frozen.width == before
