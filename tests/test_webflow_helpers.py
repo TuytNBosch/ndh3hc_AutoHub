@@ -1,5 +1,11 @@
 import pytest
 
+from autohub.services.WebFlow.Body.Tab import GeneralTab as general_tab_module
+from autohub.services.WebFlow.Body.Tab.GeneralTab import (
+    GeneralTab,
+    _checkbox_value,
+    _click_count,
+)
 from autohub.services.WebFlow.dropdown import read_options
 from autohub.services.WebFlow.toast import toast_severity
 
@@ -53,3 +59,60 @@ def test_every_item_is_read_in_one_query_without_the_old_item_cap():
 
 def test_no_open_list_gives_none():
     assert read_options(Driver(None), "w", 5) is None
+
+
+def test_checkbox_value_uses_aria_checked_and_keeps_icon_fallback():
+    assert _checkbox_value(El({"aria-checked": "true"})) is True
+    assert _checkbox_value(El({"aria-checked": "false"})) is False
+    assert _checkbox_value(El({"aria-checked": "mixed"})) is None
+
+    unchecked = El(children={'timesicon[data-pc-section="uncheckIcon"]': [El()]})
+    assert _checkbox_value(unchecked) is False
+
+
+@pytest.mark.parametrize(
+    ("current", "target", "clicks"),
+    [(False, False, 0), (False, True, 1), (True, False, 1), (True, None, 2), (None, False, 2)],
+)
+def test_tristate_checkbox_click_count(current, target, clicks):
+    assert _click_count(current, target) == clicks
+
+
+def test_disabled_checkbox_mismatch_is_reported_without_clicking(monkeypatch):
+    class Element:
+        def __init__(self, attrs=None, children=None):
+            self.attrs = attrs or {}
+            self.children = children or {}
+            self.clicks = 0
+
+        def get_attribute(self, name):
+            return self.attrs.get(name)
+
+        def find_element(self, by, value):
+            return self.children[value]
+
+        def click(self):
+            self.clicks += 1
+
+    checkbox = Element({"aria-checked": "false", "class": "p-checkbox-box p-disabled"})
+    host = Element({"ng-reflect-disabled": "true"})
+    form = Element(children={
+        "div[role=\"checkbox\"]": checkbox,
+        "p-tristatecheckbox": host,
+    })
+    title = Element(children={"..": form})
+
+    class Wait:
+        def until(self, _condition):
+            return title
+
+    monkeypatch.setattr(general_tab_module.EC, "presence_of_element_located", lambda _locator: None)
+    monkeypatch.setattr(general_tab_module, "WebDriverWait", lambda *_args: Wait())
+
+    tab = GeneralTab(object())
+    tab.expand_configurator_items = lambda: True
+    assert tab.select_safety_monitoring_sw(True) is True
+    assert checkbox.clicks == 0
+    assert len(tab.skipped_fields) == 1
+    assert "current value False" in tab.skipped_fields[0]
+    assert "requested True" in tab.skipped_fields[0]
