@@ -2,6 +2,7 @@ import time
 
 
 from ... import Constants as Constants
+from ...dropdown import read_options
 
 
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -54,29 +55,7 @@ class GeneralTab:
 
 
     def get_options(self) -> dict | None:
-
-        options = {}
-        has_options = False
-
-        try:
-            options_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.CLASS_NAME, Constants.GENERAL_TAB_OPTIONS_CLASS))
-            )
-
-            default_element = options_element.find_element(By.TAG_NAME, "ul")
-            item_id = default_element.get_attribute('id').replace('list','')
-
-            for i in range(Constants.GENERAL_TAB_OPTIONS_MAX_ITEMS):
-                item = WebDriverWait(self.driver, 1).until(EC.visibility_of_element_located((By.ID, item_id + str(i))))
-                item_text = item.get_attribute('aria-label')
-                options[item_text] = item
-
-                if has_options is False:
-                    has_options = True
-        except:
-            pass
-        
-        return options if has_options else None
+        return read_options(self.driver, Constants.GENERAL_TAB_OPTIONS_CLASS, Constants.GENERAL_TAB_OPTIONS_MAX_ITEMS)
 
 
     def is_configurator_items_expanded(self) -> bool:

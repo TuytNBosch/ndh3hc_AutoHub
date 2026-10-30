@@ -53,7 +53,7 @@ class WebFlow(webdriver.Edge):
         edge_options = Options()        
         service = Service(driver_path) if driver_path else Service(EdgeChromiumDriverManager(download_manager=download_manager).install())
         super(WebFlow, self).__init__(service=service, options=edge_options)
-        self.implicitly_wait(1)
+        self.implicitly_wait(Constants.IMPLICIT_WAIT)
         self.minimize_window()
 
 
