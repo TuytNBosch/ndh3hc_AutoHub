@@ -163,6 +163,8 @@ class WebFlow(webdriver.Edge):
             }
             if warnings:
                 result["Warnings"] = warnings
+            if variant.get("imported_software_part_number"):
+                result["SoftwarePartNumber"] = variant["imported_software_part_number"]
             results.append(result)
 
         _logger.info("WebFlow creation finished: %d job(s); closing the browser", len(results))

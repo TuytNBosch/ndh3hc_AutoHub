@@ -193,6 +193,7 @@ class Recorder:
     def __init__(self, calls, results):
         self.calls, self.results = calls, results
         self.skipped_fields = []
+        self.imported_software_part_number = ""
 
     def __getattr__(self, name):
         def method(*args):
@@ -235,6 +236,7 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "General: release scope = S",
         "General: limitations = NO",
         "General: safety monitoring SW = True",
+        "General: safety calibration response = False",
         "General: Bosch calibration data response = False",
         "General: data integration response = True",
         "Select the ECU tab",
@@ -280,6 +282,7 @@ def test_job_filler_runs_every_step_and_returns_warnings():
     assert job_filler.fill(VARIANT) == []  # warnings are cleared per job
     assert calls[0] == ("select_general_tab",)
     assert ("select_safety_calibration_response", None) not in calls
+    assert ("select_safety_calibration_response", False) in calls
     assert ("select_tp_level", "3") in calls and calls[-1] == ("save",)
 
 
@@ -307,7 +310,8 @@ def test_extra_sheet_fields_are_filled_and_unmapped_fields_reported():
     assert ("fill_hardware_field", "power", "120") in calls
     assert ("fill_hardware_field", "market", "Brazil") in calls
     assert len(warnings) == 1 and "CS (DWG NO.) = DWG" in warnings[0]
-    assert not any(name.startswith("select_safety") for name, *_ in calls)
+    assert ("select_safety_monitoring_sw", False) in calls
+    assert ("select_safety_calibration_response", False) in calls
 
 
 def test_job_filler_uses_requested_priority_then_form_order():
@@ -338,7 +342,7 @@ def test_job_filler_uses_requested_priority_then_form_order():
         "transmission", "displacement", "market", "model_year", "cylinders",
         "project_number_first", "project_number_second", "ecu_hardware_name",
         "customer_order_number", "customer_hardware_part_number",
-        "customer_software_part_number", "car", "customer_name",
+        "car", "customer_name",
         "program_version", "data_version", "ecr_number",
     ]
     assert field_calls[8:10] == hardware_calls[:2]
@@ -351,12 +355,17 @@ def test_job_filler_uses_requested_priority_then_form_order():
 
 
 def test_imported_software_number_is_not_overwritten_from_sheet():
-    variant = {**VARIANT, "hardware": {"lead_plant": "SaW", "software_part_number": "0"}}
-    job_filler, calls, _ = filler()
+    variant = {**VARIANT, "hardware": {
+        "lead_plant": "SaW", "software_part_number": "0", "customer_software_part_number": "OLD",
+    }}
+    job_filler, calls, pages = filler()
+    pages.imported_software_part_number = "10SW072930"
     job_filler.fill(variant)
     lead_index = calls.index(("fill_hardware_field", "lead_plant", "SaW"))
     assert calls[lead_index + 1] == ("import_software_part_number",)
     assert ("fill_hardware_field", "software_part_number", "0") not in calls
+    assert ("fill_hardware_field", "customer_software_part_number", "OLD") not in calls
+    assert variant["imported_software_part_number"] == "10SW072930"
 
 
 def test_blank_priority_fields_are_skipped_without_reordering_remaining_fields():

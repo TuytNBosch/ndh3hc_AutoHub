@@ -36,6 +36,7 @@ GENERAL_FIELDS = (
     ("Bosch calibration data response", "select_bosch_cal_data_response", "calibration"),
     ("data integration response", "select_data_integration_response", "data_integration"),
 )
+_GENERAL_CHECKBOX_KEYS = {"safety_monitoring", "safety_calibration", "calibration", "data_integration"}
 
 
 class JobFiller:
@@ -52,14 +53,17 @@ class JobFiller:
             ("Close the side menu", self.side_menu_bar.close_menubar),
             ("Collapse the job information", self.body.information.collapse_job_information),
         ]
-        steps += [
-            (f"General: {label} = {display_value(variant['general'][key])}", getattr(general, method), variant["general"][key])
-            for label, method, key in GENERAL_FIELDS
-            if variant["general"].get(key) not in (None, "")
-        ]
+        for label, method, key in GENERAL_FIELDS:
+            value = variant["general"].get(key)
+            if key in _GENERAL_CHECKBOX_KEYS and value in (None, ""):
+                value = False
+            if value not in (None, ""):
+                steps.append((f"General: {label} = {display_value(value)}", getattr(general, method), value))
         for _, key, label, _ in HARDWARE_FIELDS:
             if key == "software_part_number":
                 continue  # WebFlow allocates this number through Import from pool.
+            if key == "customer_software_part_number" and variant.get("hardware", {}).get("lead_plant"):
+                continue  # The pool import copies its allocated number into this control.
             value = variant.get("hardware", {}).get(key)
             if value:
                 if key == "lead_plant":
@@ -83,6 +87,7 @@ class JobFiller:
 
         Raises RuntimeError naming every failed step."""
         part_number = variant["part_number"]
+        variant.pop("imported_software_part_number", None)
         general = self.body.tab.generaltab
         general.skipped_fields.clear()
         _logger.info("[%s] Values to fill: %s", part_number, describe_values(variant))
@@ -94,6 +99,8 @@ class JobFiller:
             raise RuntimeError("Could not select the General tab.")
 
         failed = run_steps(_logger, [(f"[{part_number}] {step[0]}", *step[1:]) for step in self.steps(variant)])
+        if variant.get("hardware", {}).get("lead_plant") and general.imported_software_part_number:
+            variant["imported_software_part_number"] = general.imported_software_part_number
         if failed:
             raise RuntimeError(f"Could not fill all values for {part_number}. Failed: {'; '.join(failed)}")
         return list(general.skipped_fields)

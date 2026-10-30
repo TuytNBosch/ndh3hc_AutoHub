@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import Mock
 
 from autohub.services.WebFlow.Body.Tab import GeneralTab as general_tab_module
 from autohub.services.WebFlow.Body.Tab.GeneralTab import (
@@ -63,10 +64,10 @@ def test_no_open_list_gives_none():
 
 def test_checkbox_value_uses_aria_checked_and_keeps_icon_fallback():
     assert _checkbox_value(El({"aria-checked": "true"})) is True
-    assert _checkbox_value(El({"aria-checked": "false"})) is False
+    assert _checkbox_value(El({"aria-checked": "false"})) is None
     assert _checkbox_value(El({"aria-checked": "mixed"})) is None
 
-    unchecked = El(children={'timesicon[data-pc-section="uncheckIcon"]': [El()]})
+    unchecked = El({"aria-checked": "false"}, children={'timesicon[data-pc-section="uncheckIcon"]': [El()]})
     assert _checkbox_value(unchecked) is False
 
 
@@ -94,7 +95,10 @@ def test_disabled_checkbox_mismatch_is_reported_without_clicking(monkeypatch):
         def click(self):
             self.clicks += 1
 
-    checkbox = Element({"aria-checked": "false", "class": "p-checkbox-box p-disabled"})
+    checkbox = Element(
+        {"aria-checked": "false", "class": "p-checkbox-box p-disabled"},
+        children={'timesicon[data-pc-section="uncheckIcon"]': Element()},
+    )
     host = Element({"ng-reflect-disabled": "true"})
     form = Element(children={
         "div[role=\"checkbox\"]": checkbox,
@@ -116,3 +120,59 @@ def test_disabled_checkbox_mismatch_is_reported_without_clicking(monkeypatch):
     assert len(tab.skipped_fields) == 1
     assert "current value False" in tab.skipped_fields[0]
     assert "requested True" in tab.skipped_fields[0]
+
+
+@pytest.mark.parametrize("method", [
+    "select_safety_monitoring_sw", "select_safety_calibration_response",
+    "select_bosch_cal_data_response", "select_data_integration_response",
+])
+@pytest.mark.parametrize("initial", [None, True, False])
+@pytest.mark.parametrize("requested", [True, False, None])
+def test_general_checkbox_reaches_nonblank_state(monkeypatch, method, initial, requested):
+    checkbox = Mock()
+    state = [initial]
+    clicks = []
+
+    def attribute(name):
+        return ("true" if state[0] is True else "false") if name == "aria-checked" else None
+
+    def icon(_by, selector):
+        if state[0] is True and selector.startswith("checkicon"):
+            return object()
+        if state[0] is False and selector.startswith("timesicon"):
+            return object()
+        raise LookupError(selector)
+
+    def click():
+        clicks.append(state[0])
+        state[0] = {None: True, True: False, False: None}[state[0]]
+
+    checkbox.get_attribute.side_effect = attribute
+    checkbox.find_element.side_effect = icon
+    checkbox.click.side_effect = click
+    form, title = Mock(), Mock()
+    form.find_element.return_value = checkbox
+    title.find_element.return_value = form
+    wait = Mock()
+    wait.until.return_value = title
+    monkeypatch.setattr(general_tab_module, "WebDriverWait", lambda *_args: wait)
+    monkeypatch.setattr(general_tab_module, "_checkbox_is_disabled", lambda *_args: False)
+    monkeypatch.setattr(general_tab_module.time, "sleep", lambda *_args: None)
+    tab = GeneralTab(object())
+    tab.expand_configurator_items = lambda: True
+    assert getattr(tab, method)(requested) is True
+    target = False if requested is None else requested
+    assert state[0] is target
+    if initial is None:
+        assert len(clicks) == (1 if target else 2)
+
+
+def test_disabled_blank_checkbox_fails_instead_of_being_skipped(monkeypatch):
+    wait = Mock()
+    monkeypatch.setattr(general_tab_module, "WebDriverWait", lambda *_args: wait)
+    monkeypatch.setattr(general_tab_module, "_checkbox_value", lambda *_args: None)
+    monkeypatch.setattr(general_tab_module, "_checkbox_is_disabled", lambda *_args: True)
+    tab = GeneralTab(object())
+    tab.expand_configurator_items = lambda: True
+    assert tab.select_safety_monitoring_sw(False) is False
+    wait.until.return_value.find_element.return_value.find_element.return_value.click.assert_not_called()
