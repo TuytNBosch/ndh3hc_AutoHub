@@ -12,6 +12,7 @@ from openpyxl.utils import column_index_from_string, get_column_letter
 
 from autohub.core.normalizers import needs_text_format, normalize_part_number
 from autohub.core.records import EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
+from autohub.services.common.read_only_flag import clear_read_only_recommended
 from autohub.services.common.file_access import write_block_reason
 from autohub.services.MasterSheet import mx17_layout as layout
 from autohub.services.MasterSheet.MasterSheet import MasterSheet
@@ -34,9 +35,15 @@ class Mx17MasterSheet(MasterSheet):
     def _open_workbook(self, path: str):
         """Opens past a "read-only recommended" flag; a really locked file can still be read, but not written."""
         self.excel_app.DisplayAlerts = False
+        if path == self.file_path:
+            clear_read_only_recommended(path)  # the flag makes Excel ask "open as read-only?" every time
         self.workbook = self.excel_app.Workbooks.Open(
             path, UpdateLinks=0, ReadOnly=False, IgnoreReadOnlyRecommended=True
         )
+        try:
+            self.workbook.ReadOnlyRecommended = False  # a later save must not bring the flag back
+        except Exception:
+            pass
         return self.workbook
 
     def _require_writable(self) -> None:
