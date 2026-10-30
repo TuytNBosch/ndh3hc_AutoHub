@@ -16,6 +16,16 @@ def normalize_key_text(value) -> str:
     return re.sub(r"\s+", " ", clean_text(value)).casefold()
 
 
+def normalize_project_purpose(value) -> str:
+    """Use the current purpose format for comparisons with legacy Master Sheet rows."""
+    text = clean_text(value)
+    match = re.fullmatch(r"(.+?)\s+for\s+(.+?)/(.+?)\s+event", text, re.IGNORECASE)
+    if match:
+        project, event, milestone = (part.strip() for part in match.groups())
+        text = f"{project} - {event} Lot / {milestone}"
+    return normalize_key_text(text)
+
+
 def normalize_displacement(value) -> str:
     return re.sub(r"(?i)L$", "", clean_text(value))
 
@@ -106,8 +116,11 @@ def hex_text(value) -> str:
 
 
 def parse_event(project_purpose) -> str:
-    """Extract the event name out of '{project} for {event}/{milestone} event'."""
+    """Extract the event from current or legacy Project Purpose text."""
     text = clean_text(project_purpose)
+    match = re.fullmatch(r".+?\s+-\s+(.+?)\s+Lot\s*/\s*.+", text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
     match = re.search(r"for\s+(.+?)/(.+?)\s+event$", text, re.IGNORECASE)
     return match.group(1).strip() if match else text
 
