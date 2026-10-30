@@ -75,6 +75,13 @@ class JobFiller:
                 steps.append((f"General: {label} = {value}", general.fill_hardware_field, key, value))
                 if key == "lead_plant":
                     steps.append(("General: Import software part number from pool", general.import_software_part_number))
+        project_version = variant["ecu"].get("project_version")
+        if project_version:
+            steps.append((
+                f"General: Pick PST_Lib for project version {project_version}",
+                general.pick_pst_lib,
+                project_version,
+            ))
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
         steps.append(("Select the Customer tab", customer_tab.select_customer_tab))
@@ -83,7 +90,7 @@ class JobFiller:
         return steps
 
     def fill(self, variant: dict) -> list[str]:
-        """Fills and saves the open job; returns the warnings of values WebFlow would not accept.
+        """Fills and saves the open job; returns warnings for requested values not applied.
 
         Raises RuntimeError naming every failed step."""
         part_number = variant["part_number"]
@@ -91,14 +98,32 @@ class JobFiller:
         general = self.body.tab.generaltab
         general.skipped_fields.clear()
         _logger.info("[%s] Values to fill: %s", part_number, describe_values(variant))
-        for field, value in variant.get("unmapped_fields", {}).items():
-            warning = f"Master Sheet {field} = {value}: no matching control in the recorded WebFlow form; not filled."
-            general.skipped_fields.append(warning)
-            _logger.warning("[%s] %s", part_number, warning)
         if not run_step(_logger, f"[{part_number}] Select the General tab", general.select_general_tab):
             raise RuntimeError("Could not select the General tab.")
 
-        failed = run_steps(_logger, [(f"[{part_number}] {step[0]}", *step[1:]) for step in self.steps(variant)])
+        steps = self.steps(variant)
+        picker_index = next(
+            (index for index, step in enumerate(steps) if step[0].startswith("General: Pick PST_Lib")),
+            None,
+        )
+        if picker_index is None:
+            failed = run_steps(
+                _logger, [(f"[{part_number}] {step[0]}", *step[1:]) for step in steps]
+            )
+        else:
+            failed = run_steps(
+                _logger,
+                [(f"[{part_number}] {step[0]}", *step[1:]) for step in steps[:picker_index]],
+            )
+            picker = steps[picker_index]
+            if not run_step(_logger, f"[{part_number}] {picker[0]}", picker[1], *picker[2:]):
+                raise RuntimeError(
+                    f"Could not select a PST_Lib entry matching project version {picker[2]!r} for {part_number}."
+                )
+            failed += run_steps(
+                _logger,
+                [(f"[{part_number}] {step[0]}", *step[1:]) for step in steps[picker_index + 1:]],
+            )
         if variant.get("hardware", {}).get("lead_plant") and general.imported_software_part_number:
             variant["imported_software_part_number"] = general.imported_software_part_number
         if failed:

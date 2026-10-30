@@ -142,7 +142,7 @@ Their internals were not reviewed for this document.
   labels and their actual panels (General info, Bosch logistic info, Customer logistic info,
   Ident Numbers and ECR Information). These controls are not descendants of the Hardware/Plant
   information panel. Recorded-DOM and XML-export regression tests verify the mappings.
-  Columns without a corresponding control are returned as unfilled warnings, not guessed.
+  Columns without a corresponding control are ignored and not shown; values are never guessed.
   Configuration still supplies fields without a sheet column. The creation service measures the entire
   operation with `perf_counter`, exposing elapsed seconds to the completion/failure dialog and log.
 
