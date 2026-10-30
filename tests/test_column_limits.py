@@ -14,6 +14,8 @@ def test_columns_stay_within_limits(qtbot=None):
     table = VariantTable()
     table.populate([{"J": "x" * 500}])
     for column in range(table.columnCount()):
+        if table.isColumnHidden(column):
+            continue
         assert MIN_COLUMN_WIDTH <= table.columnWidth(column) <= MAX_COLUMN_WIDTH
     table.setColumnWidth(3, 5)
     assert table.columnWidth(3) == MIN_COLUMN_WIDTH
@@ -28,3 +30,19 @@ def test_settings_dialog_returns_the_chosen_latest_count():
     QApplication.instance() or QApplication([])
     assert HomeSettingsDialog(20, LATEST_COUNT_CHOICES).latest_count() == 20
     assert HomeSettingsDialog(7, LATEST_COUNT_CHOICES).latest_count() == 5
+
+
+def test_webflow_link_column_is_hidden_until_enabled_and_read_only():
+    from PySide6.QtCore import Qt
+
+    from autohub.modules.home.variant_table import VariantTable
+
+    table = VariantTable()
+    table.populate([{"_row": 1, "J": "P1", "_webflow_link": "https://h:8881/app/ShowJob/16406"}])
+    column = table.columnCount() - 1
+    assert table.isColumnHidden(column)
+    table.set_webflow_link_visible(True)
+    item = table.item(0, column)
+    assert not table.isColumnHidden(column) and item.text() == "WF16406"
+    assert not item.flags() & Qt.ItemIsEditable
+    assert "_webflow_link" not in table.read()[0]

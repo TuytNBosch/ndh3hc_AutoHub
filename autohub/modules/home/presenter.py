@@ -23,6 +23,7 @@ NEW_VARIANT_TIP = "Create new variant by reading ECU Info Sheet CR and System Ma
 # Field label -> settings.json key. Only the Master Sheet is remembered; the New variant source files are not.
 SETTINGS_KEYS = {"Master Sheet": "master_sheet_path"}
 LATEST_COUNT_CHOICES = (5, 10, 20, 50, 100, 0)  # 0 = All
+SHOW_WEBFLOW_LINK_KEY = "show_webflow_link"  # shows the read-only WebFlow Link column in the table
 LATEST_COUNT_KEY = "latest_variant_count"  # how many of the newest variants Load shows; 0 = all
 _EXCEL_FILTER = "Excel Files (*.xlsx)"
 _HW_INFO_FILTER = "HW info (*.xlsx *.eml *.msg);;All files (*.*)"
