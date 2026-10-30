@@ -15,6 +15,7 @@ automation. Each feature is a module plugged into the main window sidebar.
 - Collapsible sidebar (220px to 56px icon-only) with the logo and Home / Creation / Comparison navigation.
 - The window title shows the active module.
 - Cross-module wiring: variants loaded on Home are passed to Creation automatically.
+- All external job links open on double-click only, in both Home and Creation. Single-click does not open a browser.
 - On close, pages that hold resources (the WebFlow browser session) are shut down.
 - WebFlow job filling reads each drop-down list in one query (no per-option waits, no option cap) and confirms the "Saved successfully" toast after Save; an error toast or no toast fails the job with a clear log line.
 - Job creation stops before submission if a form selection fails. If WebFlow replaces the Confirm button or loading indicator during an Angular refresh, automation re-finds it within the existing timeout; a successful submission is never retried.
