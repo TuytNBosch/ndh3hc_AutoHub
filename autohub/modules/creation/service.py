@@ -18,6 +18,7 @@ class WebFlowConfig:
     base_url: str
     tool_version: str
     routing: str
+    trace_dir: str = ""  #: when set, the page of every step is recorded there
 
 
 class WebFlowSession(Protocol):
@@ -89,7 +90,9 @@ class WebFlowJobService:
         self.shutdown()
         _logger.info("Starting the browser (base URL %s, tool version %s, routing %s)", config.base_url, config.tool_version, config.routing)
         progress("Starting the browser...")
-        self._webflow = self._webflow_factory(driver_path=config.driver_path, base_url=config.base_url)
+        self._webflow = self._webflow_factory(
+            driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir
+        )
         return self._webflow.create_and_fill_jobs(
             variants, tool_version=config.tool_version, routing=config.routing, progress=progress
         )

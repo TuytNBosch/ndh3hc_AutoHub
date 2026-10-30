@@ -21,7 +21,8 @@ class MemorySettings:
 class FakeWebFlow:
     instances: list = []
 
-    def __init__(self, driver_path="", base_url=""):
+    def __init__(self, driver_path="", base_url="", trace_dir=""):
+        self.trace_dir = trace_dir
         self.quit_calls = 0
         FakeWebFlow.instances.append(self)
 

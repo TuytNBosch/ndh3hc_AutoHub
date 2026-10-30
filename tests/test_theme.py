@@ -154,3 +154,14 @@ def test_main_window_stays_on_the_page_when_leaving_is_cancelled():
     guard.allow = True
     window._sidebar._list.setCurrentRow(1)
     assert window._pages.currentIndex() == 1
+
+
+def test_settings_page_saves_the_page_recording_option():
+    QApplication.instance() or QApplication([])
+    settings = MemorySettings()
+    page = SettingsWidget(settings)
+    assert page._record.isChecked()  # on by default
+    page._record.setChecked(False)
+    assert page._apply.isEnabled()
+    page._apply.click()
+    assert settings.load()["record_webflow_pages"] is False
