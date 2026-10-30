@@ -1,74 +1,29 @@
 import logging
 import time
 
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from ... import Constants as Constants
+from ...components import (
+    Section,
+    TabLink,
+    checkbox_is_disabled,
+    checkbox_value,
+    click_count,
+    select_dropdown,
+)
 from ...dropdown import read_options
-
-
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-
 
 _logger = logging.getLogger(__name__)
 
 
-def _checkbox_value(checkbox):
-    """Return a checkbox's current value, including its indeterminate state."""
-    value = checkbox.get_attribute("aria-checked")
-    if value == "true":
-        return True
-    if value == "false":
-        return False
-    if value == "mixed":
-        return None
-
-    try:
-        checkbox.find_element(By.CSS_SELECTOR, 'checkicon[data-pc-section="checkIcon"]')
-        return True
-    except Exception:
-        try:
-            checkbox.find_element(By.CSS_SELECTOR, 'timesicon[data-pc-section="uncheckIcon"]')
-            return False
-        except Exception:
-            return None
-
-
-def _checkbox_is_disabled(form_element, checkbox_element) -> bool:
-    """Recognize disabled states exposed by WebFlow's PrimeNG checkbox markup."""
-    try:
-        host = form_element.find_element(By.CSS_SELECTOR, "p-tristatecheckbox")
-    except Exception:
-        host = None
-
-    for element in (host, checkbox_element):
-        if element is None:
-            continue
-        if element.get_attribute("aria-disabled") == "true":
-            return True
-        if any(
-            element.get_attribute(attribute) == "true"
-            for attribute in ("ng-reflect-disabled", "ng-reflect-is-disabled")
-        ):
-            return True
-        classes = element.get_attribute("class") or ""
-        if any(name in classes.split() for name in ("bg-disabled", "p-checkbox-disabled", "p-disabled")):
-            return True
-
-    return False
-
-
-def _click_count(current: bool | None, target: bool | None) -> int:
-    """Number of tri-state cycles needed to reach a target value."""
-    if current is target:
-        return 0
-    if target is None:
-        return 2 if current is True else 1
-    if current is None:
-        return 1 if target else 2
-    return 1
+# Kept under their historical names; the tri-state helpers are shared with the ECU tab.
+_checkbox_value = checkbox_value
+_checkbox_is_disabled = checkbox_is_disabled
+_click_count = click_count
 
 
 class GeneralTab:
@@ -76,288 +31,47 @@ class GeneralTab:
     def __init__(self, driver: WebDriver):
         self.driver = driver
         self.skipped_fields: list[str] = []
+        self._tab = TabLink(driver, Constants.GENERAL_TAB_XPATH)
+        self._configurator_items = Section(
+            driver, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_BODY_CSS
+        )
 
     def is_general_tab(self) -> bool:
-        
-        try:
-            tab_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_TAB_XPATH))
-            )
-
-            if not tab_element.is_displayed():
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", tab_element)
-
-            if not tab_element.is_selected():
-                return False
-
-        except:
-            return False
-
-        return True
+        return self._tab.is_selected()
 
     def select_general_tab(self) -> bool:
-
-        if not self.is_general_tab():
-            try:
-                tab_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                    EC.presence_of_element_located((By.XPATH, Constants.GENERAL_TAB_XPATH))
-                )
-
-                if not tab_element.is_selected():
-                    tab_element.click()
-                    time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            except:
-                return False
-
-        return True
-
-
-
+        return self._tab.select()
 
     def get_options(self) -> dict | None:
         return read_options(self.driver, Constants.GENERAL_TAB_OPTIONS_CLASS, Constants.GENERAL_TAB_OPTIONS_MAX_ITEMS)
 
-
     def is_configurator_items_expanded(self) -> bool:
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH))
-            )
+        return self._configurator_items.is_expanded()
 
-            info_element = title_element.find_element(By.XPATH, "../..")
-
-            body_element = info_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_CONFIGURATOR_ITEMS_BODY_CSS)
-
-            if not body_element.is_displayed():
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", body_element)
-
-            return (body_element.get_attribute("style").find("block") != -1)
-        except:
-            return False
-    
     def is_configurator_items_collapsed(self) -> bool:
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH))
-            )
-
-            info_element = title_element.find_element(By.XPATH, "../..")
-
-            body_element = info_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_CONFIGURATOR_ITEMS_BODY_CSS)
-
-            if not body_element.is_displayed():
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", body_element)
-
-            return (body_element.get_attribute("style").find("block") == -1)
-        except:
-            return False
+        return self._configurator_items.is_collapsed()
 
     def expand_configurator_items(self) -> bool:
-
-        if not self.is_configurator_items_expanded():
-
-            try:
-                title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                    EC.presence_of_element_located((By.XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH))
-                )
-
-                button = title_element.find_element(By.XPATH, "..")
-
-                button.click()
-                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)  # Wait for the animation to complete
-
-            except:
-                return False
-
-        return True
+        return self._configurator_items.expand()
 
     def collapse_configurator_items(self) -> bool:
+        return self._configurator_items.collapse()
 
-        if not self.is_configurator_items_collapsed():
-
-            try: 
-                title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                    EC.presence_of_element_located((By.XPATH, Constants.GENERAL_CONFIGURATOR_ITEMS_TITLE_XPATH))
-                )
-
-                button = title_element.find_element(By.XPATH, "..")
-                button.click()
-                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)  # Wait for the animation to complete
-
-            except:
-                return False
-
-        return True
-
+    def _select(self, title_xpath: str, value: str) -> bool:
+        self.expand_configurator_items()
+        return select_dropdown(self.driver, title_xpath, Constants.GENERAL_TAB_BTN_CSS, value, self.get_options)
 
     def select_delivery_type(self, delivery_type: str = "") -> bool:
-        
-        self.expand_configurator_items()
+        return self._select(Constants.GENERAL_DELIVERY_TYPE_TITLE_XPATH, delivery_type)
 
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_DELIVERY_TYPE_TITLE_XPATH))
-            )
-
-            form_element = title_element.find_element(By.XPATH, "..")
-
-            button_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_TAB_BTN_CSS)
-
-            try:
-                button_element.find_element(By.XPATH, f'.//span[text()="{delivery_type}"]')
-                return True
-            except:
-                pass
-
-
-            button_element.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            is_displayed = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-            if not is_displayed:
-                return False
-
-            options = self.get_options()
-            if options and delivery_type in options:
-                options[delivery_type].click()
-
-            return WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-        except:
-            return False
-
-
-    
     def select_release_class(self, release_class: str = "") -> bool:
-        
-        self.expand_configurator_items()
-
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_RELEASE_CLASS_TITLE_XPATH))
-            )
-
-            form_element = title_element.find_element(By.XPATH, "..")
-
-            button_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_TAB_BTN_CSS)
-
-            try:
-                button_element.find_element(By.XPATH, f'.//span[text()="{release_class}"]')
-                return True
-            except:
-                pass
-
-
-            button_element.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            is_displayed = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-            if not is_displayed:
-                return False
-
-            options = self.get_options()
-            if options and release_class in options:
-                options[release_class].click()
-
-            return WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-        except:
-            return False
-
+        return self._select(Constants.GENERAL_RELEASE_CLASS_TITLE_XPATH, release_class)
 
     def select_release_scope(self, release_scope: str = "") -> bool:
-        
-        self.expand_configurator_items()
-
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_RELEASE_SCOPE_TITLE_XPATH))
-            )
-
-            form_element = title_element.find_element(By.XPATH, "..")
-
-            button_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_TAB_BTN_CSS)
-
-            try:
-                button_element.find_element(By.XPATH, f'.//span[text()="{release_scope}"]')
-                return True
-            except:
-                pass
-
-
-            button_element.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            is_displayed = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-            if not is_displayed:
-                return False
-
-            options = self.get_options()
-            if options and release_scope in options:
-                options[release_scope].click()
-
-            return WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-        except:
-            return False
-
+        return self._select(Constants.GENERAL_RELEASE_SCOPE_TITLE_XPATH, release_scope)
 
     def select_limitations(self, limitations: str = "") -> bool:
-        
-        self.expand_configurator_items()
-
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.GENERAL_LIMITATIONS_TITLE_XPATH))
-            )
-
-            form_element = title_element.find_element(By.XPATH, "..")
-
-            button_element = form_element.find_element(By.CSS_SELECTOR, Constants.GENERAL_TAB_BTN_CSS)
-
-            try:
-                button_element.find_element(By.XPATH, f'.//span[text()="{limitations}"]')
-                return True
-            except:
-                pass
-
-
-            button_element.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            is_displayed = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-            if not is_displayed:
-                return False
-
-            options = self.get_options()
-            if options and limitations in options:
-                options[limitations].click()
-
-            return WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-        except:
-            return False
+        return self._select(Constants.GENERAL_LIMITATIONS_TITLE_XPATH, limitations)
 
     def _select_tristate_checkbox(self, title_xpath: str, checkbox_css: str, check: bool | None, label: str) -> bool:
         if not self.expand_configurator_items():

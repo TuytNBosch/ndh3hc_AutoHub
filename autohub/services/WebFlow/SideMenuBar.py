@@ -1,179 +1,106 @@
-import time
+import logging
 
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from . import Constants as Constants
+from .components import pause, wait_for, wait_until_idle
 
+_logger = logging.getLogger(__name__)
 
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
 
 class SideMenuBar:
 
     def __init__(self, driver: WebDriver):
         self.driver = driver
 
+    def _menubar(self):
+        return wait_for(self.driver, By.ID, Constants.SIDEMENUBAR_ID, Constants.SIDEMENUBAR_TIMEOUT)
+
+    def _job_creation(self):
+        return wait_for(self.driver, By.CSS_SELECTOR, Constants.SIDEMENUBAR_JOBCREATION_CSS, Constants.SIDEMENUBAR_TIMEOUT)
+
     def is_active(self) -> bool:
-        """
-        Checks if the side menu bar is active.
-
-        Returns:
-            bool: True if the side menu bar is active, False otherwise.
-        """
+        """True if the side menu bar is open."""
         try:
-            element = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                EC.presence_of_element_located((By.ID, Constants.SIDEMENUBAR_ID))
-            )
-            return Constants.SIDEMENUBAR_ACTIVE in element.get_attribute("class")
-        except:
+            return Constants.SIDEMENUBAR_ACTIVE in self._menubar().get_attribute("class")
+        except Exception:
+            _logger.debug("Could not read the side menu bar", exc_info=True)
             return False
-     
+
     def open_menubar(self) -> bool:
-        """
-        Opens the side menu bar if it is not already active.
-
-        Returns:
-            bool: True if the side menu bar is active after the operation, False otherwise.
-        """
-        if not self.is_active():
-            try:
-                sidemenubar_element = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                    EC.presence_of_element_located((By.ID, Constants.SIDEMENUBAR_ID))
-                )
-    
-                toggle_element = sidemenubar_element.find_element(By.XPATH, "..")
-
-                button_element = toggle_element.find_element(By.CSS_SELECTOR, Constants.SIDEMENUBAR_OPEN_BTN_CSS)
-                button_element.click()
-                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-
-            except:
-                return False
-
-        return True
+        """Opens the side menu bar; True if it is open afterwards."""
+        if self.is_active():
+            return True
+        try:
+            toggle_element = self._menubar().find_element(By.XPATH, "..")
+            toggle_element.find_element(By.CSS_SELECTOR, Constants.SIDEMENUBAR_OPEN_BTN_CSS).click()
+            pause()
+            return True
+        except Exception:
+            _logger.warning("Could not open the side menu bar", exc_info=True)
+            return False
 
     def close_menubar(self) -> bool:
-        """
-        Closes the side menu bar if it is currently active.
-
-        Returns:
-            bool: True if the side menu bar is inactive after the operation, False otherwise.
-        """
-        if self.is_active():
-            try:
-                sidemenubar_element = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                    EC.presence_of_element_located((By.ID, Constants.SIDEMENUBAR_ID))
-                )
-
-                button_element = sidemenubar_element.find_element(By.CSS_SELECTOR, Constants.SIDEMENUBAR_CLOSE_BTN_CSS)
-                button_element.click()
-                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-            except:
-                return False
-
-        return True
-    
+        """Closes the side menu bar; True if it is closed afterwards."""
+        if not self.is_active():
+            return True
+        try:
+            self._menubar().find_element(By.CSS_SELECTOR, Constants.SIDEMENUBAR_CLOSE_BTN_CSS).click()
+            pause()
+            return True
+        except Exception:
+            _logger.warning("Could not close the side menu bar", exc_info=True)
+            return False
 
     def is_job_creation_expand(self) -> bool:
-        """
-        Checks if the job creation section in the side menu bar is expanded.
-
-        Returns:
-            bool: True if the job creation section is expanded, False otherwise.
-        """
+        """True if the job creation section of the side menu bar is expanded."""
         try:
-            job_creation_element = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, Constants.SIDEMENUBAR_JOBCREATION_CSS))
-            )
-            return "true" in job_creation_element.get_attribute("aria-expanded")
-        except:
+            return "true" in self._job_creation().get_attribute("aria-expanded")
+        except Exception:
+            _logger.debug("Could not read the job creation menu", exc_info=True)
             return False
+
+    def _toggle_job_creation(self) -> None:
+        self._job_creation().find_element(By.TAG_NAME, "button").click()
+        pause()
 
     def expand_job_creation(self) -> bool:
-        """
-        Expands the job creation section in the side menu bar if it is not already expanded.
-
-        Returns:
-            bool: True if the job creation section is expanded after the operation, False otherwise.
-        """
-        if not self.is_job_creation_expand():
-            try:
-                job_creation_element = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, Constants.SIDEMENUBAR_JOBCREATION_CSS))
-                )
-
-                toggle_button = job_creation_element.find_element(By.TAG_NAME, "button")
-
-                toggle_button.click()
-                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                return self.is_job_creation_expand()
-            except:
-                return False
-        return True
+        """Expands the job creation section; True if it is expanded afterwards."""
+        if self.is_job_creation_expand():
+            return True
+        try:
+            self._toggle_job_creation()
+            return self.is_job_creation_expand()
+        except Exception:
+            _logger.warning("Could not expand the job creation menu", exc_info=True)
+            return False
 
     def collapse_job_creation(self) -> bool:
-        """
-        Collapses the job creation section in the side menu bar if it is currently expanded.
+        """Collapses the job creation section; True if it is collapsed afterwards."""
+        if not self.is_job_creation_expand():
+            return True
+        try:
+            self._toggle_job_creation()
+            return not self.is_job_creation_expand()
+        except Exception:
+            _logger.warning("Could not collapse the job creation menu", exc_info=True)
+            return False
 
-        Returns:
-            bool: True if the job creation section is collapsed after the operation, False otherwise.
-        """
-        if self.is_job_creation_expand():
-            try:
-                job_creation_element = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, Constants.SIDEMENUBAR_JOBCREATION_CSS))
-                )
-                toggle_button = job_creation_element.find_element(By.TAG_NAME, "button")
-                toggle_button.click()
-                time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)
-                return not self.is_job_creation_expand()
-            except:
-                return False
-        return True
+    def _click_menu_item(self, item_css: str) -> bool:
+        try:
+            if not self.is_job_creation_expand():
+                self.expand_job_creation()
+            wait_for(self.driver, By.CSS_SELECTOR, item_css, Constants.SIDEMENUBAR_TIMEOUT).click()
+            return wait_until_idle(self.driver, Constants.SIDEMENUBAR_TIMEOUT)
+        except Exception:
+            _logger.warning("Could not click side menu item %s", item_css, exc_info=True)
+            return False
 
     def click_new_job(self) -> bool:
-        """
-        Clicks the "New Job" button in the job creation section of the side menu bar.
-
-        Returns:
-            bool: True if the "New Job" button was successfully clicked, False otherwise.
-        """
-        try:
-            if not self.is_job_creation_expand():
-                self.expand_job_creation()
-
-            new_job_button = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, Constants.SIDEMENUBAR_JOBCREATION_NEWJOB_BTN_CSS))
-            )
-            new_job_button.click()
-
-            return WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-
-        except:
-            return False
+        """Clicks "New Job" and waits for the form; True on success."""
+        return self._click_menu_item(Constants.SIDEMENUBAR_JOBCREATION_NEWJOB_BTN_CSS)
 
     def click_new_job_from_xml(self) -> bool:
-        """
-        Clicks the "New Job from XML" button in the job creation section of the side menu bar.
-
-        Returns:
-            bool: True if the "New Job from XML" button was successfully clicked, False otherwise.
-        """
-        try:
-            if not self.is_job_creation_expand():
-                self.expand_job_creation()
-
-            new_job_xml_button = WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, Constants.SIDEMENUBAR_JOBCREATION_NEWJOBXML_BTN_CSS))
-            )
-            new_job_xml_button.click()
-
-            return WebDriverWait(self.driver, Constants.SIDEMENUBAR_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
-        except:
-            return False
-
+        """Clicks "New Job from XML" and waits for the form; True on success."""
+        return self._click_menu_item(Constants.SIDEMENUBAR_JOBCREATION_NEWJOBXML_BTN_CSS)

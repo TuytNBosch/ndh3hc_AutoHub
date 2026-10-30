@@ -113,6 +113,22 @@ Their internals were not reviewed for this document.
   - Assumption: `JobCreation.jobs_creation` derives the new job ids by incrementing the id in the page URL.
   - A reasonable first refactor, if wanted: one shared section-toggle helper and one `get_options`, replacing
     the bare `except:` with logged exceptions, each checked by a run against a real WebFlow.
+- **WF-4 (refactor done):** the package was restructured without changing what is clicked or typed.
+  - `components.py` holds each repeated widget once: `Section` (expand / collapse / fill an input),
+    `select_dropdown`, `TabLink`, the tri-state checkbox readers, and `wait_for` / `wait_until_idle`.
+    The page objects keep every public method name and only hold locators (2,623 → about 1,630 lines).
+  - Bare `except:` clauses are gone; every caught exception is logged (debug for state checks,
+    warning for failed actions) and the same `True` / `False` result is returned.
+  - SRP: `WebFlow` only orchestrates. `browser.edge_service` builds the driver service (the download
+    proxy is `Constants.WEBDRIVER_DOWNLOAD_PROXY`). `job_filler.JobFiller` builds and runs the per-job
+    steps; its field tables (`GENERAL_FIELDS`, `ECU_FIELDS`, `CUSTOMER_FIELDS`) are data, so adding a
+    field is one line (OCP). `JobFiller` depends only on the page objects it is given (DIP).
+  - Unused `Header` / `Footer` stubs were removed. `JobCreation.is_job_creation_page` used a misspelt
+    constant and always returned `False`; it now uses `BODY_JOBCREATION_PAGE_CLASS` (it is not called).
+  - Kept as is: `Information.expand_job_information` / `collapse_job_information` return `False` when
+    nothing had to be clicked, and a drop-down whose value is not offered still reports the idle wait.
+  - Tested with fake elements in `tests/test_webflow_components.py`; still to be confirmed by a run
+    against a real WebFlow.
 - **WF-2:** Any change must keep `WebFlow.create_and_fill_jobs(variants, tool_version, routing)` and the
   variant dict shape unchanged, because `WebFlowJobService` and the tests depend on them.
 - **WF-3:** Page-object classes receive the driver by injection (already the case for `SideMenuBar` and
@@ -166,6 +182,7 @@ Each step ends with a green test run.
 | DIP-4 | Met | `bootstrap.py`. `HomeWidget` still defaults `dialogs` to `QtDialogs`, and `build_modules` defaults `settings` to `JsonSettingsStore`. |
 | DIP-5 | Met | Enforced by `test_architecture.py`. |
 | DIP-6 | Met | COM session and dialogs are injected. |
-| WF-1 | Done | Audit recorded in section 8; nothing refactored. |
-| WF-2 | Met | The WebFlow package was not modified. |
-| WF-3 | Met | Unchanged. |
+| WF-1 | Done | Audit recorded in section 8. |
+| WF-2 | Met | `create_and_fill_jobs`, its keyword arguments, the variant dict shape and the result dicts are unchanged. |
+| WF-3 | Met | New classes (`Section`, `TabLink`, `JobFiller`) also receive the driver or pages by injection. |
+| WF-4 | Done | Shared components, logged exceptions, `browser` / `job_filler` split; see section 8. |
