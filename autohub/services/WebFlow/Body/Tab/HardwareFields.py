@@ -1,7 +1,9 @@
-"""Controls recorded in the General tab's Hardware/Plant information panel."""
+"""Sheet-backed controls in the General tab's collapsible panels."""
 import logging
 
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
@@ -12,22 +14,77 @@ from ...dropdown import read_options
 
 _logger = logging.getLogger(__name__)
 _FIELDS = {key: (label, kind) for _, key, label, kind in HARDWARE_FIELDS}
+_PANEL_FIELDS = {
+    "General info": (
+        "vehicle_model", "engine_family", "power", "emission_norm", "immobilizer",
+        "transmission", "displacement", "market", "model_year", "cylinders",
+    ),
+    "Bosch logistic info": (
+        "project_number_first", "project_number_second", "hardware_part_number",
+        "development_number", "ecu_hardware_name",
+    ),
+    "Customer logistic info": (
+        "customer_order_number", "customer_hardware_part_number",
+        "customer_software_part_number", "car", "customer_name",
+    ),
+    "Ident Numbers": ("lead_plant", "program_version", "software_part_number", "data_version"),
+    "ECR Information": ("ecr_number",),
+}
+_FIELD_PANELS = {key: panel for panel, keys in _PANEL_FIELDS.items() for key in keys}
 
 
 class HardwareFields:
     def __init__(self, driver):
         self.driver = driver
-        self.section = Section(
-            driver, '//span[normalize-space(.)="Hardware/Plant information"]', 'div[style^="display:"]'
-        )
+        self.sections = {
+            panel: Section(driver, f'//span[normalize-space(.)="{panel}"]', 'div[style^="display:"]')
+            for panel in _PANEL_FIELDS
+        }
+
+    def import_software_part_number(self) -> bool:
+        section = self.sections["Ident Numbers"]
+        if not section.expand():
+            return False
+        try:
+            button_xpath = (
+                '//button[.//span[normalize-space(.)="Import from pool"]]'
+            )
+            button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
+                EC.element_to_be_clickable((By.XPATH, button_xpath))
+            )
+            scroll_into_view_if_hidden(self.driver, button)
+            # Allocating a number may have server-side effects: never retry the click.
+            button.click()
+            wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
+
+            def imported(_driver):
+                field = section.body().find_element(
+                    By.XPATH,
+                    './/div[contains(@class,"form-group") and '
+                    './div[contains(@class,"control-label") and '
+                    'normalize-space(.)="Software part number"]]//input',
+                )
+                value = (field.get_attribute("value") or "").strip()
+                return value if value and value not in ("0", "---") else False
+
+            value = WebDriverWait(
+                self.driver, Constants.WEBFLOW_TIMEOUT,
+                ignored_exceptions=(StaleElementReferenceException,),
+            ).until(imported)
+            _logger.info("WebFlow imported Software part number = %s", value)
+            return True
+        except Exception:
+            _logger.exception("Could not import the software part number from pool")
+            return False
 
     def fill(self, key: str, value: str) -> bool:
         label, kind = _FIELDS[key]
-        if not self.section.expand():
+        section = self.sections[_FIELD_PANELS[key]]
+        if not section.expand():
             return False
         title_xpath = f'.//div[contains(@class,"control-label") and normalize-space(.)="{label}"]'
         try:
-            title = self.section.body().find_element(By.XPATH, title_xpath)
+            title = section.body().find_element(By.XPATH, title_xpath)
             form = title.find_element(By.XPATH, "..")
             if kind == "dropdown":
                 return select_dropdown(

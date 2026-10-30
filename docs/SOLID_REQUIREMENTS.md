@@ -137,8 +137,11 @@ Their internals were not reviewed for this document.
 - **WF-5 (sheet-authoritative values):** `MasterSheet/webflow_variants.py` reads all mapped fields from
   their sheet columns; it does not substitute `WebFlowDefaults`. Blank optional values are skipped,
   invalid checkbox cells and missing required creation fields are errors. `core/webflow_fields.py`
-  maps additional Hardware/Plant fields, filled by `HardwareFields` using the captured WebFlow form
-  labels. Columns without a corresponding control are returned as unfilled warnings, not guessed.
+  maps additional General-tab fields, filled by `HardwareFields` using the captured WebFlow form
+  labels and their actual panels (General info, Bosch logistic info, Customer logistic info,
+  Ident Numbers and ECR Information). These controls are not descendants of the Hardware/Plant
+  information panel. Recorded-DOM and XML-export regression tests verify the mappings.
+  Columns without a corresponding control are returned as unfilled warnings, not guessed.
   Configuration still supplies fields without a sheet column. The creation service measures the entire
   operation with `perf_counter`, exposing elapsed seconds to the completion/failure dialog and log.
 

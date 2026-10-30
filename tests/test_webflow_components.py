@@ -308,3 +308,63 @@ def test_extra_sheet_fields_are_filled_and_unmapped_fields_reported():
     assert ("fill_hardware_field", "market", "Brazil") in calls
     assert len(warnings) == 1 and "CS (DWG NO.) = DWG" in warnings[0]
     assert not any(name.startswith("select_safety") for name, *_ in calls)
+
+
+def test_job_filler_uses_requested_priority_then_form_order():
+    from autohub.core.webflow_fields import HARDWARE_FIELDS
+
+    variant = {
+        **VARIANT,
+        "general": {**VARIANT["general"], "safety_calibration": False},
+        "hardware": {key: key for _, key, _, _ in HARDWARE_FIELDS},
+    }
+    job_filler, calls, _ = filler()
+    job_filler.fill(variant)
+    field_calls = calls[3:]  # Select General, close menu, collapse information.
+    assert [call[0] for call in field_calls[:8]] == [
+        "select_delivery_type",
+        "select_release_class",
+        "select_release_scope",
+        "select_limitations",
+        "select_safety_monitoring_sw",
+        "select_safety_calibration_response",
+        "select_bosch_cal_data_response",
+        "select_data_integration_response",
+    ]
+    hardware_calls = [call for call in field_calls if call[0] == "fill_hardware_field"]
+    assert [call[1] for call in hardware_calls] == [
+        "hardware_part_number", "development_number", "lead_plant",
+        "vehicle_model", "engine_family", "power", "emission_norm", "immobilizer",
+        "transmission", "displacement", "market", "model_year", "cylinders",
+        "project_number_first", "project_number_second", "ecu_hardware_name",
+        "customer_order_number", "customer_hardware_part_number",
+        "customer_software_part_number", "car", "customer_name",
+        "program_version", "data_version", "ecr_number",
+    ]
+    assert field_calls[8:11] == hardware_calls[:3]
+    assert field_calls[11] == ("import_software_part_number",)
+    assert field_calls[12:9 + len(hardware_calls)] == hardware_calls[3:]
+    assert field_calls[9 + len(hardware_calls)] == ("select_ecu_tab",)
+    assert calls[-1] == ("save",)
+
+
+def test_imported_software_number_is_not_overwritten_from_sheet():
+    variant = {**VARIANT, "hardware": {"lead_plant": "SaW", "software_part_number": "0"}}
+    job_filler, calls, _ = filler()
+    job_filler.fill(variant)
+    lead_index = calls.index(("fill_hardware_field", "lead_plant", "SaW"))
+    assert calls[lead_index + 1] == ("import_software_part_number",)
+    assert ("fill_hardware_field", "software_part_number", "0") not in calls
+
+
+def test_blank_priority_fields_are_skipped_without_reordering_remaining_fields():
+    variant = {
+        **VARIANT,
+        "hardware": {"hardware_part_number": "", "development_number": "DEV", "lead_plant": "", "vehicle_model": "Model"},
+    }
+    job_filler, calls, _ = filler()
+    job_filler.fill(variant)
+    assert [call for call in calls if call[0] == "fill_hardware_field"] == [
+        ("fill_hardware_field", "development_number", "DEV"),
+        ("fill_hardware_field", "vehicle_model", "Model"),
+    ]

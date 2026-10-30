@@ -44,6 +44,9 @@ class GeneralTab:
     def fill_hardware_field(self, key: str, value: str) -> bool:
         return self._hardware.fill(key, value)
 
+    def import_software_part_number(self) -> bool:
+        return self._hardware.import_software_part_number()
+
     def select_general_tab(self) -> bool:
         return self._tab.select()
 

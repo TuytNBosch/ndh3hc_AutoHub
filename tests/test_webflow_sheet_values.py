@@ -70,10 +70,12 @@ def test_brand_and_ecu_type_are_taken_from_sheet_not_method_defaults():
 
 def _hardware(monkeypatch):
     fields = HardwareFields(Mock())
-    fields.section = Mock()
-    form = fields.section.body.return_value.find_element.return_value.find_element.return_value
+    fields.sections = {panel: Mock() for panel in fields.sections}
+    for section in fields.sections.values():
+        section.body.return_value = fields.sections["General info"].body.return_value
+    form = fields.sections["General info"].body.return_value.find_element.return_value.find_element.return_value
     monkeypatch.setattr(hardware_module, "pause", lambda: None)
-    monkeypatch.setattr(hardware_module, "wait_until_idle", lambda driver: True)
+    monkeypatch.setattr(hardware_module, "wait_until_idle", lambda driver, timeout=None: True)
     return fields, form
 
 
@@ -85,8 +87,9 @@ def test_hardware_text_fields_are_written_and_verified(monkeypatch, column, key,
     assert fields.fill(key, "sheet value") is True
     control.clear.assert_called_once()
     control.send_keys.assert_called_once_with("sheet value")
-    locator = fields.section.body.return_value.find_element.call_args.args[1]
+    locator = fields.sections[hardware_module._FIELD_PANELS[key]].body.return_value.find_element.call_args.args[1]
     assert label in locator
+    fields.sections[hardware_module._FIELD_PANELS[key]].expand.assert_called_once()
 
 
 def test_hardware_read_only_field_fails_explicitly(monkeypatch):
@@ -94,6 +97,24 @@ def test_hardware_read_only_field_fails_explicitly(monkeypatch):
     form.find_element.return_value.is_enabled.return_value = False
     assert fields.fill("vehicle_model", "62XS") is False
     form.find_element.return_value.send_keys.assert_not_called()
+
+
+def test_field_expands_only_its_own_panel(monkeypatch):
+    fields, form = _hardware(monkeypatch)
+    control = form.find_element.return_value
+    control.get_attribute.side_effect = lambda name: "0261S10BN8" if name == "value" else None
+    assert fields.fill("hardware_part_number", "0261S10BN8") is True
+    fields.sections["Bosch logistic info"].expand.assert_called_once()
+    for name, section in fields.sections.items():
+        if name != "Bosch logistic info":
+            section.expand.assert_not_called()
+
+
+def test_missing_panel_stops_before_typing(monkeypatch):
+    fields, form = _hardware(monkeypatch)
+    fields.sections["Ident Numbers"].expand.return_value = False
+    assert fields.fill("lead_plant", "SaW") is False
+    form.find_element.assert_not_called()
 
 
 def test_hardware_dropdown_passes_the_sheet_value(monkeypatch):
@@ -126,6 +147,41 @@ def test_hardware_multiselect_missing_option_fails(monkeypatch):
     panel.find_elements.return_value = []
     fields.driver.find_elements.return_value = [panel]
     assert fields._select_multiple(form, "Brazil") is False
+
+
+def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
+    fields, _ = _hardware(monkeypatch)
+    button = fields.driver.find_element.return_value
+    button.is_displayed.return_value = True
+    button.is_enabled.return_value = True
+    field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    field.get_attribute.side_effect = ["", "0", "10SW137784"]
+    with caplog.at_level("INFO", logger=hardware_module.__name__):
+        assert fields.import_software_part_number() is True
+    button.click.assert_called_once()
+    assert "Software part number = 10SW137784" in caplog.text
+
+
+def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    monkeypatch.setattr(hardware_module.Constants, "WEBFLOW_TIMEOUT", 0)
+    button = fields.driver.find_element.return_value
+    button.is_displayed.return_value = True
+    button.is_enabled.return_value = True
+    field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
+    field.get_attribute.return_value = ""
+    assert fields.import_software_part_number() is False
+    button.click.assert_called_once()
+
+
+def test_pool_import_does_not_retry_uncertain_click(monkeypatch):
+    fields, _ = _hardware(monkeypatch)
+    button = fields.driver.find_element.return_value
+    button.is_displayed.return_value = True
+    button.is_enabled.return_value = True
+    button.click.side_effect = RuntimeError("connection lost")
+    assert fields.import_software_part_number() is False
+    button.click.assert_called_once()
 
 
 @pytest.mark.parametrize("succeed", [True, False])
