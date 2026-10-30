@@ -1,0 +1,99 @@
+"""Mx17MasterSheet.save_variant_rows against a dict-backed fake of the Excel COM objects."""
+import re
+from types import SimpleNamespace
+
+from autohub.services.MasterSheet import mx17_layout as layout
+from autohub.services.MasterSheet.mx17_sheet import Mx17MasterSheet
+
+
+class Cell:
+    def __init__(self, sheet, address):
+        self.sheet, self.address = sheet, address
+        self.HasFormula = False
+        self.NumberFormat = "General"
+
+    @property
+    def Value(self):
+        return self.sheet.cells.get(self.address)
+
+    @Value.setter
+    def Value(self, value):
+        self.sheet.cells[self.address] = value
+
+
+class Sheet:
+    def __init__(self, name, cells):
+        self.Name, self.cells = name, dict(cells)
+
+    def Range(self, address):
+        if ":" not in address:
+            return Cell(self, address)
+        first, last = address.split(":")
+        match = re.fullmatch(r"([A-Z]+)(\d+)", last)
+        from openpyxl.utils import column_index_from_string, get_column_letter
+        last_col, last_row = column_index_from_string(match.group(1)), int(match.group(2))
+        first_row = int(re.sub(r"\D", "", first))
+        return SimpleNamespace(Value=tuple(
+            tuple(self.cells.get(f"{get_column_letter(c)}{r}") for c in range(1, last_col + 1))
+            for r in range(first_row, last_row + 1)
+        ))
+
+    @property
+    def UsedRange(self):
+        rows = [int(re.sub(r"\D", "", a)) for a in self.cells] or [1]
+        return SimpleNamespace(Row=1, Rows=SimpleNamespace(Count=max(rows)))
+
+
+def _sheet(main, info=None):
+    sheets = [Sheet(layout.MAIN_SHEET_NAME, main)]
+    if info is not None:
+        sheets.append(Sheet("X_Info", info))
+    book = SimpleNamespace(
+        ReadOnly=False,
+        Worksheets=lambda key: next(s for s in sheets if s.Name == key) if isinstance(key, str) else sheets[key - 1],
+        Saved=True,
+        FullName="x",
+        Save=lambda: None,
+    )
+    book.Worksheets.Count = len(sheets)
+    master = Mx17MasterSheet("x.xlsx")
+    master.workbook = book
+    return master, sheets
+
+
+def _main_row(part="37820-5BF-G26", ecu="MED17.9.3"):
+    return {"W7": part, "E7": ecu, "F7": "CIVIC"}
+
+
+def test_editing_one_of_two_keys_sharing_a_column_is_written():
+    master, sheets = _sheet(_main_row())
+    row = master.load_variant_rows()[0]
+    row["S"] = "NEWHW"  # S and AP both live in main column E
+    master.save_variant_rows([row], save=False)
+    assert sheets[0].cells["E7"] == "NEWHW"
+
+
+def test_editing_the_part_number_is_written():
+    master, sheets = _sheet(_main_row())
+    row = master.load_variant_rows()[0]
+    row["J"] = "37820-5BF-G27"
+    master.save_variant_rows([row], save=False)
+    assert sheets[0].cells["W7"] == "37820-5BF-G27"
+
+
+def test_unchanged_rows_write_nothing_and_clearing_a_value_clears_the_cell():
+    master, sheets = _sheet(_main_row())
+    row = master.load_variant_rows()[0]
+    before = dict(sheets[0].cells)
+    master.save_variant_rows([row], save=False)
+    assert sheets[0].cells == before
+    row["AT"] = ""
+    master.save_variant_rows([row], save=False)
+    assert sheets[0].cells["F7"] is None
+
+
+def test_unmapped_columns_are_reported():
+    master, _ = _sheet(_main_row())
+    row = master.load_variant_rows()[0]
+    row["R"] = "Acura"
+    assert master.save_variant_rows([row], save=False)[0]["Unmapped"] == ["R"]
