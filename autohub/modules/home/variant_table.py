@@ -105,7 +105,7 @@ class VariantTable(QTableWidget):
         item = QTableWidgetItem(webflow_link_text(link) or link)
         item.setFlags(item.flags() & ~Qt.ItemIsEditable)
         item.setData(Qt.UserRole, link)
-        item.setToolTip(link)
+        item.setToolTip(f"Double-click to open\n{link}" if link else "")
         if link:  # looks like a link
             font = item.font()
             font.setUnderline(True)

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from autohub.core.latest_event import NO_EVENT, latest_event
 from autohub.core.webflow_links import webflow_link_text
 from autohub.core.settings import SettingsStore
+from autohub.ui.link_label import LinkLabel
 
 _ALL_EVENTS = "All events"
 _NO_EVENT = NO_EVENT
@@ -144,9 +145,7 @@ class VariantChecklist(QWidget):
         layout.addWidget(checkbox)
         layout.addStretch(1)
         if link:
-            label = QLabel(f'<a href="{link}">{webflow_link_text(link) or link}</a>')
-            label.setOpenExternalLinks(True)
-            label.setToolTip(link)
+            label = LinkLabel(webflow_link_text(link) or link, link)
             layout.addWidget(label)
         return row
 
