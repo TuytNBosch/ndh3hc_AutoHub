@@ -12,5 +12,11 @@ def webflow_link_text(url: str) -> str:
     return f"WF{match.group(1)}" if match else ""
 
 
+def job_number(url: str) -> int | None:
+    """The job number at the end of a link (None when the link does not end in one)."""
+    match = _JOB_NUMBER.search((url or "").strip())
+    return int(match.group(1)) if match else None
+
+
 def is_link(text: str) -> bool:
     return (text or "").strip().lower().startswith(("http://", "https://"))
