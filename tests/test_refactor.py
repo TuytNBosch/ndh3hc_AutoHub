@@ -150,3 +150,35 @@ def test_webflow_link_text_is_wf_plus_the_job_number():
     assert webflow_link_text("https://h:8881/app/ShowJob/16406/") == "WF16406"
     assert webflow_link_text("nothing") == ""
     assert is_link("https://x") and not is_link("WF218076")
+
+
+def _creation_with_link(qapp, answer):
+    from tests.fakes import FakeDialogs
+
+    dialogs = FakeDialogs(table_answer=answer)
+    settings = MemorySettings({"selected_variants": ["P1", "P2"]})
+    creation = CreationWidget(WebFlowJobService(webflow_factory=FakeWebFlow), settings, dialogs=dialogs)
+    creation.set_variants([
+        {"part_number": "P1", "ecu_type": "E", "event": "A", "webflow_link": "https://h/app/ShowJob/1"},
+        {"part_number": "P2", "ecu_type": "E", "event": "A"},
+    ])
+    return creation, dialogs
+
+
+def test_variants_with_a_webflow_link_ask_before_a_second_job(qapp):
+    creation, dialogs = _creation_with_link(qapp, True)
+    chosen = creation._without_declined_duplicates(creation._checklist.selected_variants())
+    assert [v["part_number"] for v in chosen] == ["P1", "P2"] and "P1" in dialogs.asked[0]
+
+    creation, _ = _creation_with_link(qapp, False)
+    chosen = creation._without_declined_duplicates(creation._checklist.selected_variants())
+    assert [v["part_number"] for v in chosen] == ["P2"]
+
+    creation, _ = _creation_with_link(qapp, None)
+    assert creation._without_declined_duplicates(creation._checklist.selected_variants()) == []
+
+
+def test_no_question_when_no_selected_variant_has_a_link(qapp):
+    creation, dialogs = _creation_with_link(qapp, None)
+    only_new = [v for v in creation._checklist.selected_variants() if v["part_number"] == "P2"]
+    assert creation._without_declined_duplicates(only_new) == only_new and dialogs.asked == []

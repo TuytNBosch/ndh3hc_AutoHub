@@ -164,7 +164,7 @@ class FakeDialogs:
 
     def ask_yes_no_cancel(self, title, text, yes_text=None, no_text=None):
         self.asked.append(text)
-        if "still contains" in text or "did not apply" in text:
+        if "still contains" in text or "did not apply" in text or "already have a WebFlow" in text:
             self.asked_labels = (yes_text, no_text)
             return self.table_answer
         return self.kick_off_answer if "Kick Off" in text else self.hw_answer
