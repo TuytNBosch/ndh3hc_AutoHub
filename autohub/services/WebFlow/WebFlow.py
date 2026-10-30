@@ -139,6 +139,7 @@ class WebFlow(webdriver.Edge):
                 "Url": self.job_url(job_id),
             })
 
+        self.quit()  # only once every job is filled; quitting earlier broke the 2nd job onwards
         return results
 
     def _fill_job(self, variant: dict):
@@ -191,8 +192,6 @@ class WebFlow(webdriver.Edge):
         operations.append(self.body.actions.save())
         if not all(operations):
             raise RuntimeError(f"Could not fill all values for {variant['part_number']}.")
-
-        self.quit()
 
 
 
