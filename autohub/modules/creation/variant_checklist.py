@@ -28,6 +28,32 @@ _HEADERS = (
 )
 
 
+class CreationTable(QTableWidget):
+    def __init__(self):
+        super().__init__(0, len(_HEADERS))
+        self.setHorizontalHeaderLabels(_HEADERS)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.horizontalHeader().setStretchLastSection(False)
+        self._size_columns()
+
+    def _size_columns(self) -> None:
+        metrics = self.fontMetrics()
+        select_width = metrics.horizontalAdvance(_HEADERS[0]) + 24
+        available = self.viewport().width() - select_width
+        detail_width = max(
+            max(metrics.horizontalAdvance(title) + 24 for title in _HEADERS[2:]),
+            available // 6,
+        )
+        self.setColumnWidth(0, select_width)
+        self.setColumnWidth(1, max(detail_width + 40, available - 4 * detail_width))
+        for column in range(2, len(_HEADERS)):
+            self.setColumnWidth(column, detail_width)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._size_columns()
+
+
 class VariantChecklist(QWidget):
     def __init__(self, settings: SettingsStore):
         super().__init__()
@@ -57,16 +83,12 @@ class VariantChecklist(QWidget):
         toolbar.addWidget(select_all_btn)
         toolbar.addWidget(clear_btn)
 
-        self._table = QTableWidget(0, len(_HEADERS))
-        self._table.setHorizontalHeaderLabels(_HEADERS)
+        self._table = CreationTable()
         self._table.setShowGrid(True)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setMinimumHeight(150)
-        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setStretchLastSection(False)
-        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._empty_label = QLabel("Load variants from a Master Sheet on Home, or create them from all three files.")
 
         layout = QVBoxLayout(self)
@@ -137,12 +159,14 @@ class VariantChecklist(QWidget):
                     ecu.get("project_version", ""),
                     ecu.get("program_version", ""),
                 ), start=1):
-                    self._table.setItem(row, column, QTableWidgetItem(str(value or "")))
+                    item = QTableWidgetItem(str(value or ""))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self._table.setItem(row, column, item)
                 link = self._links.get(part_number, "")
                 if link:
-                    self._table.setCellWidget(
-                        row, 5, LinkLabel(webflow_link_text(link) or link, link)
-                    )
+                    label = LinkLabel(webflow_link_text(link) or link, link)
+                    label.setAlignment(Qt.AlignCenter)
+                    self._table.setCellWidget(row, 5, label)
 
     def set_links(self, links: dict[str, str]) -> None:
         """Shows the WebFlow job link of the variants that just got a job."""
