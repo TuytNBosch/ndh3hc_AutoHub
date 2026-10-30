@@ -4,6 +4,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
+from autohub.ui.theme import set_muted
+
 
 class ComparisonWidget(QWidget):
     def __init__(self):
@@ -13,7 +15,7 @@ class ComparisonWidget(QWidget):
         title.setStyleSheet("font-size: 20px; font-weight: 600;")
 
         subtitle = QLabel("Coming soon.")
-        subtitle.setStyleSheet("color: #888;")
+        set_muted(subtitle, True)
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignTop)

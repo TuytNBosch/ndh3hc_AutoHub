@@ -5,8 +5,8 @@ Clipboard, search, column filters, the context menu and the frozen leading colum
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices
-from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import QAbstractItemView, QApplication, QTableWidget, QTableWidgetItem
 
 from autohub.core.variant_choices import VARIANT_CHOICES
 from autohub.core.variant_schema import VARIANT_FIELD_LABELS, VARIANT_FIELD_ORDER
@@ -96,7 +96,7 @@ class VariantTable(QTableWidget):
             font = item.font()
             font.setUnderline(True)
             item.setFont(font)
-            item.setForeground(QColor("#4da3ff"))
+            item.setForeground(QApplication.palette().link())
         self.setItem(row, self._link_column, item)
 
     def _is_link_cell(self, index) -> bool:

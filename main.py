@@ -8,6 +8,7 @@ from autohub.bootstrap import build_modules
 from autohub.config import LOGO_PATH
 from autohub.core.logger import setup_logging
 from autohub.ui.button_cursor import install_button_cursor
+from autohub.ui.combo_popup import install_combo_popup_style
 from autohub.ui.main_window import MainWindow
 from autohub.core.settings import JsonSettingsStore
 from autohub.ui.theme import apply_theme, set_dark_titlebar
@@ -22,6 +23,7 @@ def main() -> int:
     settings = JsonSettingsStore()
     dark = apply_theme(app, settings.load().get("theme"))
     install_button_cursor(app)
+    install_combo_popup_style(app)
     window = MainWindow(build_modules(settings))
     set_dark_titlebar(window, dark)
     window.show()
