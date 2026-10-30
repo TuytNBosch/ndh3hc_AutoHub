@@ -30,8 +30,7 @@ class FrozenColumns:
         for column in range(table.columnCount()):
             view.setColumnHidden(column, column not in self._frozen)
         for position, column in enumerate(extra, start=count):
-            for header in (table.horizontalHeader(), view.horizontalHeader()):
-                header.moveSection(header.visualIndex(column), position)
+            self._move_to(view.horizontalHeader(), column, position)
         self.view = view
         table.viewport().stackUnder(view)
         view.show()
@@ -46,11 +45,18 @@ class FrozenColumns:
     def width(self) -> int:
         return sum(self._table.columnWidth(column) for column in self._frozen)
 
+    @staticmethod
+    def _move_to(header: QHeaderView, column: int, position: int) -> None:
+        header.moveSection(header.visualIndex(column), position)
+
     def is_frozen(self, column: int) -> bool:
         return column in self._frozen
 
     def set_hidden(self, column: int, hidden: bool) -> None:
         """Hides or shows a frozen column in the table and in the overlay."""
+        # Hidden, a moved section still leaves a gap behind the overlay, so it only sits up front while shown.
+        position = self._frozen.index(column) if not hidden else self._table.columnCount() - 1
+        self._move_to(self._table.horizontalHeader(), column, position)
         self._table.setColumnHidden(column, hidden)
         self.view.setColumnHidden(column, hidden)
         if not hidden:
