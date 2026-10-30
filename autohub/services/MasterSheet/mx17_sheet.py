@@ -280,6 +280,9 @@ class Mx17MasterSheet(MasterSheet):
             last = max(last, row)
         return self._copy_row_below(worksheet, last, layout.LAST_DATA_COLUMN)
 
+    def _sheet_names(self) -> list[str]:
+        return [self.workbook.Worksheets(index).Name for index in range(1, self.workbook.Worksheets.Count + 1)]
+
     def _find_sheet(self, name: str):
         for index in range(1, self.workbook.Worksheets.Count + 1):
             if self.workbook.Worksheets(index).Name == name:
@@ -294,8 +297,15 @@ class Mx17MasterSheet(MasterSheet):
         template = next((sheet for sheet in sheets if sheet.Name == layout.INFO_TEMPLATE_SHEET), None)
         if template is None:
             raise RuntimeError(f"The Info sheet '{layout.INFO_TEMPLATE_SHEET}' is needed as the template of new Info sheets.")
+        before = self._sheet_names()
         template.Copy(After=sheets[-1])
-        worksheet = self.workbook.ActiveSheet
+        # Found by name: the active sheet is not reliable, and renaming or clearing it could hit the main sheet.
+        added = [sheet_name for sheet_name in self._sheet_names() if sheet_name not in before]
+        if len(added) != 1:
+            raise RuntimeError(f"Copying '{template.Name}' did not add exactly one sheet (added: {added}).")
+        worksheet = self._find_sheet(added[0])
+        if worksheet.Name in before:
+            raise RuntimeError("Refusing to rename a sheet that already existed.")
         worksheet.Name = name
         last = max(self._last_used_row(worksheet), layout.INFO_TITLE_ROW)
         cleared = worksheet.Range(f"A{layout.INFO_TITLE_ROW}:{layout.INFO_LAST_COLUMN}{last}")
