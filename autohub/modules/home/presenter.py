@@ -88,6 +88,7 @@ class HomePresenter:
         self._edited = False  # the table holds changes that are not in the Master Sheet yet
         self._loaded_rows: list[dict] | None = None  # every variant of the last Load, before the "latest" limit
         self._deleted_rows: list[int] = []  # Master Sheet rows of variants deleted here, removed on Update
+        self._deleted_parts: dict[int, str] = {}  # the same variants' part numbers, by sheet row
 
     # -- File paths ------------------------------------------------------------------
 
@@ -144,6 +145,7 @@ class HomePresenter:
         self._view.show_rows(rows)
         self._edited = False
         self._deleted_rows = []
+        self._deleted_parts = {}
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(self._view.row_count() > 0)
         self.on_selection_changed()
@@ -173,11 +175,11 @@ class HomePresenter:
             self._show_rows(rows)
             return len(rows)
         existing = self._view.read_rows()
-        unsaved, deleted = self._edited, self._deleted_rows
+        unsaved, deleted, deleted_parts = self._edited, self._deleted_rows, self._deleted_parts
         known = {_row_identity(row) for row in existing}
         added = [row for row in rows if _row_identity(row) not in known]
         self._show_rows(existing + added)
-        self._deleted_rows = deleted  # kept rows keep their pending deletions too
+        self._deleted_rows, self._deleted_parts = deleted, deleted_parts  # kept rows keep their pending deletions too
         if unsaved or deleted or any(row.get("_row") is None for row in existing + added):
             self._view.set_update_state(True, UPDATE_TEXT)
             self._edited = True
@@ -216,6 +218,7 @@ class HomePresenter:
             return
         rows = self._view.read_rows()
         self._deleted_rows += [rows[i]["_row"] for i in selected if rows[i].get("_row")]
+        self._deleted_parts.update({rows[i]["_row"]: rows[i].get("J", "") for i in selected if rows[i].get("_row")})
         self._view.remove_rows(selected)
         _logger.info("Deleted %d variant(s) from the table (%d pending in the sheet)", count, len(self._deleted_rows))
         self._view.set_clear_enabled(self._view.row_count() > 0)
@@ -226,6 +229,7 @@ class HomePresenter:
         self._loaded_rows = None
         self._edited = False
         self._deleted_rows = []
+        self._deleted_parts = {}
         self._view.clear_rows()
         self._view.set_update_state(False, UPDATE_TEXT)
         self._view.set_clear_enabled(False)
@@ -300,6 +304,7 @@ class HomePresenter:
             return
 
         deleted = list(self._deleted_rows)
+        parts = [self._deleted_parts.get(row, "") for row in deleted]
         text = f"Are you sure you want to update the Master Sheet with {self._view.row_count()} variant(s)?"
         if deleted:
             text += f"\n\n{len(deleted)} variant(s) will be deleted from the Master Sheet."
@@ -310,7 +315,7 @@ class HomePresenter:
         self._view.set_update_state(False, "Updating...")
         window = self._dialogs.open_progress("Update variants")
         self._start_task(
-            lambda: self._service.save_variants(master_sheet_path, variants, window.step, deleted),
+            lambda: self._service.save_variants(master_sheet_path, variants, window.step, deleted, parts),
             lambda result: self._finish_update(result, window, deleted),
             lambda error: self._fail_update(error, window),
         )

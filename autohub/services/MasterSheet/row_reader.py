@@ -26,7 +26,7 @@ class VariantRowReader:
     def _is_request_row(self, row: int) -> bool:
         return clean_text(self._value("D", row)).upper() == _REQUEST_MARK
 
-    def _request_rows_with_part_number(self) -> Iterator[tuple[int, str]]:
+    def request_rows_with_part_number(self) -> Iterator[tuple[int, str]]:
         first_used, last_row = self._used_rows()
         for row in range(max(FIRST_DATA_ROW, first_used), last_row + 1):
             if not self._is_request_row(row):
@@ -38,7 +38,7 @@ class VariantRowReader:
     def load_variant_rows(self) -> list[dict]:
         """REQ rows as column-letter dicts for the UI table; each carries its Excel row as "_row"."""
         rows_by_part_number: dict[str, dict] = {}
-        for row, part_number in self._request_rows_with_part_number():
+        for row, part_number in self.request_rows_with_part_number():
             rows_by_part_number[part_number.upper()] = {
                 "_row": row,
                 **{
@@ -52,7 +52,7 @@ class VariantRowReader:
     def load_webflow_variants(self) -> list[dict]:
         """WebFlow-ready variants; rows are appended chronologically, so the latest per part number wins."""
         variants_by_part_number: dict[str, dict] = {}
-        for row, part_number in self._request_rows_with_part_number():
+        for row, part_number in self.request_rows_with_part_number():
             values = {column: self._value(column, row) for column in WEBFLOW_SOURCE_COLUMNS}
             variants_by_part_number[part_number.upper()] = webflow_variant_from_row(part_number, values)
         return list(variants_by_part_number.values())

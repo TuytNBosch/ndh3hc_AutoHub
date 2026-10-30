@@ -1,6 +1,7 @@
 """Master Sheet workbook session: opens the workbook and delegates row reading, writing and value building."""
 import os
 
+from autohub.core.normalizers import normalize_part_number
 from autohub.core.records import EcuInfoData, HWLookup, KickOffInfo, SystemMatrixData
 from autohub.services.common.workbook import ExcelDocument
 from autohub.services.MasterSheet.row_reader import VariantRowReader
@@ -67,6 +68,21 @@ class MasterSheet(ExcelDocument):
 
     def delete_variant_rows(self, request_rows: list[int], save: bool = True) -> int:
         deleted = VariantRowWriter(self._worksheet(), self.excel_app).delete_variants(request_rows)
+        if save and deleted:
+            self.save()
+        return deleted
+
+    def delete_variants_by_part_number(self, part_numbers: list[str], save: bool = True) -> int:
+        """Deletes the variants whose REQ row has one of these part numbers, wherever the rows are now.
+
+        The part number is compared on the sheet itself right before deleting, so a row number that moved since
+        the table was loaded can never take another variant with it."""
+        wanted = {normalize_part_number(part).upper() for part in part_numbers if normalize_part_number(part)}
+        rows = [
+            row for row, part in VariantRowReader(self._worksheet()).request_rows_with_part_number()
+            if part.upper() in wanted
+        ]
+        deleted = VariantRowWriter(self._worksheet(), self.excel_app).delete_variants(rows)
         if save and deleted:
             self.save()
         return deleted
