@@ -35,7 +35,7 @@ class VariantTable(QTableWidget):
             ["No."] + [VARIANT_FIELD_LABELS[column] for column in VARIANT_FIELD_ORDER] + ["WebFlow Link"]
         )
         self.setColumnHidden(self._link_column, True)
-        self.cellClicked.connect(self._open_link)
+        self.cellDoubleClicked.connect(self._open_link)
         self.verticalHeader().setVisible(False)
         self.setAlternatingRowColors(True)
         self.setMinimumHeight(160)
@@ -51,6 +51,9 @@ class VariantTable(QTableWidget):
         self._limits = ColumnLimits(self)
         self._frozen = FrozenColumns(self, _FROZEN_COLUMNS, extra=(self._link_column,))
         self._frozen.set_hidden(self._link_column, True)
+        self._frozen.view.doubleClicked.connect(
+            lambda index: self._open_link(index.row(), index.column())
+        )
         self._link_cursor = HoverCursor((self, self._frozen.view), self._is_link_cell)
         self._clipboard = TableClipboard(self)
         self._search = TableSearch(self, self._clipboard.set_cell_text)
@@ -98,7 +101,7 @@ class VariantTable(QTableWidget):
             self.blockSignals(blocked)
 
     def _set_link_item(self, row: int, link: str) -> None:
-        """The link column is read-only: it shows "WF<number>" and opens the job when clicked."""
+        """The link column is read-only: it shows "WF<number>" and opens on double-click."""
         item = QTableWidgetItem(webflow_link_text(link) or link)
         item.setFlags(item.flags() & ~Qt.ItemIsEditable)
         item.setData(Qt.UserRole, link)
