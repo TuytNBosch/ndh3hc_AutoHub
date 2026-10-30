@@ -27,6 +27,7 @@ class VariantChecklist(QWidget):
         # full set, independent of whatever the event filter is currently showing.
         self._variants: list[dict] = []
         self._checkboxes: dict[str, QCheckBox] = {}
+        self._links: dict[str, str] = {}  # part number -> WebFlow job link
         self._selected: set[str] = set(settings.load().get("selected_variants", []))
 
         self._count_label = QLabel("Variants (0)")
@@ -72,6 +73,9 @@ class VariantChecklist(QWidget):
 
     def set_variants(self, variants: list[dict]) -> None:
         self._variants = variants
+        for variant in variants:
+            if variant.get("webflow_link"):
+                self._links[variant["part_number"]] = variant["webflow_link"]
 
         events = sorted({v.get("event") or _NO_EVENT for v in variants})
         self._event_filter.blockSignals(True)
@@ -112,10 +116,29 @@ class VariantChecklist(QWidget):
                 checkbox = QCheckBox(f"{part_number}    {variant['ecu_type']}")
                 checkbox.setChecked(part_number in self._selected)
                 checkbox.toggled.connect(lambda checked, pn=part_number: self._on_toggled(pn, checked))
-                self._list_layout.addWidget(checkbox)
                 self._checkboxes[part_number] = checkbox
+                self._list_layout.addWidget(self._variant_row(checkbox, self._links.get(part_number, "")))
 
         self._count_label.setText(f"Variants ({len(filtered)})")
+
+    def set_links(self, links: dict[str, str]) -> None:
+        """Shows the WebFlow job link of the variants that just got a job."""
+        self._links.update(links)
+        self._apply_filter()
+
+    @staticmethod
+    def _variant_row(checkbox: QCheckBox, link: str) -> QWidget:
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(checkbox)
+        layout.addStretch(1)
+        if link:
+            label = QLabel(f'<a href="{link}">WebFlow job {link.rstrip("/").rsplit("/", 1)[-1]}</a>')
+            label.setOpenExternalLinks(True)
+            label.setToolTip(link)
+            layout.addWidget(label)
+        return row
 
     def _on_toggled(self, part_number: str, checked: bool) -> None:
         if checked:

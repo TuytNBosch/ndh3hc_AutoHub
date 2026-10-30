@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from autohub.core.normalizers import needs_text_format
+from autohub.core.normalizers import needs_text_format, normalize_part_number
 
 FIRST_DATA_ROW = 11  # rows above hold the template and examples
 
 LAST_DATA_COLUMN = "CZ"
+WEBFLOW_LINK_COLUMN = "I"  # "Webflow No. with Link"
 _ROWS_PER_VARIANT = 3  # request, implementation and comparison rows
 _INSERT_SHIFT_DOWN = -4121  # xlShiftDown
 _TEMPLATE_ROW_TYPES = {"REQ", "IMPL"}
@@ -75,6 +76,22 @@ class VariantRowWriter:
             self._worksheet.Rows(f"{request_row}:{request_row + _ROWS_PER_VARIANT - 1}").Delete()
             deleted += 1
         return deleted
+
+    def write_webflow_links(self, rows_by_part_number: dict[str, int], links: dict[str, str]) -> int:
+        written = 0
+        for part_number, link in links.items():
+            row = rows_by_part_number.get(normalize_part_number(part_number).upper())
+            if row is None or not link:
+                continue
+            cell = self._worksheet.Range(f"{WEBFLOW_LINK_COLUMN}{row}")
+            if cell.HasFormula:
+                continue
+            try:
+                self._worksheet.Hyperlinks.Add(cell, link)
+            except Exception:  # a plain-text link is still better than none
+                cell.Value = link
+            written += 1
+        return written
 
     def write_values(self, row: int, values: dict) -> None:
         worksheet = self._worksheet

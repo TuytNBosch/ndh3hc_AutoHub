@@ -43,9 +43,6 @@ class CreationWidget(QWidget):
         create_jobs_row.addWidget(self._create_jobs_btn)
         create_jobs_row.addStretch(1)
 
-        self._webflow_status_label = QLabel("No variants loaded.")
-        self._webflow_status_label.setStyleSheet("color: #888;")
-
         layout = QVBoxLayout(self)
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -53,14 +50,10 @@ class CreationWidget(QWidget):
         layout.addWidget(self._checklist, stretch=1)
         layout.addSpacing(8)
         layout.addLayout(create_jobs_row)
-        layout.addWidget(self._webflow_status_label)
 
     def set_variants(self, variants: list[dict]) -> None:
         """Populate the checklist with variants loaded/created on the Home page."""
         self._checklist.set_variants(variants)
-        self._webflow_status_label.setText(
-            "Select variants and create WebFlow jobs." if self._checklist.has_variants else "No variants loaded."
-        )
 
     def _open_settings(self) -> None:
         dialog = WebFlowSettingsDialog(load_config(self._settings), self)
@@ -85,10 +78,11 @@ class CreationWidget(QWidget):
         _logger.info("Create WebFlow jobs clicked (%d variant(s), config=%s)", len(selected), config)
         self._create_jobs_btn.setEnabled(False)
         self._create_jobs_btn.setText("Creating jobs...")
-        self._webflow_status_label.setText(f"Creating {len(selected)} WebFlow job(s)...")
         window = QtDialogs(self).open_progress("Create WebFlow jobs")
         self._tasks.start(
-            lambda: self._service.create_jobs(selected, config, window.step),
+            lambda: self._service.create_jobs(
+                selected, config, window.step, self._settings.load().get("master_sheet_path", "")
+            ),
             lambda results: self._finish_webflow_jobs(results, window),
             lambda error: self._fail_webflow_jobs(error, window),
         )
@@ -96,17 +90,18 @@ class CreationWidget(QWidget):
     def _finish_webflow_jobs(self, results: list[dict], window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
-        self._webflow_status_label.setStyleSheet("color: #3fa66a;")
-        self._webflow_status_label.setText(f"Created and filled {len(results)} WebFlow job(s).")
+        self._checklist.set_links({item["PartNumber"]: item["Url"] for item in results if item.get("Url")})
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
-        window.succeed(f"Created and filled {len(results)} WebFlow job(s).\n{summary}")
+        message = f"Created and filled {len(results)} WebFlow job(s).\n{summary}"
+        link_error = next((item["LinkError"] for item in results if item.get("LinkError")), "")
+        if link_error:
+            message += f"\n\nThe links were not written to the Master Sheet: {link_error}"
+        window.succeed(message)
 
     def _fail_webflow_jobs(self, error: str, window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)
         self._create_jobs_btn.setText("Create WebFlow jobs")
-        self._webflow_status_label.setStyleSheet("color: #d9534f;")
-        self._webflow_status_label.setText("WebFlow job creation failed.")
         _logger.error("Create WebFlow jobs failed: %s", error)
         window.fail(error)
 

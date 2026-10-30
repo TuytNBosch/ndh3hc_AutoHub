@@ -73,9 +73,12 @@ class WebFlow(webdriver.Edge):
 
         return True
 
-    def open_job(self, job_id: str) -> bool:
+    def job_url(self, job_id: str) -> str:
         url = urlsplit(self.base_url)
-        self.get(f"{url.scheme}://{url.netloc}/app/ShowJob/{job_id}")
+        return f"{url.scheme}://{url.netloc}/app/ShowJob/{job_id}"
+
+    def open_job(self, job_id: str) -> bool:
+        self.get(self.job_url(job_id))
         try:
             WebDriverWait(self, Constants.BODY_TIMEOUT).until(
                 EC.invisibility_of_element_located(
@@ -132,7 +135,8 @@ class WebFlow(webdriver.Edge):
             self._fill_job(variant)
             results.append({
                 "PartNumber": variant["part_number"],
-                "JobId": job_id
+                "JobId": job_id,
+                "Url": self.job_url(job_id),
             })
 
         return results

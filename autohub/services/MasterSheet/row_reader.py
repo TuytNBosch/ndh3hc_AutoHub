@@ -8,7 +8,7 @@ from autohub.core.variant_schema import  VARIANT_FIELD_ORDER
 from autohub.services.MasterSheet.variant_builder import variant_key
 from autohub.services.MasterSheet.webflow_variants import WEBFLOW_SOURCE_COLUMNS, webflow_variant_from_row
 
-from autohub.services.MasterSheet.row_writer import FIRST_DATA_ROW  # rows above hold the template, not variants
+from autohub.services.MasterSheet.row_writer import FIRST_DATA_ROW, WEBFLOW_LINK_COLUMN  # rows above hold the template, not variants
 _REQUEST_MARK = "REQ"
 
 
@@ -35,6 +35,10 @@ class VariantRowReader:
             if part_number:
                 yield row, part_number
 
+    def latest_request_rows(self) -> dict[str, int]:
+        """Upper-case part number -> its last REQ row (the one the WebFlow variant is built from)."""
+        return {part.upper(): row for row, part in self.request_rows_with_part_number()}
+
     def load_variant_rows(self) -> list[dict]:
         """REQ rows as column-letter dicts for the UI table; each carries its Excel row as "_row"."""
         rows_by_part_number: dict[str, dict] = {}
@@ -54,7 +58,9 @@ class VariantRowReader:
         variants_by_part_number: dict[str, dict] = {}
         for row, part_number in self.request_rows_with_part_number():
             values = {column: self._value(column, row) for column in WEBFLOW_SOURCE_COLUMNS}
-            variants_by_part_number[part_number.upper()] = webflow_variant_from_row(part_number, values)
+            variant = webflow_variant_from_row(part_number, values)
+            variant["webflow_link"] = clean_text(self._value(WEBFLOW_LINK_COLUMN, row))
+            variants_by_part_number[part_number.upper()] = variant
         return list(variants_by_part_number.values())
 
     def existing_variant_keys(self) -> set[tuple[str, str, str]]:
