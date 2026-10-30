@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from autohub.core.settings import SettingsStore
 from autohub.core.workers import TaskRunner
-from autohub.modules.creation.config_form import WebFlowConfigForm
+from autohub.modules.creation.config_form import WebFlowSettingsDialog, load_config
 from autohub.modules.creation.service import WebFlowJobService
 from autohub.modules.creation.variant_checklist import VariantChecklist
 
@@ -28,12 +27,16 @@ class CreationWidget(QWidget):
         subtitle.setStyleSheet("color: #888;")
 
         self._checklist = VariantChecklist(settings)
-        self._config_form = WebFlowConfigForm(settings)
+        self._settings = settings
 
         self._create_jobs_btn = QPushButton("Create WebFlow jobs")
         self._create_jobs_btn.setFixedWidth(190)
         self._create_jobs_btn.clicked.connect(self._create_webflow_jobs)
+        self._settings_btn = QPushButton("Settings")
+        self._settings_btn.setFixedWidth(120)
+        self._settings_btn.clicked.connect(self._open_settings)
         create_jobs_row = QHBoxLayout()
+        create_jobs_row.addWidget(self._settings_btn)
         create_jobs_row.addStretch(1)
         create_jobs_row.addWidget(self._create_jobs_btn)
         create_jobs_row.addStretch(1)
@@ -42,13 +45,11 @@ class CreationWidget(QWidget):
         self._webflow_status_label.setStyleSheet("color: #888;")
 
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addSpacing(8)
-        layout.addWidget(self._checklist)
+        layout.addWidget(self._checklist, stretch=1)
         layout.addSpacing(8)
-        layout.addWidget(self._config_form)
         layout.addLayout(create_jobs_row)
         layout.addWidget(self._webflow_status_label)
 
@@ -59,13 +60,18 @@ class CreationWidget(QWidget):
             "Select variants and create WebFlow jobs." if self._checklist.has_variants else "No variants loaded."
         )
 
+    def _open_settings(self) -> None:
+        dialog = WebFlowSettingsDialog(load_config(self._settings), self)
+        if dialog.exec():
+            self._settings.update(**dialog.values())
+
     def _create_webflow_jobs(self) -> None:
         selected = self._checklist.selected_variants()
         if not selected:
             QMessageBox.critical(self, "Create WebFlow jobs", "Select at least one variant.")
             return
 
-        config = self._config_form.config()
+        config = load_config(self._settings)
         if not config.tool_version or not config.routing:
             QMessageBox.critical(self, "Create WebFlow jobs", "Tool version and routing are required.")
             return

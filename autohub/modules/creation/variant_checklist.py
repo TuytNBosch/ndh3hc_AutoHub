@@ -55,7 +55,7 @@ class VariantChecklist(QWidget):
         container.setLayout(self._list_layout)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setFixedHeight(150)
+        scroll.setMinimumHeight(150)
         scroll.setWidget(container)
 
         layout = QVBoxLayout(self)

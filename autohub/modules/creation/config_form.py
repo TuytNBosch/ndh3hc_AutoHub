@@ -1,49 +1,49 @@
-"""WebFlow connection settings form; each field persists itself on edit."""
+"""WebFlow connection settings: stored values and the dialog that edits them."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFileDialog, QGridLayout, QLabel, QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QWidget
 
 from autohub.core.settings import SettingsStore
 from autohub.modules.creation.service import WebFlowConfig
 
-_DEFAULT_BASE_URL = "https://rb-pde-int.bosch.com:8881/app/dashboard"
+_DEFAULTS = {
+    "webflow_base_url": "https://rb-pde-int.bosch.com:8881/app/dashboard",
+    "tool_version": "PD W0002 (Productive)",
+    "routing": "Honda_MG1CS022",
+}
 
 
-class WebFlowConfigForm(QWidget):
-    def __init__(self, settings: SettingsStore):
-        super().__init__()
-        self._settings = settings
-        saved = settings.load()
-        self._base_url_edit = self._make_edit(saved.get("webflow_base_url", _DEFAULT_BASE_URL), "webflow_base_url")
-        self._tool_version_edit = self._make_edit(saved.get("tool_version", "PD W0002 (Productive)"), "tool_version")
-        self._routing_edit = self._make_edit(saved.get("routing", "Honda_MG1CS022"), "routing")
+def load_config(settings: SettingsStore) -> WebFlowConfig:
+    saved = settings.load()
+    return WebFlowConfig(
+        driver_path="",
+        base_url=str(saved.get("webflow_base_url", _DEFAULTS["webflow_base_url"])).strip(),
+        tool_version=str(saved.get("tool_version", _DEFAULTS["tool_version"])).strip(),
+        routing=str(saved.get("routing", _DEFAULTS["routing"])).strip(),
+    )
 
-        grid = QGridLayout(self)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setColumnStretch(1, 1)
-        rows = [
-            ("Base URL", self._base_url_edit, None),
-            ("Tool version", self._tool_version_edit, None),
-            ("Routing", self._routing_edit, None),
-        ]
-        for row, (label_text, edit, extra) in enumerate(rows):
-            label = QLabel(label_text)
-            label.setFixedWidth(100)
-            grid.addWidget(label, row, 0)
-            grid.addWidget(edit, row, 1)
-            if extra is not None:
-                grid.addWidget(extra, row, 2)
 
-    def config(self) -> WebFlowConfig:
-        return WebFlowConfig(
-            driver_path="",
-            base_url=self._base_url_edit.text().strip(),
-            tool_version=self._tool_version_edit.text().strip(),
-            routing=self._routing_edit.text().strip(),
-        )
+class WebFlowSettingsDialog(QDialog):
+    def __init__(self, config: WebFlowConfig, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle("Creation settings")
+        self.setMinimumWidth(460)
+        self._base_url = QLineEdit(config.base_url)
+        self._tool_version = QLineEdit(config.tool_version)
+        self._routing = QLineEdit(config.routing)
 
-    def _make_edit(self, value: str, settings_key: str) -> QLineEdit:
-        edit = QLineEdit(value)
-        edit.editingFinished.connect(lambda e=edit, key=settings_key: self._settings.update(**{key: e.text().strip()}))
-        return edit
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form = QFormLayout(self)
+        form.addRow("Base URL:", self._base_url)
+        form.addRow("Tool version:", self._tool_version)
+        form.addRow("Routing:", self._routing)
+        form.addRow(buttons)
 
+    def values(self) -> dict:
+        return {
+            "webflow_base_url": self._base_url.text().strip(),
+            "tool_version": self._tool_version.text().strip(),
+            "routing": self._routing.text().strip(),
+        }
