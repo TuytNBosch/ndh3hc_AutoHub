@@ -25,7 +25,7 @@ CUSTOMER_FIELDS = (
     ("fill_sw_version", "sw_version"),
     ("fill_component_id", "component_id"),
 )
-# (label, page method, variant key): always set, even to an empty / None value.
+# (label, page method, variant key): fill in this order, skipping blank cells.
 GENERAL_FIELDS = (
     ("delivery type", "select_delivery_type", "delivery_type"),
     ("release class", "select_release_class", "release_class"),
@@ -57,11 +57,14 @@ class JobFiller:
             for label, method, key in GENERAL_FIELDS
             if variant["general"].get(key) not in (None, "")
         ]
-        steps += [
-            (f"General: {label} = {value}", general.fill_hardware_field, key, value)
-            for _, key, label, _ in HARDWARE_FIELDS
-            if (value := variant.get("hardware", {}).get(key))
-        ]
+        for _, key, label, _ in HARDWARE_FIELDS:
+            if key == "software_part_number":
+                continue  # WebFlow allocates this number through Import from pool.
+            value = variant.get("hardware", {}).get(key)
+            if value:
+                steps.append((f"General: {label} = {value}", general.fill_hardware_field, key, value))
+                if key == "lead_plant":
+                    steps.append(("General: Import software part number from pool", general.import_software_part_number))
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
         steps.append(("Select the Customer tab", customer_tab.select_customer_tab))
