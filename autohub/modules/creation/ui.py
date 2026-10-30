@@ -5,7 +5,7 @@ import logging
 
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
-from autohub.core.dialogs import QtDialogs
+from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
 from autohub.core.workers import TaskRunner
@@ -18,8 +18,9 @@ _logger = logging.getLogger(__name__)
 
 
 class CreationWidget(QWidget):
-    def __init__(self, service: WebFlowJobService, settings: SettingsStore):
+    def __init__(self, service: WebFlowJobService, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
+        self._dialogs = dialogs or QtDialogs(self)
 
         self._service = service
         self._tasks = TaskRunner()
@@ -67,6 +68,10 @@ class CreationWidget(QWidget):
             QMessageBox.critical(self, "Create WebFlow jobs", "Select at least one variant.")
             return
 
+        selected = self._without_declined_duplicates(selected)
+        if not selected:
+            return
+
         config = load_config(self._settings)
         if not config.tool_version or not config.routing:
             QMessageBox.critical(self, "Create WebFlow jobs", "Tool version and routing are required.")
@@ -87,6 +92,30 @@ class CreationWidget(QWidget):
             lambda results: self._finish_webflow_jobs(results, window),
             lambda error: self._fail_webflow_jobs(error, window),
         )
+
+    def _without_declined_duplicates(self, selected: list[dict]) -> list[dict]:
+        """Asks before creating a second job for variants that already have a WebFlow link.
+
+        Returns the variants to create; empty when the user cancels or nothing is left."""
+        existing = [v for v in selected if self._checklist.has_link(v["part_number"])]
+        if not existing:
+            return selected
+        names = "\n".join(f"  {v['part_number']}" for v in existing)
+        answer = self._dialogs.ask_yes_no_cancel(
+            "Create WebFlow jobs",
+            f"{len(existing)} selected variant(s) already have a WebFlow job:\n{names}\n\n"
+            "Create new jobs for them anyway?",
+            yes_text="Create anyway",
+            no_text="Skip them",
+        )
+        if answer is None:
+            return []
+        if answer:
+            return selected
+        remaining = [v for v in selected if v not in existing]
+        if not remaining:
+            self._dialogs.info("Create WebFlow jobs", "Every selected variant already has a WebFlow job.")
+        return remaining
 
     def _finish_webflow_jobs(self, results: list[dict], window: ProgressWindow) -> None:
         self._create_jobs_btn.setEnabled(True)

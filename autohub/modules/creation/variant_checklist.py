@@ -75,6 +75,9 @@ class VariantChecklist(QWidget):
     def selected_variants(self) -> list[dict]:
         return [v for v in self._variants if v["part_number"] in self._selected]
 
+    def has_link(self, part_number: str) -> bool:
+        return bool(self._links.get(part_number))
+
     def set_variants(self, variants: list[dict]) -> None:
         self._variants = variants
         for variant in variants:
