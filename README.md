@@ -61,7 +61,7 @@ automation. Each feature is a module plugged into the main window sidebar.
   - Fed from Home.
   - Filter by event, select all or clear.
   - The selection is persisted.
-- **Settings** module (pinned at the bottom of the sidebar; a module opts in with `pinned_bottom = True`): Theme = System / Light / Dark, saved as `theme` and applied only when you click **Apply**; System follows the Windows setting, also when it changes. Default is Dark.
+- **Settings** module (pinned at the bottom of the sidebar; a module opts in with `pinned_bottom = True`): Theme = System / Light / Dark, saved as `theme` and applied only when you click **Apply** (button at the right; in Light the buttons use dark text); System follows the Windows setting, also when it changes. Default is Dark.
 - Every push / tool button and drop-down list (and the sidebar module list) shows a hand cursor while it is enabled (`autohub/ui/button_cursor.py`).
 - **Home Settings** also has "Show the WebFlow link column": a read-only "WebFlow Link" column (WF<number>, blue and underlined, click to open the job), fixed right after Part Number like No. and Part Number; off by default.
 - **Settings** button (next to Create WebFlow jobs) opens a dialog for Base URL, Tool version and Routing; OK saves them. The variant list now grows with the window, so more variants are visible at once.

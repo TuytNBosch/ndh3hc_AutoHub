@@ -18,6 +18,10 @@ class ThemeColors:
     base: str
     text: str
     accent: str
+    button_bg: str
+    button_hover: str
+    button_pressed: str
+    button_text: str
     disabled_text: str
     placeholder: str
     input_bg: str
@@ -33,13 +37,15 @@ class ThemeColors:
 
 
 DARK = ThemeColors(
-    window="#1b1c21", base="#24252b", text="#e6e6e6", accent="#2d6cdf", disabled_text="#6b6c75",
+    window="#1b1c21", base="#24252b", text="#e6e6e6", accent="#2d6cdf", button_bg="#2d6cdf", button_hover="#3a7bf0",
+    button_pressed="#2458b8", button_text="#ffffff", disabled_text="#6b6c75",
     placeholder="#f0f0f0", input_bg="#2b2c34", border="#3a3b44", disabled_button="#3a3b44", scrollbar="#3a3b44",
     sidebar_bg="#24252b", sidebar_title="#ffffff", sidebar_text="#c7c7d1", sidebar_hover="#2c2d35",
     sidebar_selected="#35363f", sidebar_selected_text="#e2a63c",
 )
 LIGHT = ThemeColors(
-    window="#f4f5f7", base="#ffffff", text="#1f2328", accent="#2d6cdf", disabled_text="#8b8f98",
+    window="#f4f5f7", base="#ffffff", text="#1f2328", accent="#2d6cdf", button_bg="#e1e4ea", button_hover="#d2d7e0",
+    button_pressed="#c3c9d5", button_text="#1f2328", disabled_text="#8b8f98",
     placeholder="#6b6f78", input_bg="#ffffff", border="#c9ccd3", disabled_button="#d5d8de", scrollbar="#b8bcc6",
     sidebar_bg="#e8eaee", sidebar_title="#1f2328", sidebar_text="#3b3f48", sidebar_hover="#dcdfe5",
     sidebar_selected="#cfd5e0", sidebar_selected_text="#b9770e",
@@ -54,14 +60,14 @@ QLineEdit, QTextEdit, QPlainTextEdit, QComboBox {{
 }}
 QLineEdit:focus, QComboBox:focus {{ border: 1px solid {accent}; }}
 QPushButton {{
-    background-color: {accent};
-    color: white;
-    border: none;
+    background-color: {button_bg};
+    color: {button_text};
+    border: 1px solid {border};
     border-radius: 4px;
     padding: 6px 14px;
 }}
-QPushButton:hover {{ background-color: #3a7bf0; }}
-QPushButton:pressed {{ background-color: #2458b8; }}
+QPushButton:hover {{ background-color: {button_hover}; }}
+QPushButton:pressed {{ background-color: {button_pressed}; }}
 QPushButton:disabled {{ background-color: {disabled_button}; color: {disabled_text}; }}
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 0; }}
 QScrollBar::handle:vertical {{ background: {scrollbar}; border-radius: 5px; min-height: 20px; }}
