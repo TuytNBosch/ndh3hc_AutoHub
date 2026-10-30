@@ -1,41 +1,28 @@
-
+"""WebFlow browser session: opens the dashboard, creates jobs and fills them from variant dicts."""
 import logging
-import os
 import time
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from selenium import webdriver
-from selenium.webdriver.edge.service import Service
-from selenium.webdriver.edge.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.edge.options import Options
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 from autohub.core.progress import ProgressCallback, no_progress
-from . import Constants as Constants
-from .SideMenuBar import SideMenuBar
-from .Body.Body import Body
-from pathlib import Path
 
-from .step_log import run_step, run_steps, set_step_observer
+from . import Constants as Constants
+from .Body.Body import Body
+from .browser import edge_service
+from .components import wait_until_idle
+from .job_filler import JobFiller
+from .SideMenuBar import SideMenuBar
+from .step_log import run_step, set_step_observer
 from .step_trace import StepTrace
 
 _logger = logging.getLogger(__name__)
 
-
-import requests
-from requests import Response
-from webdriver_manager.core.download_manager import WDMDownloadManager
-from webdriver_manager.core.http import HttpClient
-
-class CustomHttpClient(HttpClient):
-    def get(self, url, params=None, **kwargs) -> Response:
-        proxies = {
-            'http': 'http://rb-proxy-apac.bosch.com:8080',
-            'https': 'http://rb-proxy-apac.bosch.com:8080',
-        }
-        return requests.get(url, params, proxies=proxies, **kwargs)
 
 class WebFlow(webdriver.Edge):
 
@@ -47,18 +34,15 @@ class WebFlow(webdriver.Edge):
     ):
         _logger.info("Starting the Edge browser (driver path: %s, base URL: %s)", driver_path or "auto", base_url)
         self.driver_path = driver_path
-        self.base_url =base_url
+        self.base_url = base_url
 
-        download_manager = WDMDownloadManager(CustomHttpClient())
-        edge_options = Options()        
-        service = Service(driver_path) if driver_path else Service(EdgeChromiumDriverManager(download_manager=download_manager).install())
-        super(WebFlow, self).__init__(service=service, options=edge_options)
+        super().__init__(service=edge_service(driver_path), options=Options())
         self.implicitly_wait(Constants.IMPLICIT_WAIT)
         self.minimize_window()
 
-
         self.side_menu_bar = SideMenuBar(self)
         self.body = Body(self)
+        self.job_filler = JobFiller(self.side_menu_bar, self.body)
         _logger.info("Edge browser started")
         if trace_dir:  # record the page after every step
             set_step_observer(StepTrace(self, Path(trace_dir)))
@@ -91,9 +75,7 @@ class WebFlow(webdriver.Edge):
             EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_LOADING_SCREEN_CLASS))
         )
 
-        WebDriverWait(self, Constants.BODY_TIMEOUT).until(
-            EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-        )
+        wait_until_idle(self)
 
         _logger.info("The WebFlow dashboard is open")
         return True
@@ -107,11 +89,7 @@ class WebFlow(webdriver.Edge):
         _logger.info("Opening job %s: %s", job_id, url)
         self.get(url)
         try:
-            WebDriverWait(self, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located(
-                    (By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS)
-                )
-            )
+            wait_until_idle(self)
             return True
         except Exception:
             _logger.exception("Job %s did not finish loading", job_id)
@@ -183,57 +161,5 @@ class WebFlow(webdriver.Edge):
         self.quit()  # only once every job is filled; quitting earlier broke the 2nd job onwards
         return results
 
-    def _fill_job(self, variant: dict):
-        part_number = variant["part_number"]
-        general = self.body.tab.generaltab
-        general.skipped_fields.clear()
-        if not run_step(_logger, f"[{part_number}] Select the General tab", general.select_general_tab):
-            raise RuntimeError("Could not select the General tab.")
-
-        general_values = variant["general"]
-        steps = [
-            ("Close the side menu", self.side_menu_bar.close_menubar),
-            ("Collapse the job information", self.body.information.collapse_job_information),
-            ("General: delivery type", general.select_delivery_type, general_values["delivery_type"]),
-            ("General: release class", general.select_release_class, general_values["release_class"]),
-            ("General: release scope", general.select_release_scope, general_values["release_scope"]),
-            ("General: limitations", general.select_limitations, general_values["limitations"]),
-            ("General: safety monitoring SW", general.select_safety_monitoring_sw, general_values["safety_monitoring"]),
-            ("General: safety calibration response", general.select_safety_calibration_response, general_values["safety_calibration"]),
-            ("General: Bosch calibration data response", general.select_bosch_cal_data_response, general_values["calibration"]),
-            ("General: data integration response", general.select_data_integration_response, general_values["data_integration"]),
-        ]
-
-        ecu_tab = self.body.tab.ecutab
-        steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
-        ecu_values = variant["ecu"]
-        for method, key in (
-            (ecu_tab.fill_indi_spec, "indi_spec"),
-            (ecu_tab.fill_family_name, "family_name"),
-            (ecu_tab.fill_project_version, "project_version"),
-            (ecu_tab.fill_program_version, "program_version")
-        ):
-            if ecu_values.get(key):
-                steps.append((f"ECU: {key} = {ecu_values[key]}", method, ecu_values[key]))
-        if ecu_values.get("tp_level"):
-            steps.append((f"ECU: tp_level = {ecu_values['tp_level']}", ecu_tab.select_tp_level, ecu_values["tp_level"]))
-
-        customer_tab = self.body.tab.customertab
-        steps.append(("Select the Customer tab", customer_tab.select_customer_tab))
-        customer_values = variant["customer"]
-        for method, key in (
-            (customer_tab.fill_ecu_default_id, "ecu_default_id"),
-            (customer_tab.fill_ecu_program_id, "ecu_program_id"),
-            (customer_tab.fill_ecu_rewriting_id, "ecu_rewriting_id"),
-            (customer_tab.fill_security_coefficient, "security_coefficient"),
-            (customer_tab.fill_sw_version, "sw_version"),
-            (customer_tab.fill_component_id, "component_id")
-        ):
-            if customer_values.get(key):
-                steps.append((f"Customer: {key} = {customer_values[key]}", method, customer_values[key]))
-
-        steps.append(("Save the job", self.body.actions.save))
-        failed = run_steps(_logger, [(f"[{part_number}] {step[0]}", *step[1:]) for step in steps])
-        if failed:
-            raise RuntimeError(f"Could not fill all values for {part_number}. Failed: {'; '.join(failed)}")
-        return list(general.skipped_fields)
+    def _fill_job(self, variant: dict) -> list[str]:
+        return self.job_filler.fill(variant)

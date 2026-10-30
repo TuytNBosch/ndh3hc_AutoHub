@@ -1,63 +1,30 @@
-import time
-
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from ... import Constants as Constants
-
-
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
+from ...components import Section
 
 
 class Information:
 
     def __init__(self, driver: WebDriver):
         self.driver = driver
-
+        self._job_information = Section(
+            driver, Constants.BODY_INFORMATION_TITLE_XPATH, Constants.BODY_INFORMATION_BODY_CSS, scroll=False
+        )
 
     def is_job_information_expanded(self) -> bool:
-        try:
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.BODY_INFORMATION_TITLE_XPATH))
-            )
+        return self._job_information.is_expanded()
 
-            info_element = title_element.find_element(By.XPATH, "../..")
-
-            body_element = info_element.find_element(By.CSS_SELECTOR, Constants.BODY_INFORMATION_BODY_CSS)
-
-            return (body_element.get_attribute("style").find("block") != -1)
-        except:
-            return False
-
-    def expand_job_information(self):
-
-        if not self.is_job_information_expanded():
-
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.BODY_INFORMATION_TITLE_XPATH))
-            )
-
-            button = title_element.find_element(By.XPATH, "..")
-            button.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)  # Wait for the animation to complete
-
-            return True
-
-        return False
-
-    def collapse_job_information(self):
-
+    # Unlike the tab sections, these report whether they clicked (False: nothing to do) and let a
+    # missing header raise.
+    def expand_job_information(self) -> bool:
         if self.is_job_information_expanded():
+            return False
+        self._job_information.toggle()
+        return True
 
-            title_element = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.XPATH, Constants.BODY_INFORMATION_TITLE_XPATH))
-            )
-
-            button = title_element.find_element(By.XPATH, "..")
-            button.click()
-            time.sleep(Constants.WEBFLOW_TIMEOUT_CSS)  # Wait for the animation to complete
-
-            return True
-
-        return False
+    def collapse_job_information(self) -> bool:
+        if not self.is_job_information_expanded():
+            return False
+        self._job_information.toggle()
+        return True

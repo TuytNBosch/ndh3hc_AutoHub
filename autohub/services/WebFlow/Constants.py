@@ -5,6 +5,7 @@ WEBFLOW_REFRESH_INTERVAL    = 3                     # Interval in seconds to ref
 WEBFLOW_MAX_ATTEMPTS        = 5                     # Maximum number of attempts to check for webFLOW page load
 IMPLICIT_WAIT               = 1                     # Seconds Selenium waits for an element to show up when it is looked up
 WEBFLOW_TIMEOUT_CSS         = 1                     # Timeout in seconds for CSS-based webFLOW page checks
+WEBDRIVER_DOWNLOAD_PROXY    = "http://rb-proxy-apac.bosch.com:8080"  # Proxy used to download msedgedriver when no driver path is set
 
 WEBFLOW_LOADING_SCREEN_CLASS        = "loading-screen-icon"
 WEBFLOW_ACTIVITY_INDICATOR_CLASS    = "a-activity-indicator"

@@ -1,16 +1,13 @@
 import logging
-import time
-
-
-from .. import Constants as Constants
-from ..toast import toast_severity
-
 
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
+
+from .. import Constants as Constants
+from ..components import scroll_into_view_if_hidden, wait_for, wait_until_idle
+from ..toast import toast_severity
 
 _logger = logging.getLogger(__name__)
 
@@ -22,12 +19,8 @@ class Actions:
 
     def get_button_by_text(self, text: str):
         try:
-            action_ribbon = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.presence_of_element_located((By.CLASS_NAME, Constants.BODY_ACTION_RIBBON_CLASS))
-            )
-
-            if not action_ribbon.is_displayed():
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", action_ribbon)
+            action_ribbon = wait_for(self.driver, By.CLASS_NAME, Constants.BODY_ACTION_RIBBON_CLASS)
+            scroll_into_view_if_hidden(self.driver, action_ribbon)
 
             buttons = action_ribbon.find_elements(By.TAG_NAME, "div")
             button_texts = action_ribbon.find_elements(By.TAG_NAME, "span")
@@ -37,24 +30,19 @@ class Actions:
                     return button
 
             return None
-        except:
+        except Exception:
+            _logger.warning("Could not read the action ribbon", exc_info=True)
             return None
 
     def save(self) -> bool:
         """Clicks Save and confirms WebFlow's "Saved successfully" toast; an error toast or no toast is a failure."""
         button = self.get_button_by_text("save")
-
         if button is None:
             return False
-
-        if button.get_attribute("class").find("disabled") != -1:
+        if "disabled" in button.get_attribute("class"):
             return True
-
         button.click()
-
-        WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-            EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-        )
+        wait_until_idle(self.driver)
         return self._saved_toast_shown()
 
     def _saved_toast_shown(self) -> bool:
@@ -78,15 +66,9 @@ class Actions:
 
     def accept(self) -> bool:
         button = self.get_button_by_text("accept")
-
         if button is None:
             return False
-
-        if button.get_attribute("class").find("disabled") != -1:
+        if "disabled" in button.get_attribute("class"):
             return True
-
         button.click()
-
-        return WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, Constants.WEBFLOW_ACTIVITY_INDICATOR_CLASS))
-            )
+        return wait_until_idle(self.driver)

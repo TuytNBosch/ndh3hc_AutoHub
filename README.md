@@ -125,7 +125,8 @@ AutoHub/
 │   │   ├── SystemMatrix/         # reader + label-driven parser
 │   │   ├── HWInfo/               # reader, parser and per-file-type sources (.xlsx/.eml/.msg)
 │   │   ├── KickOff/              # Kick Off Meeting .pptx reader + rule-table parser (power, cylinders, displacement, emission, immobilizer)
-│   │   └── WebFlow/              # legacy Selenium page objects (not refactored, see the requirements doc)
+│   │   └── WebFlow/              # Selenium session: WebFlow (orchestrator) | browser (driver setup) | job_filler (step plan)
+│   │                             #   | components (shared section / drop-down / input / tab / checkbox widgets) | page objects
 │   └── resources/                # icons, logo, banner
 ├── docs/SOLID_REQUIREMENTS.md
 ├── logs/
