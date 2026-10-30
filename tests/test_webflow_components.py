@@ -5,7 +5,9 @@ from selenium.common.exceptions import NoSuchElementException
 from autohub.services.WebFlow import Constants, components
 from autohub.services.WebFlow.Body.Information.Information import Information
 from autohub.services.WebFlow.Body.Tab import ECUTab as ecu_tab_module
+from autohub.services.WebFlow.Body.Tab import HardwareFields as hardware_fields_module
 from autohub.services.WebFlow.Body.Tab.ECUTab import ECUTab
+from autohub.services.WebFlow.Body.Tab.HardwareFields import HardwareFields
 from autohub.services.WebFlow.components import Section, TabLink, select_dropdown
 from autohub.services.WebFlow.job_filler import JobFiller
 
@@ -239,6 +241,7 @@ def test_job_filler_plans_the_legacy_steps_in_order():
         "General: safety calibration response = False",
         "General: Bosch calibration data response = False",
         "General: data integration response = True",
+        "General: Pick PST_Lib for project version P001",
         "Select the ECU tab",
         "ECU: indi_spec = Spec",
         "ECU: project_version = P001",
@@ -300,7 +303,86 @@ def test_job_filler_stops_when_the_general_tab_cannot_be_selected():
     assert calls == [("select_general_tab",)]
 
 
-def test_extra_sheet_fields_are_filled_and_unmapped_fields_reported():
+def test_job_filler_does_not_save_when_no_pst_lib_matches_project_version():
+    job_filler, calls, _ = filler({"pick_pst_lib": False})
+    with pytest.raises(RuntimeError, match="PST_Lib entry matching project version 'P001'"):
+        job_filler.fill(VARIANT)
+    assert ("pick_pst_lib", "P001") in calls
+    assert ("save",) not in calls
+
+
+def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(monkeypatch):
+    class Cell:
+        def __init__(self, text):
+            self.text = text
+
+    class Row(Element):
+        def __init__(self, identification):
+            super().__init__()
+            self.cells = [Cell(identification)]
+
+        def find_elements(self, by, value):
+            return self.cells if value == "td" else []
+
+    class Search(Element):
+        def send_keys(self, text):
+            self.typed.append(text)
+
+    class Dialog(Element):
+        def __init__(self, rows):
+            super().__init__(displayed=True)
+            self.text = "PST_Lib and PVER selection"
+            self.rows = rows
+            self.search = Search()
+            self.pick = Element()
+            self.pick.click = self.close
+
+        def close(self):
+            self.clicks += 1
+            self.displayed = False
+
+        def find_element(self, by, value):
+            if value.startswith("input[placeholder^="):
+                return self.search
+            if value.endswith('normalize-space(.)="Pick PST"]]'):
+                return self.pick
+            raise NoSuchElementException(value)
+
+        def find_elements(self, by, value):
+            return self.rows if value == "table tbody tr" else []
+
+    matching = Row("MG1CS022_6WZXSC/V037;1")
+    other = Row("MG1CS022_6WZYSC/V037;1")
+    dialog = Dialog([other, matching])
+    open_button = Element()
+    open_button.click = lambda: None
+    body = Element(children={
+        './/button[.//span[normalize-space(.)="Pick PST_Lib"]]': open_button,
+    })
+    hardware = HardwareFields(Driver())
+    hardware.sections["Ident Numbers"] = type(
+        "SectionStub", (), {"expand": lambda _self: True, "body": lambda _self: body}
+    )()
+    hardware.driver.find_elements = lambda by, value: [dialog] if value == '[role="dialog"]' else []
+
+    class Wait:
+        def __init__(self, _driver, _timeout, **_kwargs):
+            pass
+
+        def until(self, condition):
+            result = condition(hardware.driver)
+            if not result:
+                raise TimeoutError("condition not met")
+            return result
+
+    monkeypatch.setattr(hardware_fields_module, "WebDriverWait", Wait)
+    assert hardware.pick_pst_lib("6WZX") is True
+    assert dialog.search.typed == ["6WZX"]
+    assert matching.clicks == 1 and other.clicks == 0
+    assert dialog.clicks == 1
+
+
+def test_extra_sheet_fields_without_webflow_controls_are_ignored():
     from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
 
     variant = webflow_variant_from_row("PN", {"AB": "62XS", "AC": 120.0, "AJ": "Brazil", "CS": "DWG"})
@@ -309,7 +391,7 @@ def test_extra_sheet_fields_are_filled_and_unmapped_fields_reported():
     assert ("fill_hardware_field", "vehicle_model", "62XS") in calls
     assert ("fill_hardware_field", "power", "120") in calls
     assert ("fill_hardware_field", "market", "Brazil") in calls
-    assert len(warnings) == 1 and "CS (DWG NO.) = DWG" in warnings[0]
+    assert warnings == []
     assert ("select_safety_monitoring_sw", False) in calls
     assert ("select_safety_calibration_response", False) in calls
 
@@ -350,7 +432,8 @@ def test_job_filler_uses_requested_priority_then_form_order():
     assert field_calls[11] == hardware_calls[2]
     assert field_calls[12] == ("import_software_part_number",)
     assert field_calls[13:10 + len(hardware_calls)] == hardware_calls[3:]
-    assert field_calls[10 + len(hardware_calls)] == ("select_ecu_tab",)
+    assert field_calls[10 + len(hardware_calls)] == ("pick_pst_lib", "P001")
+    assert field_calls[11 + len(hardware_calls)] == ("select_ecu_tab",)
     assert calls[-1] == ("save",)
 
 

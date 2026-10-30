@@ -181,6 +181,90 @@ class HardwareFields:
             _logger.exception("Could not import the software part number from pool")
             return False
 
+    def pick_pst_lib(self, project_version: str) -> bool:
+        """Selects the unique PST_Lib row whose Program Identification contains the sheet project version."""
+        section = self.sections["Ident Numbers"]
+        if not section.expand():
+            return False
+        try:
+            button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
+                lambda _driver: section.body().find_element(
+                    By.XPATH, './/button[.//span[normalize-space(.)="Pick PST_Lib"]]'
+                )
+            )
+            if not button.is_displayed() or not button.is_enabled():
+                _logger.error("Pick PST_Lib is not available")
+                return False
+            button.click()
+
+            def selection_dialog(_driver):
+                for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"]'):
+                    if dialog.is_displayed() and "PST_Lib and PVER selection" in dialog.text:
+                        return dialog
+                return False
+
+            dialog = WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(selection_dialog)
+            search = dialog.find_element(
+                By.CSS_SELECTOR, 'input[placeholder^="Search for Program identification"]'
+            )
+            search.clear()
+            search.send_keys(project_version)
+
+            def matching_rows(_driver):
+                rows = []
+                for row in dialog.find_elements(By.CSS_SELECTOR, "table tbody tr"):
+                    cells = row.find_elements(By.TAG_NAME, "td")
+                    if cells and project_version.casefold() in cells[0].text.casefold():
+                        rows.append(row)
+                return rows or False
+
+            rows = WebDriverWait(
+                self.driver, Constants.WEBFLOW_TIMEOUT,
+                ignored_exceptions=(StaleElementReferenceException,),
+            ).until(matching_rows)
+            if len(rows) != 1:
+                _logger.error(
+                    "Expected one PST_Lib Program Identification containing project version %r, found %d",
+                    project_version,
+                    len(rows),
+                )
+                return False
+            rows[0].click()
+
+            def enabled_pick(_driver):
+                for current_dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"]'):
+                    if "PST_Lib and PVER selection" not in current_dialog.text:
+                        continue
+                    pick_button = current_dialog.find_element(
+                        By.XPATH, './/button[.//span[normalize-space(.)="Pick PST"]]'
+                    )
+                    if pick_button.is_displayed() and pick_button.is_enabled():
+                        return pick_button
+                return False
+
+            pick = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(enabled_pick)
+            identification = rows[0].find_elements(By.TAG_NAME, "td")[0].text.strip()
+            pick.click()
+
+            def dialog_closed(_driver):
+                try:
+                    return not dialog.is_displayed()
+                except StaleElementReferenceException:
+                    return True
+
+            WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(
+                dialog_closed
+            )
+            _logger.info(
+                "Selected PST_Lib Program Identification %r for project version %s",
+                identification,
+                project_version,
+            )
+            return True
+        except Exception:
+            _logger.exception("Could not select PST_Lib for project version %r", project_version)
+            return False
+
     def fill(self, key: str, value: str) -> bool:
         label, kind = _FIELDS[key]
         section = self.sections[_FIELD_PANELS[key]]

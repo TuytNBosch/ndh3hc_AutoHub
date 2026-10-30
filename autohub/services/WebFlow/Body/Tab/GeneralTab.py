@@ -47,6 +47,9 @@ class GeneralTab:
     def import_software_part_number(self) -> bool:
         return self._hardware.import_software_part_number()
 
+    def pick_pst_lib(self, project_version: str) -> bool:
+        return self._hardware.pick_pst_lib(project_version)
+
     @property
     def imported_software_part_number(self) -> str:
         return self._hardware.imported_software_part_number
