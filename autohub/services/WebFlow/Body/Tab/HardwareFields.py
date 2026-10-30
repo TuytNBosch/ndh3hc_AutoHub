@@ -9,8 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
 from ... import Constants
-from ...components import Section, checkbox_value, pause, scroll_into_view_if_hidden, select_dropdown, wait_until_idle
-from ...dropdown import read_options
+from ...components import Section, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
 
 _logger = logging.getLogger(__name__)
 _FIELDS = {key: (label, kind) for _, key, label, kind in HARDWARE_FIELDS}
@@ -74,28 +73,63 @@ class HardwareFields:
 
     def _loaded_options(self, value: str) -> dict:
         def loaded(_driver):
-            options = read_options(
-                self.driver, Constants.GENERAL_TAB_OPTIONS_CLASS, Constants.GENERAL_TAB_OPTIONS_MAX_ITEMS
-            )
-            return options if options and value in options else False
+            for panel in self.driver.find_elements(By.CSS_SELECTOR, ".p-dropdown-panel"):
+                if not panel.is_displayed():
+                    continue
+                options = {
+                    item.get_attribute("aria-label"): item
+                    for item in panel.find_elements(By.CSS_SELECTOR, 'li[role="option"]')
+                }
+                if value in options:
+                    return options
+            return False
 
         return WebDriverWait(
             self.driver, Constants.WEBFLOW_TIMEOUT,
             ignored_exceptions=(StaleElementReferenceException,),
         ).until(loaded)
 
+    def _select_plant(self, form, value: str) -> bool:
+        control = form.find_element(By.CSS_SELECTOR, "p-dropdown")
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", control)
+        trigger = control.find_element(By.CSS_SELECTOR, ".p-dropdown-trigger")
+        WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(EC.element_to_be_clickable(trigger))
+        current = control.find_element(By.CSS_SELECTOR, '[role="combobox"]')
+        if current.get_attribute("aria-label") == value:
+            return True
+        trigger.click()
+        options = self._loaded_options(value)
+        option = options[value]
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'nearest'});", option)
+        WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(EC.element_to_be_clickable(option))
+        option.click()
+        wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
+
+        def selected(_driver):
+            return form.find_element(By.CSS_SELECTOR, 'p-dropdown [role="combobox"]').get_attribute("aria-label") == value
+
+        WebDriverWait(
+            self.driver, Constants.WEBFLOW_TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(selected)
+        _logger.info("WebFlow Lead Plant = %s", value)
+        return True
+
     def import_software_part_number(self) -> bool:
         section = self.sections["Ident Numbers"]
         if not section.expand():
             return False
         try:
-            button_xpath = (
-                '//button[.//span[normalize-space(.)="Import from pool"]]'
-            )
+            def pool_button(_driver):
+                button = section.body().find_element(
+                    By.XPATH, './/button[.//span[normalize-space(.)="Import from pool"]]'
+                )
+                return button if button.is_displayed() and button.is_enabled() else False
+
             button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                EC.element_to_be_clickable((By.XPATH, button_xpath))
+                pool_button
             )
-            scroll_into_view_if_hidden(self.driver, button)
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
             # Allocating a number may have server-side effects: never retry the click.
             button.click()
             wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
@@ -130,12 +164,7 @@ class HardwareFields:
             title = section.body().find_element(By.XPATH, title_xpath)
             form = title.find_element(By.XPATH, "..")
             if kind == "dropdown":
-                return select_dropdown(
-                    self.driver,
-                    f'//div[contains(@class,"control-label") and normalize-space(.)="{label}"]',
-                    Constants.GENERAL_TAB_BTN_CSS, value,
-                    lambda: self._loaded_options(value),
-                )
+                return self._select_plant(form, value)
             if kind == "multi":
                 return self._select_multiple(form, value)
             field = form.find_element(By.CSS_SELECTOR, 'input[type="text"]')

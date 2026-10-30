@@ -118,11 +118,11 @@ def test_missing_panel_stops_before_typing(monkeypatch):
 
 
 def test_hardware_dropdown_passes_the_sheet_value(monkeypatch):
-    fields, _ = _hardware(monkeypatch)
+    fields, form = _hardware(monkeypatch)
     select = Mock(return_value=True)
-    monkeypatch.setattr(hardware_module, "select_dropdown", select)
+    monkeypatch.setattr(fields, "_select_plant", select)
     assert fields.fill("lead_plant", "Sheet plant") is True
-    assert select.call_args.args[3] == "Sheet plant"
+    select.assert_called_once_with(form, "Sheet plant")
 
 
 def test_hardware_multiselect_replaces_previous_selection(monkeypatch):
@@ -151,7 +151,7 @@ def test_hardware_multiselect_missing_option_fails(monkeypatch):
 
 def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
     fields, _ = _hardware(monkeypatch)
-    button = fields.driver.find_element.return_value
+    button = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
     button.is_displayed.return_value = True
     button.is_enabled.return_value = True
     field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
@@ -159,13 +159,16 @@ def test_pool_import_waits_for_number_and_clicks_only_once(monkeypatch, caplog):
     with caplog.at_level("INFO", logger=hardware_module.__name__):
         assert fields.import_software_part_number() is True
     button.click.assert_called_once()
+    fields.driver.find_element.assert_not_called()
+    locator = fields.sections["Ident Numbers"].body.return_value.find_element.call_args_list[0].args[1]
+    assert locator.startswith(".//button") and "Import from pool" in locator
     assert "Software part number = 10SW137784" in caplog.text
 
 
 def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
     fields, _ = _hardware(monkeypatch)
     monkeypatch.setattr(hardware_module.Constants, "WEBFLOW_TIMEOUT", 0)
-    button = fields.driver.find_element.return_value
+    button = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
     button.is_displayed.return_value = True
     button.is_enabled.return_value = True
     field = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
@@ -176,7 +179,7 @@ def test_pool_import_timeout_is_failure_without_retry(monkeypatch):
 
 def test_pool_import_does_not_retry_uncertain_click(monkeypatch):
     fields, _ = _hardware(monkeypatch)
-    button = fields.driver.find_element.return_value
+    button = fields.sections["Ident Numbers"].body.return_value.find_element.return_value
     button.is_displayed.return_value = True
     button.is_enabled.return_value = True
     button.click.side_effect = RuntimeError("connection lost")
@@ -187,10 +190,27 @@ def test_pool_import_does_not_retry_uncertain_click(monkeypatch):
 def test_lead_plant_waits_until_requested_option_is_loaded(monkeypatch):
     fields, _ = _hardware(monkeypatch)
     option = Mock()
-    reads = Mock(side_effect=[None, {"---": Mock()}, {"SaW": option}])
-    monkeypatch.setattr(hardware_module, "read_options", reads)
+    option.get_attribute.return_value = "SaW"
+    panel = Mock()
+    panel.find_elements.return_value = [option]
+    fields.driver.find_elements.side_effect = [[], [], [panel]]
     assert fields._loaded_options("SaW") == {"SaW": option}
-    assert reads.call_count == 3
+    assert fields.driver.find_elements.call_count == 3
+
+
+def test_plant_scrolls_clicks_trigger_and_waits_for_selection(monkeypatch):
+    fields, form = _hardware(monkeypatch)
+    control = Mock()
+    selected = Mock()
+    selected.get_attribute.return_value = "SaW"
+    form.find_element.side_effect = [control, selected]
+    control.find_element.return_value.get_attribute.return_value = "---"
+    fields._loaded_options = Mock(return_value={"SaW": Mock()})
+    monkeypatch.setattr(hardware_module.EC, "element_to_be_clickable", lambda element: lambda driver: element)
+    assert fields._select_plant(form, "SaW") is True
+    fields.driver.execute_script.assert_any_call("arguments[0].scrollIntoView({block: 'center'});", control)
+    control.find_element.return_value.click.assert_called_once()
+    fields._loaded_options.assert_called_once_with("SaW")
 
 
 @pytest.mark.parametrize("initial", [None, True, False])
