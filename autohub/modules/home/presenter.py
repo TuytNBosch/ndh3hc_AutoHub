@@ -88,6 +88,7 @@ class HomePresenter:
         self._paths: dict[str, str] = {}
         self._edited = False  # the table holds changes that are not in the Master Sheet yet
         self._loaded_rows: list[dict] | None = None  # every variant of the last Load, before the "latest" limit
+        self._original_part_numbers: dict[int, str] = {}
         self._deleted_rows: list[int] = []  # Master Sheet rows of variants deleted here, removed on Update
         self._deleted_parts: dict[int, str] = {}  # the same variants' part numbers, by sheet row
 
@@ -150,6 +151,11 @@ class HomePresenter:
 
     def _show_rows(self, rows: list[dict]) -> None:
         self._view.show_rows(rows)
+        self._original_part_numbers = {
+            int(row["_row"]): _part_number_value(row.get("J"))
+            for row in rows
+            if row.get("_row") is not None
+        }
         self._edited = False
         self._deleted_rows = []
         self._deleted_parts = {}
@@ -183,9 +189,18 @@ class HomePresenter:
             return len(rows)
         existing = self._view.read_rows()
         unsaved, deleted, deleted_parts = self._edited, self._deleted_rows, self._deleted_parts
+        original_part_numbers = dict(self._original_part_numbers)
         known = {_row_identity(row) for row in existing}
         added = [row for row in rows if _row_identity(row) not in known]
         self._show_rows(existing + added)
+        self._original_part_numbers.update(original_part_numbers)
+        self._original_part_numbers.update(
+            {
+                int(row["_row"]): _part_number_value(row.get("J"))
+                for row in added
+                if row.get("_row") is not None
+            }
+        )
         self._deleted_rows, self._deleted_parts = deleted, deleted_parts  # kept rows keep their pending deletions too
         if unsaved or deleted or any(row.get("_row") is None for row in existing + added):
             self._view.set_update_state(True, UPDATE_TEXT)
@@ -235,6 +250,7 @@ class HomePresenter:
     def _clear_rows(self) -> None:
         self._loaded_rows = None
         self._edited = False
+        self._original_part_numbers = {}
         self._deleted_rows = []
         self._deleted_parts = {}
         self._view.clear_rows()
@@ -312,17 +328,54 @@ class HomePresenter:
 
         deleted = list(self._deleted_rows)
         parts = [self._deleted_parts.get(row, "") for row in deleted]
-        text = f"Are you sure you want to update the Master Sheet with {self._view.row_count()} variant(s)?"
+        variants = self._view.read_rows()
+        variants_to_save = [
+            row
+            for row in variants
+            if row.get("_row") is None
+            or (
+                int(row["_row"]) in self._original_part_numbers
+                and _part_number_value(row.get("J")) != self._original_part_numbers[int(row["_row"])]
+            )
+        ]
+        if not variants_to_save and not deleted:
+            self._dialogs.info(
+                "Update variants",
+                "No existing variants have a changed Part Number. Other field changes were not saved.",
+            )
+            return
+
+        changed_parts = [
+            f"- {self._original_part_numbers[int(row['_row'])] or '(blank)'} -> "
+            f"{_part_number_value(row.get('J')) or '(blank)'}"
+            for row in variants_to_save
+            if row.get("_row") is not None
+        ]
+        new_parts = [
+            f"- {_part_number_value(row.get('J')) or '(blank)'}"
+            for row in variants_to_save
+            if row.get("_row") is None
+        ]
+        text = (
+            f"Are you sure you want to update the Master Sheet with {len(variants_to_save)} variant(s)?"
+            "\n\nOnly existing rows with a changed Part Number will be updated. Other field changes "
+            "on rows without a Part Number change will not be saved."
+        )
+        if changed_parts:
+            text += "\n\nPart Number changes:\n" + "\n".join(changed_parts)
+        if new_parts:
+            text += "\n\nNew variants to add:\n" + "\n".join(new_parts)
         if deleted:
             text += f"\n\n{len(deleted)} variant(s) will be deleted from the Master Sheet."
         if not self._dialogs.confirm("Update variants", text):
             return
-        variants = self._view.read_rows()
-        _logger.info("Update variants clicked (%d variant(s))", len(variants))
+        _logger.info("Update variants clicked (%d variant(s))", len(variants_to_save))
         self._view.set_update_state(False, "Updating...")
         window = self._dialogs.open_progress("Update variants")
         self._start_task(
-            lambda: self._service.save_variants(master_sheet_path, variants, window.step, deleted, parts),
+            lambda: self._service.save_variants(
+                master_sheet_path, variants_to_save, window.step, deleted, parts
+            ),
             lambda result: self._finish_update(result, window, deleted),
             lambda error: self._fail_update(error, window),
         )
@@ -403,3 +456,7 @@ def _row_identity(row: dict) -> tuple:
     if row.get("_row") is not None:
         return ("sheet", row["_row"])
     return ("new", row.get("H"), row.get("J"), row.get("BI"))
+
+
+def _part_number_value(value) -> str:
+    return "" if value is None else str(value)
