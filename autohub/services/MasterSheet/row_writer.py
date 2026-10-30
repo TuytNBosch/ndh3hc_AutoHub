@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from autohub.core.webflow_links import webflow_link_text
 from autohub.core.normalizers import needs_text_format, normalize_part_number
 
 FIRST_DATA_ROW = 11  # rows above hold the template and examples
@@ -86,8 +87,10 @@ class VariantRowWriter:
             cell = self._worksheet.Range(f"{WEBFLOW_LINK_COLUMN}{row}")
             if cell.HasFormula:
                 continue
+            text = webflow_link_text(link)
             try:
-                self._worksheet.Hyperlinks.Add(cell, link)
+                # positional (Anchor, Address, SubAddress, ScreenTip, TextToDisplay): COM can drop keyword arguments
+                self._worksheet.Hyperlinks.Add(cell, link, "", "", text or link)
             except Exception:  # a plain-text link is still better than none
                 cell.Value = link
             written += 1
