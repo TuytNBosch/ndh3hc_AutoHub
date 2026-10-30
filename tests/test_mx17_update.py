@@ -135,7 +135,7 @@ def test_writing_into_merged_cells_goes_through_the_anchor_and_names_failures():
             raise OSError("We can't do that to a merged cell.")
 
     with pytest.raises(RuntimeError, match="S!AK7"):
-        master._write(Broken(), 7, {"AK": "x"})
+        master._write(Broken(), 7, {"AK": "x"}, "DA")
 
 
 def test_delete_finds_variants_by_part_number_not_by_row():
@@ -155,3 +155,10 @@ def test_unchanged_variants_are_not_written():
     master.save_variant_rows(rows, save=False)
     assert {a: v for a, v in sheets[0].cells.items() if a.endswith("7")} == {a: v for a, v in before.items() if a.endswith("7")}
     assert sheets[0].cells["F8"] == "NEW"
+
+
+def test_writes_never_go_past_the_last_existing_column():
+    master, sheets = _sheet(_main_row())
+    master._write(sheets[0], 7, {"DA": "in", "DB": "out", "XFD": "out"}, "DA")
+    assert sheets[0].cells["DA7"] == "in"
+    assert "DB7" not in sheets[0].cells and "XFD7" not in sheets[0].cells
