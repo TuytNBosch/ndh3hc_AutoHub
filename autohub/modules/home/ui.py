@@ -24,6 +24,7 @@ from autohub.modules.home.presenter import (
 from autohub.modules.home.settings_dialog import HomeSettingsDialog
 from autohub.modules.home.service import VariantService
 from autohub.modules.home.variant_table import VariantTable
+from autohub.ui.theme import set_muted
 
 _FILE_NAME_LABEL_WIDTH = 150
 
@@ -44,7 +45,7 @@ class HomeWidget(QWidget):
         browse_btn.setMinimumWidth(140)
         name_label = QLabel("Not selected")
         name_label.setMinimumWidth(_FILE_NAME_LABEL_WIDTH)
-        name_label.setStyleSheet("color: #888;")
+        set_muted(name_label, True)
         self._file_name_labels[MASTER_SHEET] = name_label
         files_row = QHBoxLayout()
         files_row.setSpacing(16)
@@ -109,7 +110,7 @@ class HomeWidget(QWidget):
             return
         label.setText(Path(path).name)
         label.setToolTip(path)
-        label.setStyleSheet("color: #ddd;")
+        set_muted(label, False)
 
     def show_rows(self, rows: list[dict]) -> None:
         self._variant_table.populate(rows)

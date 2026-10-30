@@ -26,7 +26,7 @@ class FrozenColumns:
         view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         view.setVerticalScrollMode(table.verticalScrollMode())
-        view.setStyleSheet("QTableView { border: none; border-right: 2px solid #555; }")
+        view.setStyleSheet("QTableView { border: none; border-right: 2px solid palette(mid); }")
         for column in range(table.columnCount()):
             view.setColumnHidden(column, column not in self._frozen)
         for position, column in enumerate(extra, start=count):

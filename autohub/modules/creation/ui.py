@@ -12,6 +12,7 @@ from autohub.core.workers import TaskRunner
 from autohub.modules.creation.config_form import WebFlowSettingsDialog, load_config
 from autohub.modules.creation.service import WebFlowJobService
 from autohub.modules.creation.variant_checklist import VariantChecklist
+from autohub.ui.theme import set_muted
 
 _logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class CreationWidget(QWidget):
         title = QLabel("Create WebFlow jobs")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
         subtitle = QLabel("Choose one or more variants loaded from the Master Sheet workflow.")
-        subtitle.setStyleSheet("color: #888;")
+        set_muted(subtitle, True)
 
         self._checklist = VariantChecklist(settings)
         self._settings = settings

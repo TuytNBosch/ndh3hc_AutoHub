@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from autohub.ui.theme import set_muted
+
 
 class FindReplaceDialog(QDialog):
     def __init__(self, table, parent: QWidget | None = None):
@@ -23,7 +25,7 @@ class FindReplaceDialog(QDialog):
         self._replace_edit = QLineEdit()
         self._match_case = QCheckBox("Match case")
         self._status = QLabel("")
-        self._status.setStyleSheet("color: #888;")
+        set_muted(self._status, True)
 
         self._replace_label = QLabel("Replace with:")
         find_next_btn = QPushButton("Find next")
