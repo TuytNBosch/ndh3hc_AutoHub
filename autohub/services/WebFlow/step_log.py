@@ -10,6 +10,7 @@ Step = tuple
 
 
 class StepObserver(Protocol):
+    # an observer may also define on_step_start(name), called before the step runs
     def on_step(self, name: str, ok: bool, seconds: float, error: str = "") -> None: ...
 
 
@@ -24,6 +25,12 @@ def set_step_observer(observer: StepObserver | None) -> None:
     _observer = observer
 
 
+def _begin(name: str) -> None:
+    start = getattr(_observer, "on_step_start", None)
+    if start is not None:
+        start(name)
+
+
 def _report(name: str, ok: bool, seconds: float, error: str = "") -> None:
     if _observer is not None:
         _observer.on_step(name, ok, seconds, error)
@@ -31,6 +38,7 @@ def _report(name: str, ok: bool, seconds: float, error: str = "") -> None:
 
 def run_step(logger: logging.Logger, name: str, action: Callable[..., Any], *args: Any) -> bool:
     logger.info("Step: %s", name)
+    _begin(name)
     started = time.perf_counter()
     try:
         ok = bool(action(*args))
