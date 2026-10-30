@@ -103,16 +103,22 @@ class Mx17MasterSheet(MasterSheet):
                     found[part_number.upper()] = (worksheet, first + offset, _columns(row, _LAST_INFO_INDEX))
         return found
 
+    @staticmethod
+    def _home_values(values: dict, info: dict) -> dict:
+        """The Home table values of one main sheet row, overlaid with its Info sheet row."""
+        home = layout.home_from_main(values)
+        part_number = home["J"] = normalize_part_number(home["J"])
+        if part_number.upper() in info:
+            home.update(layout.home_overlay_from_info(info[part_number.upper()][2]))
+        return home
+
     def _loaded_variants(self) -> list[tuple[int, dict, Any]]:
         """(main sheet row, Home table values, created date), the latest row per part number."""
         info = self._info_rows()
         latest: dict[str, tuple[int, dict, Any]] = {}
         for row, values in self._main_rows():
-            home = layout.home_from_main(values)
-            part_number = home["J"] = normalize_part_number(home["J"])
-            if part_number.upper() in info:
-                home.update(layout.home_overlay_from_info(info[part_number.upper()][2]))
-            latest[part_number.upper()] = (row, home, values.get("B"))
+            home = self._home_values(values, info)
+            latest[home["J"].upper()] = (row, home, values.get("B"))
         return list(latest.values())
 
     def load_variant_rows(self) -> list[dict]:
@@ -145,21 +151,27 @@ class Mx17MasterSheet(MasterSheet):
         self._require_writable()
         worksheet = self._worksheet()
         info = self._info_rows()
+        current = {row: self._home_values(values, info) for row, values in self._main_rows()}
         saved = []
         for variant in variants:
             home = {key: value for key, value in variant.items() if not key.startswith("_")}
             row = variant.get("_row")
+            written = home  # what the user changed (existing rows) or everything (new rows)
             if row:
                 row = int(row)
-                self._write(worksheet, row, layout.main_values_from_home(home))
-                known = info.get(normalize_part_number(home.get("J")).upper())
+                before = current.get(row, {})
+                changed = written = layout.changed_home_values(before, home)
+                self._write(worksheet, row, layout.main_values_from_home(changed, keep_blank=True))
+                known = info.get(normalize_part_number(before.get("J")).upper())
                 if known:
-                    self._write(known[0], known[1], layout.info_values_from_home(home))
+                    self._write(known[0], known[1], layout.info_values_from_home(changed, keep_blank=True))
+                elif layout.needs_info_row(changed):
+                    self._append_info_row({**before, **home})  # the edit has no place in the main sheet
             else:
                 row = self._append_main_row(worksheet)
                 self._write(worksheet, row, layout.new_main_values(home, datetime.now()))
                 self._append_info_row(home)
-            saved.append({"PartNumber": home.get("J"), "RequestRow": row})
+            saved.append({"PartNumber": home.get("J"), "RequestRow": row, "Unmapped": layout.unmapped_keys(written)})
         if save:
             self.save()
         return saved

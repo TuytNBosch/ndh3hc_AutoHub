@@ -100,6 +100,19 @@ _PROGRAM_ID_COLUMNS = ("BR", "BS", "BT", "BU", "BV", "BW", "BX", "BY", "BZ", "CA
 _SECURITY_PARTS = ("CW", "CX", "CY")  # the security coefficient as three byte-swapped 16-bit words
 
 
+def needs_info_row(changed: Mapping[str, Any]) -> bool:
+    """True when an edit touches a field that only exists on the Info sheets."""
+    return any(key in INFO_COLUMNS and key not in MAIN_COLUMNS for key in changed)
+
+
+def unmapped_keys(home: Mapping[str, Any]) -> list[str]:
+    """Home keys with a value that neither sheet has a column for (they are not written)."""
+    return [
+        key for key, value in home.items()
+        if not key.startswith("_") and key not in MAIN_COLUMNS and key not in INFO_COLUMNS and value not in (None, "")
+    ]
+
+
 def _text(value: Any) -> Any:
     """Cell value as the Home table holds it: whole numbers without ".0", dates and blanks untouched."""
     if isinstance(value, float) and value.is_integer():
@@ -135,14 +148,35 @@ def home_overlay_from_info(values: Mapping[str, Any]) -> dict:
     return {key: value for key, value in home.items() if value not in (None, "")}
 
 
-def main_values_from_home(home: Mapping[str, Any]) -> dict:
-    """Main sheet {column: value} for a Home row; blanks are left out so existing cells are not erased."""
+def main_values_from_home(home: Mapping[str, Any], keep_blank: bool = False) -> dict:
+    """Main sheet {column: value} for a Home row; blanks are left out (unless `keep_blank`) so cells are not erased."""
     values: dict[str, Any] = {}
     for key, column in MAIN_COLUMNS.items():
-        value = home.get(key)
-        if value not in (None, ""):
+        if key not in home:
+            continue
+        value = home[key]
+        if value in (None, ""):
+            if keep_blank:
+                values[column] = None
+        else:
             values[column] = _model_year_label(value) if key == "AF" else value
     return values
+
+
+def _text(value: Any) -> str:
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)  # COM returns 159 as 159.0
+    return "" if value is None else str(value).strip()
+
+
+def changed_home_values(current: Mapping[str, Any], edited: Mapping[str, Any]) -> dict:
+    """The Home keys of `edited` whose text differs from `current`.
+
+    Several Home keys share one sheet column (e.g. S and AP); writing only what changed stops an untouched key
+    from overwriting the edit of its twin."""
+    return {
+        key: value for key, value in edited.items() if not key.startswith("_") and _text(value) != _text(current.get(key))
+    }
 
 
 def new_main_values(home: Mapping[str, Any], created: datetime | None = None) -> dict:
@@ -159,11 +193,13 @@ def new_main_values(home: Mapping[str, Any], created: datetime | None = None) ->
     return values
 
 
-def info_values_from_home(home: Mapping[str, Any], defaults_for_blanks: bool = False) -> dict:
+def info_values_from_home(home: Mapping[str, Any], defaults_for_blanks: bool = False, keep_blank: bool = False) -> dict:
     """Info sheet {column: value} for a Home row; with `defaults_for_blanks` the usual job defaults fill gaps."""
     merged = {**_job_defaults(), **{k: v for k, v in home.items() if v not in (None, "")}} if defaults_for_blanks else home
     values = {
-        column: merged[key] for key, column in INFO_COLUMNS.items() if merged.get(key) not in (None, "")
+        column: (merged[key] if merged[key] != "" else None)
+        for key, column in INFO_COLUMNS.items()
+        if key in merged and (keep_blank or merged[key] not in (None, ""))
     }
     if defaults_for_blanks:
         for column, value in _INFO_CONSTANTS.items():

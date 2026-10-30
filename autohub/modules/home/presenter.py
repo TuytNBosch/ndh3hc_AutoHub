@@ -9,6 +9,7 @@ from autohub.core.dialogs import Dialogs
 from autohub.core.file_fields import FileField
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
+from autohub.core.variant_schema import VARIANT_FIELD_LABELS
 from autohub.modules.home.service import VariantService
 
 _logger = logging.getLogger(__name__)
@@ -323,6 +324,10 @@ class HomePresenter:
         message = f"Updated {count} variant{'s' if count != 1 else ''} in the Master Sheet."
         if deleted:
             message += f" Deleted {len(deleted)}."
+        skipped = sorted({key for item in saved if isinstance(item, dict) for key in item.get("Unmapped", [])})
+        if skipped:
+            labels = ", ".join(VARIANT_FIELD_LABELS.get(key, key) for key in skipped)
+            message += f"\nNot stored in this Master Sheet layout: {labels}."
         window.succeed(message)
         self._view.publish_variants(available)
 
