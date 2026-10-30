@@ -95,6 +95,13 @@ class Sidebar(QWidget):
         widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return widget
 
+    def select_module(self, index: int) -> None:
+        """Highlights a module without emitting ``moduleSelected``."""
+        for source, indexes in self._module_of_row.items():
+            source.blockSignals(True)
+            source.setCurrentRow(indexes.index(index) if index in indexes else -1)
+            source.blockSignals(False)
+
     def _on_row_selected(self, source: QListWidget, row: int) -> None:
         if row < 0:
             return

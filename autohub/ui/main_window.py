@@ -7,7 +7,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
-from autohub.core.capabilities import Closable, VariantSink, VariantSource
+from autohub.core.capabilities import Closable, LeaveGuard, VariantSink, VariantSource
 from autohub.core.module_base import AutoHubModule
 from autohub.ui.sidebar import Sidebar
 
@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
             [index for index, module in enumerate(modules) if module.pinned_bottom],
         )
         self._pages = QStackedWidget()
+        self._current = -1
 
         widgets = [module.create_widget() for module in modules]
         for widget in widgets:
@@ -58,13 +59,24 @@ class MainWindow(QMainWindow):
                 source.variantsLoaded.connect(sink.set_variants)
 
     def closeEvent(self, event) -> None:
+        if not self._may_leave_current_page():
+            event.ignore()
+            return
         for i in range(self._pages.count()):
             page = self._pages.widget(i)
             if isinstance(page, Closable):
                 page.shutdown()
         super().closeEvent(event)
 
+    def _may_leave_current_page(self) -> bool:
+        page = self._pages.currentWidget()
+        return not isinstance(page, LeaveGuard) or page.confirm_leave()
+
     def _on_module_selected(self, index: int) -> None:
+        if index != self._current and self._current >= 0 and not self._may_leave_current_page():
+            self._sidebar.select_module(self._current)  # the user chose to stay
+            return
+        self._current = index
         _logger.info("Module selected: %s", self._module_names[index])
         self._pages.setCurrentIndex(index)
         self.setWindowTitle(f"{APP_NAME} - {self._module_names[index]}")

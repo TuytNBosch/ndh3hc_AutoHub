@@ -27,3 +27,12 @@ class Closable(Protocol):
     """Page that must release external resources when the app closes."""
 
     def shutdown(self) -> None: ...
+
+
+@runtime_checkable
+class LeaveGuard(Protocol):
+    """Page that may hold unsaved changes; asked before the user leaves it or closes the app."""
+
+    def confirm_leave(self) -> bool:
+        """True when leaving is fine, False to stay on the page."""
+        ...
