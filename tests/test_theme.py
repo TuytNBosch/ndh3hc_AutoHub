@@ -25,6 +25,8 @@ def test_settings_page_saves_and_applies_the_theme():
     settings = MemorySettings()
     page = SettingsWidget(settings)
     page._theme.setCurrentIndex(page._theme.findData("light"))
+    assert "theme" not in settings.load()  # nothing happens until Apply
+    page._apply.click()
     assert settings.load()["theme"] == "light"
     assert app.palette().window().color().name() == LIGHT.window
     apply_theme(app, "dark")

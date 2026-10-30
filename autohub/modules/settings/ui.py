@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QComboBox, QFormLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QComboBox, QFormLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from autohub.core.settings import SettingsStore
 from autohub.ui.theme import DEFAULT_THEME_MODE, apply_theme, normalize_theme_mode
@@ -24,7 +24,6 @@ class SettingsWidget(QWidget):
             self._theme.addItem(label, mode)
         saved = normalize_theme_mode(settings.load().get(THEME_KEY, DEFAULT_THEME_MODE))
         self._theme.setCurrentIndex(self._theme.findData(saved))
-        self._theme.currentIndexChanged.connect(self._on_theme_changed)
         self._theme.setToolTip("System follows the Windows light / dark setting.")
 
         form = QFormLayout()
@@ -35,8 +34,12 @@ class SettingsWidget(QWidget):
         layout.addWidget(title)
         layout.addSpacing(8)
         layout.addLayout(form)
+        self._apply = QPushButton("Apply")
+        self._apply.setToolTip("Save and apply the selected theme.")
+        self._apply.clicked.connect(self._on_apply)
+        layout.addWidget(self._apply, alignment=Qt.AlignLeft)
 
-    def _on_theme_changed(self, _index: int) -> None:
+    def _on_apply(self) -> None:
         mode = self._theme.currentData()
         self._settings.update(**{THEME_KEY: mode})
         apply_theme(QApplication.instance(), mode)
