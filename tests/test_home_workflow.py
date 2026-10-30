@@ -352,7 +352,6 @@ def test_load_shows_only_the_latest_variants_from_the_setting(tmp_path):
     presenter.load_variants()
 
     assert [row["_row"] for row in view.rows] == [17, 20, 23, 26, 29]
-    assert view.latest_count == 5
     assert "latest 5 of 7" in dialogs.infos[-1][1]
     assert view.published == [[{"part_number": "P"}]]
 

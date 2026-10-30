@@ -42,8 +42,6 @@ class HomeView(Protocol):
 
     def show_rows(self, rows: list[dict]) -> None: ...
 
-    def show_latest_count(self, count: int) -> None: ...
-
     def read_rows(self) -> list[dict]: ...
 
     def row_count(self) -> int: ...
@@ -97,7 +95,6 @@ class HomePresenter:
             path = saved.get(key, "")
             if path:
                 self._set_path(field_name, path)
-        self._view.show_latest_count(self.latest_count())
 
     def latest_count(self) -> int:
         return normalize_latest_count(self._settings.load().get(LATEST_COUNT_KEY, 0))
