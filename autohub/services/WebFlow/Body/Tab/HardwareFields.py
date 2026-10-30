@@ -181,8 +181,8 @@ class HardwareFields:
             _logger.exception("Could not import the software part number from pool")
             return False
 
-    def pick_pst_lib(self, project_version: str) -> bool:
-        """Selects the unique PST_Lib row whose Program Identification contains the sheet project version."""
+    def pick_pst_lib(self, pver: str) -> bool:
+        """Selects the unique PST_Lib row whose Program Identification contains the sheet PVER."""
         section = self.sections["Ident Numbers"]
         if not section.expand():
             return False
@@ -208,13 +208,13 @@ class HardwareFields:
                 By.CSS_SELECTOR, 'input[placeholder^="Search for Program identification"]'
             )
             search.clear()
-            search.send_keys(project_version)
+            search.send_keys(pver)
 
             def matching_rows(_driver):
                 rows = []
                 for row in dialog.find_elements(By.CSS_SELECTOR, "table tbody tr"):
                     cells = row.find_elements(By.TAG_NAME, "td")
-                    if cells and project_version.casefold() in cells[0].text.casefold():
+                    if cells and pver.casefold() in cells[0].text.casefold():
                         rows.append(row)
                 return rows or False
 
@@ -224,8 +224,8 @@ class HardwareFields:
             ).until(matching_rows)
             if len(rows) != 1:
                 _logger.error(
-                    "Expected one PST_Lib Program Identification containing project version %r, found %d",
-                    project_version,
+                    "Expected one PST_Lib Program Identification containing PVER %r, found %d",
+                    pver,
                     len(rows),
                 )
                 return False
@@ -256,13 +256,13 @@ class HardwareFields:
                 dialog_closed
             )
             _logger.info(
-                "Selected PST_Lib Program Identification %r for project version %s",
+                "Selected PST_Lib Program Identification %r for PVER %s",
                 identification,
-                project_version,
+                pver,
             )
             return True
         except Exception:
-            _logger.exception("Could not select PST_Lib for project version %r", project_version)
+            _logger.exception("Could not select PST_Lib for PVER %r", pver)
             return False
 
     def fill(self, key: str, value: str) -> bool:

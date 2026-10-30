@@ -143,7 +143,7 @@ Their internals were not reviewed for this document.
   Ident Numbers and ECR Information). These controls are not descendants of the Hardware/Plant
   information panel. Recorded-DOM and XML-export regression tests verify the mappings.
   Columns without a corresponding control are ignored and not shown; values are never guessed.
-  Configuration still supplies fields without a sheet column. The creation service measures the entire
+  Configuration still supplies fields without a sheet column. PST_Lib selection uses Master Sheet Program version (PVER, column AY), not FSWID Project Version. The creation service measures the entire
   operation with `perf_counter`, exposing elapsed seconds to the completion/failure dialog and log.
 
 ## 9. Order of work
