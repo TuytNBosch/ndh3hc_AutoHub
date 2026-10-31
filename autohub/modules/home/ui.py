@@ -119,6 +119,10 @@ class HomeWidget(QWidget):
         self._variant_table.set_webflow_links(links)
         self._presenter.set_webflow_links(links)
 
+    def set_webflow_numbers(self, numbers: dict[str, dict[str, str]], persisted: bool = True) -> None:
+        self._variant_table.set_webflow_numbers(numbers)
+        self._presenter.set_webflow_numbers(numbers, persisted)
+
     def _open_settings(self) -> None:
         dialog = HomeSettingsDialog(
             self._presenter.latest_count(), LATEST_COUNT_CHOICES, self._show_webflow_link(), self

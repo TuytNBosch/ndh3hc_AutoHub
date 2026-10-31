@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from contextlib import AbstractContextManager, nullcontext
 from typing import Callable, Protocol
 
-from autohub.core.ports import SheetSession, WebFlowLinkWriter
+from autohub.core.ports import SheetSession, WebFlowLinkWriter, WebFlowNumberWriter
+from autohub.core.webflow_numbers import number_updates
 from autohub.core.progress import ProgressCallback, no_progress
 
 _logger = logging.getLogger(__name__)
@@ -92,7 +93,34 @@ class WebFlowJobService:
                 _logger.info("Wrote %d WebFlow link(s) to the Master Sheet", len(results))
         else:
             _logger.info("No Master Sheet path is set, so the links were not written")
+        numbers = number_updates(results)
+        if numbers:
+            error = self._write_numbers(master_sheet_path, numbers, progress)
+            if error:
+                _logger.error("Writing WebFlow numbers failed: %s", error)
+                for item in results:
+                    item["NumberError"] = error
         return results
+
+    def _write_numbers(self, path: str, numbers: dict[str, dict[str, str]], progress: ProgressCallback) -> str:
+        if not path or self._master_sheet_factory is None:
+            return "No Master Sheet path or writer is configured."
+        try:
+            with self._session():
+                progress("Writing SW Part Number and ECR Number to the Master Sheet...")
+                sheet = self._master_sheet_factory(path)
+                try:
+                    sheet.open()
+                    if not isinstance(sheet, WebFlowNumberWriter):
+                        return "This Master Sheet layout cannot write WebFlow numbers."
+                    written = sheet.write_webflow_numbers(numbers)
+                    if written != len(numbers):
+                        return f"Only {written} of {len(numbers)} variants had their numbers written."
+                finally:
+                    sheet.close()
+        except Exception as error:
+            return str(error)
+        return ""
 
     def _write_links(self, path: str, results: list[dict], progress: ProgressCallback) -> str:
         if self._master_sheet_factory is None:

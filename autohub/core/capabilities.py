@@ -35,6 +35,16 @@ class WebFlowLinkSink(Protocol):
 
 
 @runtime_checkable
+class WebFlowNumberSource(Protocol):
+    webflowNumbersUpdated: Any
+
+
+@runtime_checkable
+class WebFlowNumberSink(Protocol):
+    def set_webflow_numbers(self, numbers: dict[str, dict[str, str]], persisted: bool = True) -> None: ...
+
+
+@runtime_checkable
 class Closable(Protocol):
     """Page that must release external resources when the app closes."""
 

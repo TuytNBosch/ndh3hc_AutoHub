@@ -51,7 +51,6 @@ class WebFlowSettingsDialog(QDialog):
     def __init__(self, config: WebFlowConfig, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Creation settings")
-        self.setMinimumWidth(760)
         self._base_url = QLineEdit(config.base_url)
         self._tool_version = QLineEdit(config.tool_version)
         self._routing = QLineEdit(config.routing)
@@ -73,7 +72,15 @@ class WebFlowSettingsDialog(QDialog):
                 item.setToolTip("Previously saved value; not one of the recorded WebFlow options.")
             self._change_reason.addItem(item)
         self._change_reason.setMinimumHeight(110)
+        self._change_reason.setMinimumWidth(
+            self._change_reason.sizeHintForColumn(0) + 2 * self._change_reason.frameWidth() + 16
+        )
         self._ecr_notes = QPlainTextEdit(config.ecr_notes)
+        for field in (
+            self._base_url, self._tool_version, self._routing,
+            self._change_engineer, self._cost_allocation,
+        ):
+            field.setMinimumWidth(field.fontMetrics().horizontalAdvance(field.text()) + 24)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
@@ -87,6 +94,7 @@ class WebFlowSettingsDialog(QDialog):
         form.addRow("Change Reason:", self._change_reason)
         form.addRow("ECR notes:", self._ecr_notes)
         form.addRow(buttons)
+        self.adjustSize()
 
     def values(self) -> dict:
         return {

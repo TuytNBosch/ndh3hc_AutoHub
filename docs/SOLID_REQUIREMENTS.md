@@ -151,7 +151,10 @@ Their internals were not reviewed for this document.
   required if any is configured; all blank preserves the previous workflow. The page adapter fills
   only these controls in ECR Information, imports once and waits for the read-only ECR number.
   ECR-enabled jobs stop on the first failed step before Save. Retain the imported number per variant
-  and expose `ECRNumber` in job results for future write-back; do not write it into the Master Sheet yet.
+  and expose `ECRNumber` in job results. The creation service writes allocated SW/ECR numbers through
+  `WebFlowNumberWriter`, using existing MG1 AX/AW or Mx17 X/Y columns. Capability signals synchronize
+  both page tables without importing concrete modules or clearing unrelated edits. Write-back errors
+  keep the numbers visible and enable Home's Update Master Sheet retry.
 
 ## 9. Order of work
 

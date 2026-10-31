@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from autohub.core.latest_event import NO_EVENT, latest_event
 from autohub.core.webflow_links import webflow_link_text
+from autohub.core.webflow_numbers import NUMBER_FIELDS
 from autohub.core.settings import SettingsStore
 from autohub.ui.link_label import LinkLabel
 
@@ -25,6 +26,7 @@ _ALL_EVENTS = "All events"
 _NO_EVENT = NO_EVENT
 _HEADERS = (
     "Select", "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
+    "SW Part Number", "ECR Number",
 )
 
 
@@ -42,10 +44,10 @@ class CreationTable(QTableWidget):
         available = self.viewport().width() - select_width
         detail_width = max(
             max(metrics.horizontalAdvance(title) + 24 for title in _HEADERS[2:]),
-            available // 6,
+            available // 8,
         )
         self.setColumnWidth(0, select_width)
-        self.setColumnWidth(1, max(detail_width + 40, available - 4 * detail_width))
+        self.setColumnWidth(1, max(detail_width + 40, available - (len(_HEADERS) - 2) * detail_width))
         for column in range(2, len(_HEADERS)):
             self.setColumnWidth(column, detail_width)
 
@@ -167,6 +169,18 @@ class VariantChecklist(QWidget):
                     label = LinkLabel(webflow_link_text(link) or link, link)
                     label.setAlignment(Qt.AlignCenter)
                     self._table.setCellWidget(row, 5, label)
+                for column, (_name, (_sheet_column, key)) in enumerate(NUMBER_FIELDS.items(), start=6):
+                    item = QTableWidgetItem(str(variant.get("hardware", {}).get(key) or ""))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self._table.setItem(row, column, item)
+
+    def set_numbers(self, numbers: dict[str, dict[str, str]]) -> None:
+        for variant in self._variants:
+            values = numbers.get(variant["part_number"], {})
+            for column, key in NUMBER_FIELDS.values():
+                if column in values:
+                    variant.setdefault("hardware", {})[key] = values[column]
+        self._apply_filter()
 
     def set_links(self, links: dict[str, str]) -> None:
         """Shows the WebFlow job link of the variants that just got a job."""

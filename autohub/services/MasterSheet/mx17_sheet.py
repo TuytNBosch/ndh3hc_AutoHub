@@ -16,6 +16,7 @@ from autohub.services.common.read_only_flag import clear_read_only_recommended
 from autohub.services.common.file_access import write_block_reason
 from autohub.services.MasterSheet import mx17_layout as layout
 from autohub.services.MasterSheet.MasterSheet import MasterSheet
+from autohub.services.MasterSheet.row_writer import VariantRowWriter
 from autohub.services.MasterSheet.variant_builder import compute_new_variant_rows
 from autohub.services.MasterSheet.webflow_variants import webflow_variant_from_row
 
@@ -157,6 +158,19 @@ class Mx17MasterSheet(MasterSheet):
         return [row for row in rows if normalize_part_number(row.get("J")).upper() not in known]
 
     # -- Writing ---------------------------------------------------------------------
+
+    def write_webflow_numbers(self, numbers: dict[str, dict[str, str]], save: bool = True) -> int:
+        self._require_writable()
+        rows = {
+            normalize_part_number(values.get(layout.PART_NUMBER_COLUMN)).upper(): row
+            for row, values in self._main_rows()
+        }
+        written = VariantRowWriter(self._worksheet(), self.excel_app).write_webflow_numbers(
+            rows, numbers, {key: layout.MAIN_COLUMNS[key] for key in ("AX", "AW")}
+        )
+        if save and written:
+            self.save()
+        return written
 
     def save_variant_rows(self, variants: list[dict], save: bool = True) -> list[dict]:
         """A "_row" entry updates that main sheet row (and its Info row); otherwise a row is appended to both."""

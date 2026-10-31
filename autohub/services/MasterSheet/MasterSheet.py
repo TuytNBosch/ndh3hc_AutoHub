@@ -95,6 +95,14 @@ class MasterSheet(ExcelDocument):
             self.save()
         return written
 
+    def write_webflow_numbers(self, numbers: dict[str, dict[str, str]], save: bool = True) -> int:
+        written = VariantRowWriter(self._worksheet(), self.excel_app).write_webflow_numbers(
+            VariantRowReader(self._worksheet()).latest_request_rows(), numbers
+        )
+        if save and written:
+            self.save()
+        return written
+
     def load_variant_rows(self) -> list[dict]:
         return VariantRowReader(self._worksheet()).load_variant_rows()
 

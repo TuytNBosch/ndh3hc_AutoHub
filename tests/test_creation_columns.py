@@ -12,8 +12,9 @@ def test_creation_headers_and_ecu_values(qapp):
         "ecu": {"family_name": "MG1CS022", "project_version": "6WZX", "program_version": "V037"},
     }])
     table = checklist._table
-    assert [table.horizontalHeaderItem(col).text() for col in range(6)] == [
+    assert [table.horizontalHeaderItem(col).text() for col in range(8)] == [
         "Select", "Part Number", "Family Name", "FSWID Project Version", "FSWID Program Version", "WebFlow Link",
+        "SW Part Number", "ECR Number",
     ]
     assert [table.item(0, col).text() for col in range(1, 5)] == [
         "P", "MG1CS022", "6WZX", "V037",
@@ -26,6 +27,10 @@ def test_creation_headers_and_ecu_values(qapp):
     assert checklist._checkboxes["P"].isChecked()
     assert table.cellWidget(0, 5).text() == "WF42"
     assert table.item(0, 3).text() == "6WZX"
+    checklist.set_numbers({"P": {"AX": "10SW001", "AW": "ECR123"}})
+    assert [table.item(0, col).text() for col in (6, 7)] == ["10SW001", "ECR123"]
+    checklist._apply_filter()
+    assert table.item(0, 6).text() == "10SW001"
 
 
 def test_missing_ecu_values_and_event_filter(qapp):
