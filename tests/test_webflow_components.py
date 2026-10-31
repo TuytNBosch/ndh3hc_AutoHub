@@ -6,7 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from autohub.services.WebFlow import Constants, components
 from autohub.services.WebFlow.Body.Information.Information import Information
 from autohub.services.WebFlow.Body.Tab import ECUTab as ecu_tab_module
-from autohub.services.WebFlow.Body.Tab import HardwareFields as hardware_fields_module
+from autohub.services.WebFlow.Body.Tab import pst_lib_picker as picker_module
 from autohub.services.WebFlow.Body.Tab.ECUTab import ECUTab
 from autohub.services.WebFlow.Body.Tab.HardwareFields import HardwareFields
 from autohub.services.WebFlow.components import Section, TabLink, select_dropdown
@@ -411,7 +411,7 @@ def test_pick_pst_lib_searches_and_selects_the_matching_project_identification(m
                 raise TimeoutError("condition not met")
             return result
 
-    monkeypatch.setattr(hardware_fields_module, "WebDriverWait", Wait)
+    monkeypatch.setattr(picker_module, "WebDriverWait", Wait)
     assert hardware.pick_pst_lib(pver) is (revision_count == 1)
     assert dialog.search.typed == ["MG1CS022_62XSC/V020_CS", Keys.ENTER]
     assert matching.clicks == (1 if revision_count == 1 else 0)
