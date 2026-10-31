@@ -87,13 +87,33 @@ class CreationWidget(QWidget):
             return
 
         _logger.info("Create WebFlow jobs clicked (%d variant(s), config=%s)", len(selected), config)
+        master_sheet_path = self._settings.load().get("master_sheet_path", "")
+        self._start_task(lambda step: self._service.create_jobs(selected, config, step, master_sheet_path))
+
+    def on_startup(self) -> None:
+        """Offers to continue a WebFlow batch that did not finish, e.g. because the app crashed."""
+        pending = self._service.pending_batch()
+        if not pending:
+            return
+        names = ", ".join(v.get("part_number", "?") for v in pending["variants"])
+        done = len(pending.get("results", []))
+        if self._dialogs.confirm(
+            "Continue WebFlow jobs",
+            "WebFlow job creation did not finish the last time AutoHub ran.\n\n"
+            f"Variants: {names}\nCompleted: {done} of {len(pending['variants'])} job(s)\n\n"
+            "Continue the work now? Choose No to discard it.",
+        ):
+            _logger.info("Continuing the unfinished WebFlow batch")
+            self._start_task(self._service.resume_jobs)
+        else:
+            self._service.discard_pending_batch()
+
+    def _start_task(self, work) -> None:
         self._create_jobs_btn.setEnabled(False)
         self._create_jobs_btn.setText("Creating jobs...")
         window = QtDialogs(self).open_progress("Create WebFlow jobs")
         self._tasks.start(
-            lambda: self._service.create_jobs(
-                selected, config, window.step, self._settings.load().get("master_sheet_path", "")
-            ),
+            lambda: work(window.step),
             lambda results: self._finish_webflow_jobs(results, window),
             lambda error: self._fail_webflow_jobs(error, window),
         )

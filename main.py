@@ -1,6 +1,7 @@
 """AutoHub entry point."""
 import sys
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
@@ -28,6 +29,7 @@ def main() -> int:
     window = MainWindow(build_modules(settings))
     set_dark_titlebar(window, dark)
     window.show()
+    QTimer.singleShot(0, window.run_startup_tasks)
     return app.exec()
 
 

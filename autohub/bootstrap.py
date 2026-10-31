@@ -1,6 +1,7 @@
 """Composition root: the only place that knows which concrete classes implement the interfaces."""
 from __future__ import annotations
 
+from autohub.core.batch_journal import JsonBatchJournal
 from autohub.core.com import com_session
 from autohub.core.module_base import AutoHubModule
 from autohub.core.settings import JsonSettingsStore, SettingsStore
@@ -34,7 +35,7 @@ def build_modules(settings: SettingsStore | None = None) -> list[AutoHubModule]:
     settings = settings or JsonSettingsStore()
     return [
         HomeModule(build_variant_service, settings),
-        CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session), settings),
+        CreationModule(lambda: WebFlowJobService(WebFlow, open_master_sheet, com_session, journal=JsonBatchJournal()), settings),
         ComparisonModule(),
         SettingsModule(settings),
     ]

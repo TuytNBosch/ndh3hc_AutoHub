@@ -3,6 +3,7 @@ import logging
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
+from typing import Callable
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -110,12 +111,16 @@ class WebFlow(webdriver.Edge):
         customer_group: str = "JAP",
         working_mode: str = "Honda_PreRun",
         progress: ProgressCallback = no_progress,
+        state: dict | None = None,
+        checkpoint: Callable[[], None] | None = None,
     ) -> list:
+        checkpoint = checkpoint or (lambda: None)
+        self.job_filler.checkpoint = checkpoint
         batch = JobBatch(
             self.body.job_creation, self.open_dashboard_page, self.side_menu_bar.click_new_job,
             self.open_job, self._fill_job, self.job_url, self.quit, _logger,
         )
-        return batch.run(variants, tool_version, routing, customer_group, working_mode, progress)
+        return batch.run(variants, tool_version, routing, customer_group, working_mode, progress, state, checkpoint)
 
     def _fill_job(self, variant: dict) -> list[str]:
         return self.job_filler.fill(variant)

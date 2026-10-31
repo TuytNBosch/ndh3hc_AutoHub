@@ -1,6 +1,6 @@
 import pytest
 
-from autohub.core.capabilities import Closable, VariantSink, VariantSource
+from autohub.core.capabilities import Closable, StartupTask, VariantSink, VariantSource
 from autohub.core.settings import JsonSettingsStore
 from autohub.modules.creation.service import WebFlowConfig, WebFlowJobService
 from autohub.modules.creation.ui import CreationWidget
@@ -33,14 +33,15 @@ def test_webflow_service_releases_browser_after_success_and_quits_only_once():
 
 def test_webflow_service_keeps_failed_browser_until_shutdown():
     class FailingWebFlow(FakeWebFlow):
-        def create_and_fill_jobs(self, variants, tool_version, routing, progress=None):
+        def create_and_fill_jobs(self, variants, tool_version, routing, progress=None, state=None, checkpoint=None):
             raise RuntimeError("boom")
 
     FakeWebFlow.instances.clear()
-    service = WebFlowJobService(webflow_factory=FailingWebFlow)
+    service = WebFlowJobService(webflow_factory=FailingWebFlow, sleep=lambda _seconds: None)
     with pytest.raises(RuntimeError):
         service.create_jobs([{"part_number": "P1", "ecu_type": "E"}], WebFlowConfig("", "url", "v", "r"))
-    (browser,) = FakeWebFlow.instances
+    *earlier, browser = FakeWebFlow.instances
+    assert len(earlier) == 4 and all(b.quit_calls == 1 for b in earlier)  # one browser per attempt
     assert browser.quit_calls == 0
 
     service.shutdown()
@@ -66,6 +67,7 @@ def test_pages_expose_capabilities(qapp):
     assert isinstance(home, VariantSource)
     assert isinstance(creation, VariantSink)
     assert isinstance(creation, Closable)
+    assert isinstance(creation, StartupTask)
 
 
 def test_checklist_selection_persists_through_injected_settings(qapp):
@@ -165,7 +167,7 @@ class _LinkSheet:
 
 
 class _FlowWithUrl(FakeWebFlow):
-    def create_and_fill_jobs(self, variants, tool_version, routing, progress=None):
+    def create_and_fill_jobs(self, variants, tool_version, routing, progress=None, state=None, checkpoint=None):
         return [{"PartNumber": v["part_number"], "JobId": "7", "Url": "http://x/app/ShowJob/7"} for v in variants]
 
 

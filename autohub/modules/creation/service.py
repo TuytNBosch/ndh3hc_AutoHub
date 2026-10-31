@@ -1,17 +1,21 @@
 """WebFlow job creation with ownership of the browser session (no Qt)."""
 from __future__ import annotations
 
+import copy
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from contextlib import AbstractContextManager, nullcontext
 from typing import Callable, Protocol
 
+from autohub.core.batch_journal import BatchJournal, NonRetryableError
 from autohub.core.ports import SheetSession, WebFlowLinkWriter, WebFlowNumberWriter
 from autohub.core.webflow_numbers import number_updates
 from autohub.core.progress import ProgressCallback, no_progress
 
 _logger = logging.getLogger(__name__)
+
+MAX_ATTEMPTS = 5
 
 
 @dataclass(frozen=True)
@@ -30,7 +34,10 @@ class WebFlowConfig:
 class WebFlowSession(Protocol):
     """The part of the WebFlow browser automation this service uses."""
 
-    def create_and_fill_jobs(self, variants: list, tool_version: str, routing: str, progress: ProgressCallback = no_progress) -> list: ...
+    def create_and_fill_jobs(
+        self, variants: list, tool_version: str, routing: str, progress: ProgressCallback = no_progress,
+        state: dict | None = None, checkpoint: Callable[[], None] | None = None,
+    ) -> list: ...
 
     def quit(self) -> None: ...
 
@@ -41,7 +48,13 @@ class WebFlowJobService:
         webflow_factory: Callable[..., WebFlowSession],
         master_sheet_factory: Callable[[str], SheetSession] | None = None,
         session_factory: Callable[[], AbstractContextManager] = nullcontext,
+        journal: BatchJournal | None = None,
+        retry_delay_seconds: float = 5.0,
+        sleep: Callable[[float], None] = time.sleep,
     ):
+        self._journal = journal
+        self._retry_delay = retry_delay_seconds
+        self._sleep = sleep
         self._webflow_factory = webflow_factory
         self._master_sheet_factory = master_sheet_factory
         self._session = session_factory
@@ -55,32 +68,55 @@ class WebFlowJobService:
         progress: ProgressCallback = no_progress,
         master_sheet_path: str = "",
     ) -> list[dict]:
+        state = {
+            "config": asdict(config),
+            "master_sheet_path": master_sheet_path,
+            "variants": copy.deepcopy(variants),
+        }
+        return self._run(state, variants, progress)
+
+    def pending_batch(self) -> dict | None:
+        """The progress of a batch that did not finish (e.g. the app crashed), if any."""
+        state = self._journal.load() if self._journal else None
+        return state if state and state.get("variants") else None
+
+    def discard_pending_batch(self) -> None:
+        if self._journal:
+            _logger.info("Discarding the unfinished WebFlow batch")
+            self._journal.clear()
+
+    def resume_jobs(self, progress: ProgressCallback = no_progress) -> list[dict]:
+        """Continues the unfinished batch, skipping jobs already created and completed."""
+        state = self.pending_batch()
+        if state is None:
+            raise RuntimeError("There is no unfinished WebFlow job creation to continue.")
+        _logger.info("Resuming the unfinished WebFlow batch: %d job(s) done", len(state.get("results", [])))
+        return self._run(state, [], progress)
+
+    def _run(self, state: dict, variants: list[dict], progress: ProgressCallback) -> list[dict]:
         started = time.perf_counter()
         self.last_elapsed_seconds = 0.0
         completed = False
         try:
-            results = self._create_jobs(variants, config, progress, master_sheet_path)
+            results = self._create_jobs(state, variants, progress)
             completed = True
             return results
         finally:
             self.last_elapsed_seconds = time.perf_counter() - started
             _logger.info(
                 "WebFlow jobs %s: %d requested; total time %.1f seconds (browser, filling, saving and link writing)",
-                "completed" if completed else "failed", len(variants), self.last_elapsed_seconds,
+                "completed" if completed else "failed", len(state["variants"]), self.last_elapsed_seconds,
             )
 
-    def _create_jobs(
-        self,
-        variants: list[dict],
-        config: WebFlowConfig,
-        progress: ProgressCallback = no_progress,
-        master_sheet_path: str = "",
-    ) -> list[dict]:
+    def _create_jobs(self, state: dict, variants: list[dict], progress: ProgressCallback) -> list[dict]:
         """Creates the jobs, then writes each job link into the Master Sheet (when a path is given).
 
         A failure to write the links is returned as "LinkError" on the results; the jobs exist either way."""
-        _logger.info("Creating WebFlow jobs for %s", [v["part_number"] for v in variants])
-        results = self._create(variants, config, progress)
+        known = {f.name for f in fields(WebFlowConfig)}
+        config = WebFlowConfig(**{k: v for k, v in state["config"].items() if k in known})
+        master_sheet_path = state.get("master_sheet_path", "")
+        _logger.info("Creating WebFlow jobs for %s", [v["part_number"] for v in state["variants"]])
+        results = self._create(state, variants, config, progress)
         for item in results:
             _logger.info("Job %s created for %s: %s", item.get("JobId"), item.get("PartNumber"), item.get("Url"))
         if master_sheet_path:
@@ -100,6 +136,7 @@ class WebFlowJobService:
                 _logger.error("Writing WebFlow numbers failed: %s", error)
                 for item in results:
                     item["NumberError"] = error
+        self.discard_pending_batch()
         return results
 
     def _write_numbers(self, path: str, numbers: dict[str, dict[str, str]], progress: ProgressCallback) -> str:
@@ -141,7 +178,7 @@ class WebFlowJobService:
             return str(error)
         return ""
 
-    def _create(self, variants: list[dict], config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
+    def _create(self, state: dict, variants: list[dict], config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
         ecr = {
             "change_engineer": config.change_engineer,
             "cost_allocation": config.cost_allocation,
@@ -152,28 +189,59 @@ class WebFlowJobService:
             missing = [key for key, value in ecr.items() if not value.strip()]
             if missing:
                 raise ValueError(f"Complete ECR settings before creating jobs: {', '.join(missing)}.")
-        job_variants = [{**variant, "ecr": dict(ecr)} for variant in variants] if any(ecr.values()) else variants
+            for job_variant in state["variants"]:
+                job_variant.setdefault("ecr", dict(ecr))
         for variant in variants:
             variant.pop("imported_ecr_number", None)
-        self.shutdown()
-        _logger.info("Starting the browser (base URL %s, tool version %s, routing %s)", config.base_url, config.tool_version, config.routing)
-        progress("Starting the browser...")
-        self._webflow = self._webflow_factory(
-            driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir
-        )
         try:
-            results = self._webflow.create_and_fill_jobs(
-                job_variants, tool_version=config.tool_version, routing=config.routing, progress=progress
-            )
-            # The batch has finished with the browser; release it now so app
-            # close does not quit an already-stopped driver again.
-            self.shutdown()
-            return results
+            return self._attempts(state, config, progress)
         finally:
             # Keep allocated numbers even if a later tab or job fails.
-            for variant, job_variant in zip(variants, job_variants):
+            for variant, job_variant in zip(variants, state["variants"]):
                 if job_variant.get("imported_ecr_number"):
                     variant["imported_ecr_number"] = job_variant["imported_ecr_number"]
+
+    def _attempts(self, state: dict, config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
+        """Runs the batch up to MAX_ATTEMPTS times, each attempt resuming from the saved progress."""
+        job_variants = state["variants"]
+
+        def checkpoint() -> None:
+            if self._journal:
+                self._journal.save(state)
+
+        last_error: Exception | None = None
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            state["attempt"] = attempt
+            checkpoint()
+            if attempt > 1:
+                _logger.warning("Retrying WebFlow job creation (attempt %d of %d) after: %s", attempt, MAX_ATTEMPTS, last_error)
+                progress(f"Attempt {attempt} of {MAX_ATTEMPTS} after error: {last_error}")
+                self._sleep(self._retry_delay)
+            self.shutdown()
+            try:
+                _logger.info("Starting the browser (base URL %s, tool version %s, routing %s)", config.base_url, config.tool_version, config.routing)
+                progress("Starting the browser...")
+                self._webflow = self._webflow_factory(
+                    driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir
+                )
+                results = self._webflow.create_and_fill_jobs(
+                    job_variants, tool_version=config.tool_version, routing=config.routing, progress=progress,
+                    state=state, checkpoint=checkpoint,
+                )
+                # The batch has finished with the browser; release it now so app
+                # close does not quit an already-stopped driver again.
+                self.shutdown()
+                return results
+            except (ValueError, NonRetryableError):
+                self.discard_pending_batch()
+                raise
+            except Exception as error:
+                _logger.exception("WebFlow job creation attempt %d of %d failed", attempt, MAX_ATTEMPTS)
+                last_error = error
+        message = f"{last_error}\n\nWebFlow job creation failed after {MAX_ATTEMPTS} attempts."
+        if self._journal:
+            message += " The progress is saved; AutoHub offers to continue the next time it opens."
+        raise RuntimeError(message)
 
     def shutdown(self) -> None:
         if self._webflow is None:
