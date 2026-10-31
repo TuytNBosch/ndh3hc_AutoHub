@@ -247,3 +247,65 @@ def test_creation_page_stays_quiet_without_unfinished_work(qapp):
     dialogs = FakeDialogs()
     CreationWidget(service, MemorySettings(), dialogs).on_startup()
     assert dialogs.confirmed == []
+
+
+def grouped_batch(count):
+    calls, next_id = [], [100]
+    creation = Mock()
+
+    def jobs_creation(number_of_jobs, before_submit=None, **_kwargs):
+        before_submit()
+        calls.append(f"create {number_of_jobs}")
+        creation.get_new_jobs_ids.return_value = [str(next_id[0] + i) for i in range(number_of_jobs)]
+        next_id[0] += number_of_jobs
+        return True
+
+    creation.jobs_creation.side_effect = jobs_creation
+    workflow = JobBatch(
+        creation, lambda: calls.append("dashboard") or True, lambda: True,
+        lambda job: True, lambda variant: calls.append(f"fill {variant['part_number']}") or [],
+        lambda job: f"u/{job}", lambda: calls.append("close"), logging.getLogger(__name__),
+        max_jobs_per_creation=10,
+    )
+    variants = [
+        {"part_number": f"P{i}", "ecu_generation": "MG1", "brand": "Honda", "ecu_type": "E"} for i in range(1, count + 1)
+    ]
+    return workflow, variants, calls
+
+
+def test_more_than_ten_jobs_are_created_in_groups_of_ten():
+    workflow, variants, calls = grouped_batch(24)
+    results = workflow.run(variants, "t", "r")
+    assert [c for c in calls if c.startswith("create")] == ["create 10", "create 10", "create 4"]
+    # each group is filled before the next one is created
+    assert calls.index("fill P10") < calls.index("create 10", calls.index("create 10") + 1)
+    assert [r["PartNumber"] for r in results] == [f"P{i}" for i in range(1, 25)]
+    assert [r["JobId"] for r in results] == [str(100 + i) for i in range(24)]
+    assert calls[-1] == "close"
+
+
+def test_ten_or_fewer_jobs_use_one_creation():
+    workflow, variants, calls = grouped_batch(10)
+    workflow.run(variants, "t", "r")
+    assert [c for c in calls if c.startswith("create")] == ["create 10"]
+
+
+def test_resume_continues_with_the_next_group_without_recreating_the_first():
+    workflow, variants, calls = grouped_batch(12)
+    state = {
+        "creation_submitted": False,
+        "job_ids": [str(i) for i in range(1, 11)],
+        "results": [{"PartNumber": f"P{i}", "JobId": str(i), "Url": f"u/{i}"} for i in range(1, 11)],
+    }
+    results = workflow.run(variants, "t", "r", state=state)
+    assert [c for c in calls if c.startswith(("create", "fill"))] == ["create 2", "fill P11", "fill P12"]
+    assert len(results) == 12 and len(state["job_ids"]) == 12
+
+
+def test_unknown_ids_of_a_later_group_are_not_resubmitted():
+    workflow, variants, calls = grouped_batch(12)
+    state = {"creation_submitted": True, "job_ids": [str(i) for i in range(1, 11)],
+             "results": [{"PartNumber": f"P{i}", "JobId": str(i)} for i in range(1, 11)]}
+    with pytest.raises(NonRetryableError):
+        workflow.run(variants, "t", "r", state=state)
+    assert not any(c.startswith("create") for c in calls)

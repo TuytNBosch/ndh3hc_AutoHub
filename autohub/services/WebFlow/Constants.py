@@ -40,6 +40,7 @@ BODY_JOBCREATION_CUSTGRP_XPATH  = '//div[text()=" Customer group "]'            
 BODY_JOBCREATION_WRKMODE_XPATH  = '//div[text()=" Working mode "]'                  # XPath of the body job creation form
 BODY_JOBCREATION_TOOLVER_XPATH  = '//div[text()=" Tool version "]'                  # XPath of the body job creation form
 BODY_JOBCREATION_ROUTING_XPATH  = '//div[text()=" Routing "]'                       # XPath of the body job creation form
+BODY_JOBCREATION_MAX_JOBS = 10                                 # "Number of jobs to create" offers 1-10; larger batches are created in groups
 BODY_JOBCREATION_NUMBER_XPATH   = '//div[text()=" Number of jobs to create "]'      # XPath of the body job creation form
 
 BODY_ACTION_RIBBON_CLASS = "action-ribbon"  # Class name for the action ribbon in the body
