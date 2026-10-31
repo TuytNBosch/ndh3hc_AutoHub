@@ -149,6 +149,18 @@ class HomePresenter:
                 if row.get("J") in links:
                     row["_webflow_link"] = links[row["J"]]
 
+    def set_webflow_numbers(self, numbers: dict[str, dict[str, str]], persisted: bool = True) -> None:
+        if self._loaded_rows is not None:
+            for row in self._loaded_rows:
+                row.update(numbers.get(row.get("J"), {}))
+        # Treat imported cells as the baseline without clearing unrelated edits.
+        for row in self._view.read_rows():
+            original = self._original_rows.get(row.get("_row"))
+            if original is not None and persisted:
+                original.update(numbers.get(row.get("J"), {}))
+        if not persisted and numbers:
+            self.on_table_edited()
+
     def _show_rows(self, rows: list[dict]) -> None:
         self._view.show_rows(rows)
         self._original_rows = {

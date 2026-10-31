@@ -143,6 +143,20 @@ def test_change_reason_list_preserves_unrecognized_previous_setting(qapp):
     assert dialog._change_reason.item(4).toolTip()
 
 
+def test_creation_settings_width_fits_reason_options_and_input_content(qapp):
+    from autohub.modules.creation.config_form import WebFlowSettingsDialog
+
+    config = WebFlowConfig("", "https://example.com/" + "wide-content/" * 8, "", "")
+    dialog = WebFlowSettingsDialog(config)
+    dialog.show()
+    qapp.processEvents()
+    reasons = dialog._change_reason
+    assert reasons.viewport().width() >= reasons.sizeHintForColumn(0)
+    assert dialog._base_url.width() >= dialog._base_url.fontMetrics().horizontalAdvance(config.base_url) + 24
+    assert reasons.horizontalScrollBar().maximum() == 0
+    dialog.close()
+
+
 def test_creation_service_passes_ecr_settings_without_mutating_sheet_variants():
     factory = Mock()
     factory.return_value.create_and_fill_jobs.return_value = []

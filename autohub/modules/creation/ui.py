@@ -10,6 +10,7 @@ from autohub.core.dialogs import Dialogs, QtDialogs
 from autohub.core.progress import ProgressWindow
 from autohub.core.settings import SettingsStore
 from autohub.core.workers import TaskRunner
+from autohub.core.webflow_numbers import number_updates
 from autohub.modules.creation.config_form import WebFlowSettingsDialog, load_config
 from autohub.modules.creation.service import WebFlowJobService
 from autohub.modules.creation.variant_checklist import VariantChecklist
@@ -20,6 +21,7 @@ _logger = logging.getLogger(__name__)
 
 class CreationWidget(QWidget):
     webflowLinksUpdated = Signal(dict)
+    webflowNumbersUpdated = Signal(dict, bool)
 
     def __init__(self, service: WebFlowJobService, settings: SettingsStore, dialogs: Dialogs | None = None):
         super().__init__()
@@ -126,6 +128,9 @@ class CreationWidget(QWidget):
         links = {item["PartNumber"]: item["Url"] for item in results if item.get("Url")}
         self._checklist.set_links(links)
         self.webflowLinksUpdated.emit(links)
+        numbers = number_updates(results)
+        self._checklist.set_numbers(numbers)
+        self.webflowNumbersUpdated.emit(numbers, not any(item.get("NumberError") for item in results))
         _logger.info("Created %d WebFlow job(s)", len(results))
         summary = "\n".join(f"{item['PartNumber']}: {item['JobId']}" for item in results)
         warnings = [
@@ -143,6 +148,9 @@ class CreationWidget(QWidget):
         link_error = next((item["LinkError"] for item in results if item.get("LinkError")), "")
         if link_error:
             message += f"\n\nThe links were not written to the Master Sheet: {link_error}"
+        number_error = next((item["NumberError"] for item in results if item.get("NumberError")), "")
+        if number_error:
+            message += f"\n\nThe numbers were not written to the Master Sheet: {number_error}"
         message += f"\n\nTotal time: {self._service.last_elapsed_seconds:.1f} seconds."
         window.succeed(message)
 

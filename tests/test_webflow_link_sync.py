@@ -15,7 +15,7 @@ from tests.fakes import MemorySettings
 def test_created_links_reach_home_without_discarding_edits(qapp):
     settings = MemorySettings({"show_webflow_link": True})
     home = HomeWidget(Mock(), settings)
-    creation = CreationWidget(Mock(), settings)
+    creation = CreationWidget(Mock(last_elapsed_seconds=0.0), settings)
     MainWindow._wire_cross_module_signals([home, creation])
     rows = [
         {"_row": 11, "J": "P", "H": "edited", "_webflow_link": "https://webflow/app/ShowJob/1"},
@@ -50,6 +50,48 @@ def test_created_links_reach_home_without_discarding_edits(qapp):
     assert not edits
     home._presenter._show_rows(home._presenter._loaded_rows)
     assert table.item(0, table._link_column).text() == "WF16409"
+
+
+@pytest.mark.parametrize("persisted", [True, False])
+def test_allocated_numbers_sync_creation_home_and_preserve_other_edits(qapp, persisted):
+    settings = MemorySettings()
+    home = HomeWidget(Mock(), settings)
+    creation = CreationWidget(Mock(last_elapsed_seconds=0.0), settings)
+    MainWindow._wire_cross_module_signals([home, creation])
+    rows = [{"_row": 11, "J": "P", "AX": "old SW", "AW": "old ECR", "H": "event"}]
+    home._presenter._show_rows(rows)
+    home._presenter._loaded_rows = [dict(row) for row in rows]
+    creation.set_variants([{"part_number": "P", "ecu_type": "MG1", "hardware": {"software_part_number": "old SW"}}])
+    results = [{"PartNumber": "P", "JobId": "42", "SoftwarePartNumber": "0010", "ECRNumber": "ECR42"}]
+    if not persisted:
+        results[0]["NumberError"] = "Workbook locked"
+    window = Mock()
+    creation._finish_webflow_jobs(results, window)
+    assert home.read_rows()[0]["AX"] == "0010"
+    assert home.read_rows()[0]["AW"] == "ECR42"
+    assert home.read_rows()[0]["H"] == "event"
+    assert home._presenter._loaded_rows[0]["AX"] == "0010"
+    assert creation._checklist._table.item(0, 6).text() == "0010"
+    assert creation._checklist._table.item(0, 7).text() == "ECR42"
+    assert home._update_btn.isEnabled() is (not persisted)
+    if not persisted:
+        assert "Workbook locked" in window.succeed.call_args.args[0]
+
+
+def test_number_updates_preserve_unrelated_edits_and_deletions(qapp):
+    home = HomeWidget(Mock(), MemorySettings())
+    home._presenter._show_rows([{"_row": 11, "J": "P", "H": "original"}])
+    table = home._variant_table
+    table.item(0, 1 + VARIANT_FIELD_ORDER.index("H")).setText("edited")
+    home._presenter._deleted_rows = [14]
+    table.setRowHidden(0, True)
+    home.set_webflow_numbers({"P": {"AX": "00123", "AW": "ECR42"}})
+    assert home.read_rows()[0]["H"] == "edited"
+    assert home._presenter._original_rows[11]["H"] == "original"
+    assert home._presenter._original_rows[11]["AX"] == "00123"
+    assert home._presenter._deleted_rows == [14]
+    assert table.isRowHidden(0)
+    assert home._update_btn.isEnabled()
 
 
 def test_link_updates_preserve_hidden_column_and_ignore_unknown_parts(qapp):

@@ -45,6 +45,11 @@ class WebFlowLinkWriter(Protocol):
         ...
 
 
+@runtime_checkable
+class WebFlowNumberWriter(Protocol):
+    def write_webflow_numbers(self, numbers: dict[str, dict[str, str]], save: bool = True) -> int: ...
+
+
 class NewVariantSource(Protocol):
     def compute_new_variants(
         self, system_info: SystemMatrixData,

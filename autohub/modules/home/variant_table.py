@@ -100,6 +100,20 @@ class VariantTable(QTableWidget):
         finally:
             self.blockSignals(blocked)
 
+    def set_webflow_numbers(self, numbers: dict[str, dict[str, str]]) -> None:
+        part_column = 1 + VARIANT_FIELD_ORDER.index("J")
+        blocked = self.blockSignals(True)
+        try:
+            for row in range(self.rowCount()):
+                part = self.item(row, part_column)
+                for key, value in numbers.get(part.text() if part else "", {}).items():
+                    column = 1 + VARIANT_FIELD_ORDER.index(key)
+                    item = self.item(row, column)
+                    if item is not None:
+                        item.setText(value)
+        finally:
+            self.blockSignals(blocked)
+
     def _set_link_item(self, row: int, link: str) -> None:
         """The link column is read-only: it shows "WF<number>" and opens on double-click."""
         item = QTableWidgetItem(webflow_link_text(link) or link)

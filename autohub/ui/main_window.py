@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
 from autohub.core.capabilities import (
     Closable, LeaveGuard, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
+    WebFlowNumberSink, WebFlowNumberSource,
 )
 from autohub.core.module_base import AutoHubModule
 from autohub.ui.sidebar import Sidebar
@@ -64,6 +65,9 @@ class MainWindow(QMainWindow):
         for source in link_sources:
             for sink in link_sinks:
                 source.webflowLinksUpdated.connect(sink.set_webflow_links)
+        for source in (w for w in widgets if isinstance(w, WebFlowNumberSource)):
+            for sink in (w for w in widgets if isinstance(w, WebFlowNumberSink)):
+                source.webflowNumbersUpdated.connect(sink.set_webflow_numbers)
 
     def closeEvent(self, event) -> None:
         if not self._may_leave_current_page():

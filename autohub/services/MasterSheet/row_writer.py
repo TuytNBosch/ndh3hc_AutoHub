@@ -96,6 +96,28 @@ class VariantRowWriter:
             written += 1
         return written
 
+    def write_webflow_numbers(
+        self, rows_by_part_number: dict[str, int], numbers: dict[str, dict[str, str]],
+        columns: dict[str, str] | None = None,
+    ) -> int:
+        columns = columns if columns is not None else {"AX": "AX", "AW": "AW"}
+        pending = []
+        for part, values in numbers.items():
+            row = rows_by_part_number.get(normalize_part_number(part).upper())
+            if row is None:
+                raise ValueError(f"No Master Sheet row found for {part}.")
+            for key, value in values.items():
+                if key not in columns:
+                    raise ValueError(f"Unsupported WebFlow number column: {key}")
+                cell = self._worksheet.Range(f"{columns[key]}{row}")
+                if cell.HasFormula:
+                    raise ValueError(f"Cannot overwrite formula in {columns[key]}{row}.")
+                pending.append((cell, value))
+        for cell, value in pending:
+            cell.NumberFormat = "@"
+            cell.Value = str(value)
+        return len(numbers)
+
     def write_values(self, row: int, values: dict) -> None:
         worksheet = self._worksheet
         last_data_column = worksheet.Range(f"{LAST_DATA_COLUMN}1").Column
