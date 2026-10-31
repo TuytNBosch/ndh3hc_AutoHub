@@ -62,6 +62,8 @@ class JobFiller:
         for _, key, label, _ in HARDWARE_FIELDS:
             if key == "software_part_number":
                 continue  # WebFlow allocates this number through Import from pool.
+            if key == "ecr_number" and variant.get("ecr"):
+                continue  # ECR Import supplies this read-only field.
             if key == "customer_software_part_number" and variant.get("hardware", {}).get("lead_plant"):
                 continue  # The pool import copies its allocated number into this control.
             value = variant.get("hardware", {}).get(key)
@@ -82,6 +84,10 @@ class JobFiller:
                 general.pick_pst_lib,
                 pver,
             ))
+        if variant.get("ecr"):
+            for key, value in variant["ecr"].items():
+                steps.append((f"General: ECR {key} = {value}", general.fill_hardware_field, key, value))
+            steps.append(("General: ECR Import", general.import_ecr))
         steps.append(("Select the ECU tab", ecu_tab.select_ecu_tab))
         steps += _optional_steps("ECU", ecu_tab, ECU_FIELDS, variant["ecu"])
         steps.append(("Select the Customer tab", customer_tab.select_customer_tab))
@@ -95,6 +101,7 @@ class JobFiller:
         Raises RuntimeError naming every failed step."""
         part_number = variant["part_number"]
         variant.pop("imported_software_part_number", None)
+        variant.pop("imported_ecr_number", None)
         general = self.body.tab.generaltab
         general.skipped_fields.clear()
         _logger.info("[%s] Values to fill: %s", part_number, describe_values(variant))
@@ -102,6 +109,15 @@ class JobFiller:
             raise RuntimeError("Could not select the General tab.")
 
         steps = self.steps(variant)
+        if variant.get("ecr"):
+            for step in steps:
+                if not run_step(_logger, f"[{part_number}] {step[0]}", step[1], *step[2:]):
+                    raise RuntimeError(f"Could not fill {part_number}: {step[0]}.")
+                if step[0] == "General: ECR Import":
+                    variant["imported_ecr_number"] = general.imported_ecr_number
+                if step[0] == "General: Import software part number from pool":
+                    variant["imported_software_part_number"] = general.imported_software_part_number
+            return list(general.skipped_fields)
         picker_index = next(
             (index for index, step in enumerate(steps) if step[0].startswith("General: Pick PST_Lib")),
             None,

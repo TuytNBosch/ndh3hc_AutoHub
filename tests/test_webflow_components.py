@@ -197,6 +197,7 @@ class Recorder:
         self.calls, self.results = calls, results
         self.skipped_fields = []
         self.imported_software_part_number = ""
+        self.imported_ecr_number = ""
 
     def __getattr__(self, name):
         def method(*args):
@@ -312,6 +313,30 @@ def test_job_filler_does_not_save_when_no_pst_lib_matches_pver():
         job_filler.fill(VARIANT)
     assert ("pick_pst_lib", "PV01") in calls
     assert ("save",) not in calls
+
+
+@pytest.mark.parametrize("failure", [None, "fill_hardware_field", "import_ecr"])
+def test_ecr_workflow_retains_number_and_stops_before_save_on_failure(failure):
+    job_filler, calls, pages = filler({failure: False} if failure else {})
+    pages.imported_ecr_number = "ECR123"
+    variant = {
+        **VARIANT,
+        "hardware": {**VARIANT.get("hardware", {}), "ecr_number": "sheet ECR"},
+        "ecr": {"change_engineer": "Engineer", "cost_allocation": "Allocation",
+                "change_reason": "Reason", "ecr_notes": "Notes"},
+    }
+    if failure:
+        with pytest.raises(RuntimeError, match="Could not fill"):
+            job_filler.fill(variant)
+        assert ("save",) not in calls
+        assert "imported_ecr_number" not in variant
+    else:
+        assert job_filler.fill(variant) == []
+        assert variant["imported_ecr_number"] == "ECR123"
+        assert calls.index(("import_ecr",)) < calls.index(("select_ecu_tab",)) < calls.index(("save",))
+        assert ("fill_hardware_field", "change_engineer", "Engineer") in calls
+        assert ("fill_hardware_field", "cost_allocation", "Allocation") in calls
+        assert ("fill_hardware_field", "ecr_number", "sheet ECR") not in calls
 
 
 @pytest.mark.parametrize("pver", ["MG1CS022_62XSC_V020_CS", "MG1CS022_62XSC/V020_CS"])

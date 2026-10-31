@@ -131,7 +131,8 @@ Their internals were not reviewed for this document.
   - Tested with fake elements in `tests/test_webflow_components.py`; still to be confirmed by a run
     against a real WebFlow.
 - **WF-2:** Any change must keep `WebFlow.create_and_fill_jobs(variants, tool_version, routing)` and the
-  variant dict shape unchanged, because `WebFlowJobService` and the tests depend on them.
+  existing variant dict keys compatible, because `WebFlowJobService` and the tests depend on them.
+  Creation settings may supply an optional `ecr` payload without changing the public method signature.
 - **WF-3:** Page-object classes receive the driver by injection (already the case for `SideMenuBar` and
   `Body`); keep it that way for new classes.
 - **WF-5 (sheet-authoritative values):** `MasterSheet/webflow_variants.py` reads all mapped fields from
@@ -145,6 +146,12 @@ Their internals were not reviewed for this document.
   Columns without a corresponding control are ignored and not shown; values are never guessed.
   Configuration still supplies fields without a sheet column. PST_Lib selection uses Master Sheet Program version (PVER, column AY), not FSWID Project Version. The creation service measures the entire
   operation with `perf_counter`, exposing elapsed seconds to the completion/failure dialog and log.
+- **WF-6 (ECR import):** Creation settings supply Change engineer, Cost allocation, Change Reason and
+  ECR notes through the creation service, not Selenium imports in the UI. All four settings are
+  required if any is configured; all blank preserves the previous workflow. The page adapter fills
+  only these controls in ECR Information, imports once and waits for the read-only ECR number.
+  ECR-enabled jobs stop on the first failed step before Save. Retain the imported number per variant
+  and expose `ECRNumber` in job results for future write-back; do not write it into the Master Sheet yet.
 
 ## 9. Order of work
 

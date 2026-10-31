@@ -15,6 +15,12 @@ from ...components import Section, checkbox_value, pause, scroll_into_view_if_hi
 _logger = logging.getLogger(__name__)
 _FIELDS = {key: (label, kind) for _, key, label, kind in HARDWARE_FIELDS}
 _FIELDS["software_name"] = ("Software name", "text")
+_FIELDS.update({
+    "change_engineer": ("Change engineer ( Outlook Display Name )", "text"),
+    "cost_allocation": ("Cost allocation", "text"),
+    "change_reason": ("Change Reason", "multi"),
+    "ecr_notes": ("ECR notes", "textarea"),
+})
 _PANEL_FIELDS = {
     "General info": (
         "vehicle_model", "engine_family", "power", "emission_norm", "immobilizer",
@@ -29,7 +35,7 @@ _PANEL_FIELDS = {
         "customer_software_part_number", "car", "customer_name",
     ),
     "Ident Numbers": ("lead_plant", "program_version", "software_part_number", "software_name", "data_version"),
-    "ECR Information": ("ecr_number",),
+    "ECR Information": ("ecr_number", "change_engineer", "cost_allocation", "change_reason", "ecr_notes"),
     "Classification": (),
 }
 _FIELD_PANELS = {key: panel for panel, keys in _PANEL_FIELDS.items() for key in keys}
@@ -39,6 +45,7 @@ class HardwareFields:
     def __init__(self, driver):
         self.driver = driver
         self.imported_software_part_number = ""
+        self.imported_ecr_number = ""
         self.sections = {
             panel: Section(driver, f'//span[normalize-space(.)="{panel}"]', 'div[style^="display:"]')
             for panel in _PANEL_FIELDS
@@ -124,51 +131,7 @@ class HardwareFields:
         if not section.expand():
             return False
         try:
-            def pool_button(_driver):
-                button = section.body().find_element(
-                    By.XPATH, './/button[.//span[normalize-space(.)="Import from pool"]]'
-                )
-                return button if button.is_displayed() and button.is_enabled() else False
-
-            button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                pool_button
-            )
-            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
-            # Allocating a number may have server-side effects: never retry the click.
-            button.click()
-            confirmed = False
-
-            def imported(_driver):
-                nonlocal confirmed
-                for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"], [role="alertdialog"]'):
-                    if not dialog.is_displayed():
-                        continue
-                    if "Data filled in by you will be saved before import." not in dialog.text:
-                        continue
-                    if not confirmed:
-                        yes = dialog.find_element(
-                            By.XPATH, './/button[normalize-space(.)="Yes" or .//span[normalize-space(.)="Yes"]]'
-                        )
-                        if not yes.is_displayed() or not yes.is_enabled():
-                            return False
-                        # Do not repeat confirmation if a subsequent DOM refresh is stale.
-                        confirmed = True
-                        yes.click()
-                        _logger.info("Confirmed saving changes before software pool import: Yes")
-                    return False
-                field = section.body().find_element(
-                    By.XPATH,
-                    './/div[contains(@class,"form-group") and '
-                    './div[contains(@class,"control-label") and '
-                    'normalize-space(.)="Software part number"]]//input',
-                )
-                value = (field.get_attribute("value") or "").strip()
-                return value if value and value not in ("0", "---") else False
-
-            value = WebDriverWait(
-                self.driver, Constants.WEBFLOW_TIMEOUT,
-                ignored_exceptions=(StaleElementReferenceException,),
-            ).until(imported)
+            value = self._import_number("Ident Numbers", "Import from pool", "Software part number")
             self.imported_software_part_number = value
             wait_until_idle(self.driver, Constants.WEBFLOW_TIMEOUT)
             _logger.info("WebFlow imported Software part number = %s", value)
@@ -290,7 +253,7 @@ class HardwareFields:
                 return self._select_plant(form, value)
             if kind == "multi":
                 return self._select_multiple(form, value)
-            field = form.find_element(By.CSS_SELECTOR, 'input[type="text"]')
+            field = form.find_element(By.CSS_SELECTOR, "textarea" if kind == "textarea" else 'input[type="text"]')
             scroll_into_view_if_hidden(self.driver, field)
             if not field.is_enabled() or field.get_attribute("readonly") is not None:
                 _logger.error("WebFlow field %s is read-only; requested %r", label, value)
@@ -302,6 +265,65 @@ class HardwareFields:
         except Exception:
             _logger.exception("Could not fill WebFlow field %s = %r", label, value)
             return False
+
+    def import_ecr(self) -> bool:
+        self.imported_ecr_number = ""
+        section = self.sections["ECR Information"]
+        if not section.expand():
+            return False
+        try:
+            self.imported_ecr_number = self._import_number("ECR Information", "ECR Import", "ECR number")
+            _logger.info("WebFlow imported ECR number = %s", self.imported_ecr_number)
+            return True
+        except Exception:
+            _logger.exception("Could not import ECR information")
+            return False
+
+    def _import_number(self, panel: str, button_label: str, field_label: str) -> str:
+        section = self.sections[panel]
+
+        def available_button(_driver):
+            button = section.body().find_element(
+                By.XPATH, f'.//button[.//span[normalize-space(.)="{button_label}"]]'
+            )
+            return button if button.is_displayed() and button.is_enabled() else False
+
+        button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(available_button)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+        # Allocating a number may have server-side effects: never retry the click.
+        button.click()
+        confirmed = False
+
+        def imported(_driver):
+            nonlocal confirmed
+            for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"], [role="alertdialog"]'):
+                if not dialog.is_displayed():
+                    continue
+                if "Data filled in by you will be saved before import." not in dialog.text:
+                    continue
+                if not confirmed:
+                    yes = dialog.find_element(
+                        By.XPATH, './/button[normalize-space(.)="Yes" or .//span[normalize-space(.)="Yes"]]'
+                    )
+                    if not yes.is_displayed() or not yes.is_enabled():
+                        return False
+                    # Do not repeat confirmation after a stale DOM refresh.
+                    confirmed = True
+                    yes.click()
+                    _logger.info("Confirmed saving changes before %s: Yes", button_label)
+                return False
+            field = section.body().find_element(
+                By.XPATH,
+                './/div[contains(@class,"form-group") and '
+                f'./div[contains(@class,"control-label") and normalize-space(.)="{field_label}"]]//input',
+            )
+            value = (field.get_attribute("value") or "").strip()
+            return value if value and value not in ("0", "---") else False
+
+        return WebDriverWait(
+            self.driver, Constants.WEBFLOW_TIMEOUT,
+            ignored_exceptions=(StaleElementReferenceException,),
+        ).until(imported)
 
     def _select_multiple(self, form, value: str) -> bool:
         control = form.find_element(By.CSS_SELECTOR, "p-multiselect")

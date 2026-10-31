@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
-from autohub.services.WebFlow.Body.Tab.HardwareFields import _FIELD_PANELS
+from autohub.services.WebFlow.Body.Tab.HardwareFields import _FIELD_PANELS, _FIELDS
 
 _ROOT = Path(__file__).resolve().parents[1]
 _VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
@@ -61,6 +61,13 @@ def recorded_panels():
 def test_field_exists_in_its_actual_recorded_panel(recorded_panels, column, key, label, kind):
     assert label in recorded_panels[_FIELD_PANELS[key]]
     assert label not in recorded_panels["Hardware/Plant information"]
+
+
+@pytest.mark.parametrize("key", ["change_engineer", "cost_allocation", "change_reason", "ecr_notes"])
+def test_configured_ecr_field_matches_recorded_panel(recorded_panels, key):
+    label, _kind = _FIELDS[key]
+    assert label in recorded_panels[_FIELD_PANELS[key]]
+    assert _FIELD_PANELS[key] == "ECR Information"
 
 
 @pytest.mark.parametrize("sample", ["WF225949_export (1).xml", "WF225950_export (1).xml"])

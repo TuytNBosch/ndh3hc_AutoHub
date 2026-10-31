@@ -20,6 +20,10 @@ class WebFlowConfig:
     tool_version: str
     routing: str
     trace_dir: str = ""  #: when set, the page of every step is recorded there
+    change_engineer: str = ""
+    cost_allocation: str = ""
+    change_reason: str = ""
+    ecr_notes: str = ""
 
 
 class WebFlowSession(Protocol):
@@ -110,15 +114,34 @@ class WebFlowJobService:
         return ""
 
     def _create(self, variants: list[dict], config: WebFlowConfig, progress: ProgressCallback) -> list[dict]:
+        ecr = {
+            "change_engineer": config.change_engineer,
+            "cost_allocation": config.cost_allocation,
+            "change_reason": config.change_reason,
+            "ecr_notes": config.ecr_notes,
+        }
+        if any(ecr.values()):
+            missing = [key for key, value in ecr.items() if not value.strip()]
+            if missing:
+                raise ValueError(f"Complete ECR settings before creating jobs: {', '.join(missing)}.")
+        job_variants = [{**variant, "ecr": dict(ecr)} for variant in variants] if any(ecr.values()) else variants
+        for variant in variants:
+            variant.pop("imported_ecr_number", None)
         self.shutdown()
         _logger.info("Starting the browser (base URL %s, tool version %s, routing %s)", config.base_url, config.tool_version, config.routing)
         progress("Starting the browser...")
         self._webflow = self._webflow_factory(
             driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir
         )
-        return self._webflow.create_and_fill_jobs(
-            variants, tool_version=config.tool_version, routing=config.routing, progress=progress
-        )
+        try:
+            return self._webflow.create_and_fill_jobs(
+                job_variants, tool_version=config.tool_version, routing=config.routing, progress=progress
+            )
+        finally:
+            # Keep allocated numbers even if a later tab or job fails.
+            for variant, job_variant in zip(variants, job_variants):
+                if job_variant.get("imported_ecr_number"):
+                    variant["imported_ecr_number"] = job_variant["imported_ecr_number"]
 
     def shutdown(self) -> None:
         if self._webflow is None:
