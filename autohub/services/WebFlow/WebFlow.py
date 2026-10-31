@@ -38,7 +38,7 @@ class WebFlow(webdriver.Edge):
 
         super().__init__(service=edge_service(driver_path), options=Options())
         self.implicitly_wait(Constants.IMPLICIT_WAIT)
-        self.minimize_window()
+        # self.minimize_window()
 
         self.side_menu_bar = SideMenuBar(self)
         self.body = Body(self)
