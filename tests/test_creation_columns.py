@@ -66,16 +66,13 @@ def test_event_is_left_aligned_and_columns_fit_individual_content(qapp):
     assert toolbar.itemAt(1).widget() is checklist._event_filter
     header = checklist._table.horizontalHeader()
     assert not header.stretchLastSection()
-    for width in (800, 950, 1100):
+    for width in (600, 800, 950, 1100):
         checklist.resize(width, 300)
         qapp.processEvents()
         table = checklist._table
-        for col in range(table.columnCount()):
-            assert header.sectionResizeMode(col) == QHeaderView.ResizeToContents
-            assert table.columnWidth(col) >= header.sectionSizeHint(col)
-            if col in (1, 2, 3, 4, 6, 7):
-                item = table.item(0, col)
-                assert table.columnWidth(col) >= table.fontMetrics().horizontalAdvance(item.text())
+        assert sum(table.columnWidth(col) for col in range(table.columnCount())) == table.viewport().width()
+        assert table.columnWidth(1) > max(table.columnWidth(col) for col in range(table.columnCount()) if col != 1)
+        assert table.horizontalScrollBar().maximum() == 0
         assert table.columnWidth(5) < table.columnWidth(3)
         assert table.columnWidth(5) >= table.cellWidget(0, 5).sizeHint().width()
         assert all(table.item(0, col).textAlignment() == Qt.AlignCenter for col in range(1, 5))
@@ -89,6 +86,7 @@ def test_columns_resize_after_import_and_filter_changes(qapp):
         {"part_number": "P", "ecu_type": "MG1", "event": "A"},
         {"part_number": "Q", "ecu_type": "MG1", "event": "B"},
     ])
+    checklist.resize(1400, 300)
     checklist.show()
     checklist._event_filter.setCurrentText("A")
     qapp.processEvents()
