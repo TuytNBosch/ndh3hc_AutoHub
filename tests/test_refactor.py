@@ -1,3 +1,5 @@
+import pytest
+
 from autohub.core.capabilities import Closable, VariantSink, VariantSource
 from autohub.core.settings import JsonSettingsStore
 from autohub.modules.creation.service import WebFlowConfig, WebFlowJobService
@@ -14,7 +16,7 @@ def test_json_settings_store_roundtrip(tmp_path):
     assert store.load() == {"a": 1, "b": 2}
 
 
-def test_webflow_service_replaces_and_quits_previous_session():
+def test_webflow_service_releases_browser_after_success_and_quits_only_once():
     FakeWebFlow.instances.clear()
     service = WebFlowJobService(webflow_factory=FakeWebFlow)
     config = WebFlowConfig("", "url", "v", "r")
@@ -23,10 +25,39 @@ def test_webflow_service_replaces_and_quits_previous_session():
     assert service.create_jobs(variants, config) == [{"PartNumber": "P1", "JobId": "1"}]
     service.create_jobs(variants, config)
     first, second = FakeWebFlow.instances
-    assert first.quit_calls == 1 and second.quit_calls == 0
+    assert first.quit_calls == 1 and second.quit_calls == 1
+
+    service.shutdown()  # app close after a successful run
+    assert second.quit_calls == 1
+
+
+def test_webflow_service_keeps_failed_browser_until_shutdown():
+    class FailingWebFlow(FakeWebFlow):
+        def create_and_fill_jobs(self, variants, tool_version, routing, progress=None):
+            raise RuntimeError("boom")
+
+    FakeWebFlow.instances.clear()
+    service = WebFlowJobService(webflow_factory=FailingWebFlow)
+    with pytest.raises(RuntimeError):
+        service.create_jobs([{"part_number": "P1", "ecu_type": "E"}], WebFlowConfig("", "url", "v", "r"))
+    (browser,) = FakeWebFlow.instances
+    assert browser.quit_calls == 0
 
     service.shutdown()
-    assert second.quit_calls == 1
+    service.shutdown()
+    assert browser.quit_calls == 1
+
+
+def test_webflow_quit_is_idempotent(monkeypatch):
+    from selenium import webdriver
+    from autohub.services.WebFlow.WebFlow import WebFlow
+
+    calls = []
+    monkeypatch.setattr(webdriver.Edge, "quit", lambda self: calls.append(self))
+    browser = object.__new__(WebFlow)
+    browser.quit()
+    browser.quit()
+    assert len(calls) == 1
 
 
 def test_pages_expose_capabilities(qapp):

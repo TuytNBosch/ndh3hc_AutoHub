@@ -49,6 +49,11 @@ class WebFlow(webdriver.Edge):
             set_step_observer(StepTrace(self, Path(trace_dir)))
 
     def quit(self):
+        # A second quit would send DELETE /session to a stopped driver and
+        # make urllib3 retry against a refused port for several seconds.
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
         set_step_observer(None)
         super().quit()
 
