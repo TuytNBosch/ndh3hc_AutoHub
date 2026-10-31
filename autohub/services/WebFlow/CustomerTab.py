@@ -1,7 +1,7 @@
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from ... import Constants as Constants
-from ...components import Section, TabLink
+from . import Constants as Constants
+from .components import Section, TabLink
 
 
 class CustomerTab:

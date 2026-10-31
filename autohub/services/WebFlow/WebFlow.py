@@ -13,7 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from autohub.core.progress import ProgressCallback, no_progress
 
 from . import Constants as Constants
-from .Body.Body import Body
+from .Body import Body
 from .browser import edge_service
 from .components import wait_until_idle
 from .job_filler import JobFiller

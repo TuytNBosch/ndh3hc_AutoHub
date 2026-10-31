@@ -4,7 +4,7 @@ import pytest
 from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
 
 from autohub.services.WebFlow import Constants
-from autohub.services.WebFlow.Body.JobCreation.JobCreation import JobCreation
+from autohub.services.WebFlow.JobCreation import JobCreation
 
 
 @pytest.fixture

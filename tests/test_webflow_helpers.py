@@ -2,14 +2,14 @@ import pytest
 from unittest.mock import Mock
 from selenium.common.exceptions import TimeoutException
 
-from autohub.services.WebFlow.Body.Tab import GeneralTab as general_tab_module
-from autohub.services.WebFlow.Body.Tab.GeneralTab import (
+from autohub.services.WebFlow import GeneralTab as general_tab_module
+from autohub.services.WebFlow.GeneralTab import (
     GeneralTab,
     _checkbox_value,
     _click_count,
 )
-from autohub.services.WebFlow.Body import Actions as actions_module
-from autohub.services.WebFlow.Body.Actions import Actions
+from autohub.services.WebFlow import Actions as actions_module
+from autohub.services.WebFlow.Actions import Actions
 from autohub.services.WebFlow.dropdown import read_options
 from autohub.services.WebFlow.toast import toast_severity
 

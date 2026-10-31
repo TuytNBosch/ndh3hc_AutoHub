@@ -8,10 +8,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from autohub.core.webflow_links import job_number
 
-from ... import Constants as Constants
-from ...components import select_dropdown, wait_for
-from ...dropdown import read_options
-from ...step_log import run_step
+from . import Constants as Constants
+from .components import select_dropdown, wait_for
+from .dropdown import read_options
+from .step_log import run_step
 
 _logger = logging.getLogger(__name__)
 

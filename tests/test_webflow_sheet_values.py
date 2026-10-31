@@ -7,8 +7,8 @@ from autohub.core.webflow_fields import HARDWARE_FIELDS
 from autohub.modules.creation import service as creation_service
 from autohub.modules.creation.service import WebFlowConfig, WebFlowJobService
 from autohub.services.MasterSheet.webflow_variants import WEBFLOW_SOURCE_COLUMNS, webflow_variant_from_row
-from autohub.services.WebFlow.Body.Tab import HardwareFields as hardware_module
-from autohub.services.WebFlow.Body.Tab.HardwareFields import HardwareFields
+from autohub.services.WebFlow import HardwareFields as hardware_module
+from autohub.services.WebFlow.HardwareFields import HardwareFields
 from autohub.services.WebFlow.WebFlow import WebFlow
 from tests.fakes import FakeWebFlow
 

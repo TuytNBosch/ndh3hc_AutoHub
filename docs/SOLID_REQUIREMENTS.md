@@ -168,6 +168,8 @@ Their internals were not reviewed for this document.
   helpers remain importable from `job_filler` for compatibility. Regression tests enforce step order,
   one-click allocation and session cleanup only after all jobs succeed; failure cleanup remains the
   creation service's responsibility. Real browser verification is still required.
+  All Python modules live directly in `services/WebFlow/`; page classes and workflow components
+  use sibling imports rather than nested Body/Tab packages.
 
 ## 9. Order of work
 
