@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QHeaderView, QLabel
 
 from autohub.modules.creation.variant_checklist import VariantChecklist
 from tests.fakes import MemorySettings
@@ -51,7 +51,7 @@ def test_missing_ecu_values_and_event_filter(qapp):
     assert checklist._empty_label in checklist.findChildren(QLabel)
 
 
-def test_event_is_left_aligned_and_extra_width_goes_to_part_number(qapp):
+def test_event_is_left_aligned_and_columns_fit_individual_content(qapp):
     checklist = VariantChecklist(MemorySettings())
     checklist.set_variants([{
         "part_number": "37820-6WZ-M610-M6", "ecu_type": "MG1CS022",
@@ -70,9 +70,38 @@ def test_event_is_left_aligned_and_extra_width_goes_to_part_number(qapp):
         checklist.resize(width, 300)
         qapp.processEvents()
         table = checklist._table
-        assert len({table.columnWidth(col) for col in range(2, 6)}) == 1
-        assert table.columnWidth(1) > table.columnWidth(2)
-        assert table.columnWidth(1) > table.columnWidth(0)
+        for col in range(table.columnCount()):
+            assert header.sectionResizeMode(col) == QHeaderView.ResizeToContents
+            assert table.columnWidth(col) >= header.sectionSizeHint(col)
+            if col in (1, 2, 3, 4, 6, 7):
+                item = table.item(0, col)
+                assert table.columnWidth(col) >= table.fontMetrics().horizontalAdvance(item.text())
+        assert table.columnWidth(5) < table.columnWidth(3)
+        assert table.columnWidth(5) >= table.cellWidget(0, 5).sizeHint().width()
         assert all(table.item(0, col).textAlignment() == Qt.AlignCenter for col in range(1, 5))
         assert table.cellWidget(0, 5).alignment() == Qt.AlignCenter
+    checklist.close()
+
+
+def test_columns_resize_after_import_and_filter_changes(qapp):
+    checklist = VariantChecklist(MemorySettings())
+    checklist.set_variants([
+        {"part_number": "P", "ecu_type": "MG1", "event": "A"},
+        {"part_number": "Q", "ecu_type": "MG1", "event": "B"},
+    ])
+    checklist.show()
+    checklist._event_filter.setCurrentText("A")
+    qapp.processEvents()
+    table = checklist._table
+    initial = table.columnWidth(7)
+    number = "ECR-" + "1234567890" * 4
+    checklist.set_numbers({"P": {"AW": number}})
+    checklist.set_links({"P": "https://webflow/app/ShowJob/123456789012345"})
+    qapp.processEvents()
+    assert table.columnWidth(7) > initial
+    assert table.columnWidth(7) >= table.fontMetrics().horizontalAdvance(number)
+    assert table.columnWidth(5) >= table.cellWidget(0, 5).sizeHint().width()
+    checklist._event_filter.setCurrentText("B")
+    qapp.processEvents()
+    assert table.columnWidth(7) == initial
     checklist.close()

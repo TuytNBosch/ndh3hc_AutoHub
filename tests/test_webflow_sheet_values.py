@@ -149,11 +149,42 @@ def test_creation_settings_width_fits_reason_options_and_input_content(qapp):
     config = WebFlowConfig("", "https://example.com/" + "wide-content/" * 8, "", "")
     dialog = WebFlowSettingsDialog(config)
     dialog.show()
+    dialog._reason_button.click()
     qapp.processEvents()
     reasons = dialog._change_reason
     assert reasons.viewport().width() >= reasons.sizeHintForColumn(0)
     assert dialog._base_url.width() >= dialog._base_url.fontMetrics().horizontalAdvance(config.base_url) + 24
     assert reasons.horizontalScrollBar().maximum() == 0
+    dialog._reason_popup.close()
+    dialog.close()
+
+
+def test_creation_reason_dropdown_opens_filters_and_keeps_multiple_checks(qapp):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QPlainTextEdit
+    from autohub.modules.creation.config_form import WebFlowSettingsDialog, CHANGE_REASON_OPTIONS
+
+    dialog = WebFlowSettingsDialog(WebFlowConfig("", "", "", ""))
+    dialog.show()
+    qapp.processEvents()
+    assert not dialog._reason_popup.isVisible()
+    assert dialog._ecr_notes.height() == QPlainTextEdit().sizeHint().height() // 2
+    dialog._reason_button.click()
+    qapp.processEvents()
+    assert dialog._reason_popup.isVisible()
+    dialog._reason_search.setText("Customer requirement")
+    assert not dialog._change_reason.item(1).isHidden()
+    assert dialog._change_reason.item(0).isHidden()
+    dialog._reason_all.click()
+    assert dialog.values()["change_reason"] == CHANGE_REASON_OPTIONS[1]
+    assert dialog._reason_popup.isVisible()
+    dialog._reason_search.clear()
+    dialog._change_reason.item(3).setCheckState(Qt.Checked)
+    assert dialog.values()["change_reason"] == f"{CHANGE_REASON_OPTIONS[1]}|{CHANGE_REASON_OPTIONS[3]}"
+    assert "(+1)" in dialog._reason_button.text()
+    dialog._reason_popup.close()
+    assert not dialog._reason_popup.isVisible()
+    assert dialog.values()["change_reason"]
     dialog.close()
 
 
