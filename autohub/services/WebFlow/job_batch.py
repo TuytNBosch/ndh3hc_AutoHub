@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Callable, Protocol
 
+from autohub.core.batch_journal import NonRetryableError
 from autohub.core.progress import ProgressCallback, no_progress
 
 from .step_log import run_step
@@ -13,6 +14,7 @@ class JobCreationPage(Protocol):
     def jobs_creation(
         self, ecu_generation: str, ecu_type: str, tool_version: str, routing: str,
         number_of_jobs: int, brand: str, customer_group: str, working_mode: str,
+        before_submit: Callable[[], None] | None = None,
     ) -> bool: ...
 
     def get_new_jobs_ids(self) -> list[str]: ...
@@ -38,7 +40,17 @@ class JobBatch:
         self, variants: list, tool_version: str, routing: str,
         customer_group: str = "JAP", working_mode: str = "Honda_PreRun",
         progress: ProgressCallback = no_progress,
+        state: dict | None = None, checkpoint: Callable[[], None] = lambda: None,
     ) -> list:
+        """Creates and fills one job per variant.
+
+        ``state`` records progress (``creation_submitted``, ``job_ids``, ``results``) and
+        ``checkpoint`` persists it before each side effect, so a later run with the same
+        state resumes without creating jobs again or refilling saved ones."""
+        state = state if state is not None else {}
+        state.setdefault("creation_submitted", False)
+        state.setdefault("job_ids", [])
+        state.setdefault("results", [])
         if not variants:
             self.logger.info("No variants given, nothing to create")
             return []
@@ -55,34 +67,22 @@ class JobBatch:
             "WebFlow creation started: %d variant(s) %s, tool version %s, routing %s, brand %s, customer group %s, working mode %s",
             len(variants), [v["part_number"] for v in variants], tool_version, routing, brand, customer_group, working_mode,
         )
-        progress("Opening the WebFlow dashboard...")
-        if not run_step(self.logger, "Open the WebFlow dashboard", self.open_dashboard):
-            raise RuntimeError("Could not open the WebFlow dashboard.")
-        progress("Opening the new job page...")
-        if not run_step(self.logger, "Open the new job page from the side menu", self.open_creation):
-            raise RuntimeError("Could not open WebFlow job creation.")
+        if state["job_ids"]:
+            job_ids = state["job_ids"]
+            self.logger.info("Resuming jobs %s (%d already done)", job_ids, len(state["results"]))
+        else:
+            if state["creation_submitted"]:
+                raise NonRetryableError(
+                    "WebFlow job creation was submitted, but the new job IDs are unknown. "
+                    "Check WebFlow before creating these jobs again."
+                )
+            job_ids = self._create_jobs(variants, tool_version, routing, brand, customer_group, working_mode, progress, state, checkpoint)
 
-        progress(f"Creating {len(variants)} job(s)...")
-        self.logger.info("Creating %d job(s) for ECU %s / %s", len(variants), first_variant["ecu_generation"], first_variant["ecu_type"])
-        created = self.creation.jobs_creation(
-            ecu_generation=first_variant["ecu_generation"],
-            ecu_type=first_variant["ecu_type"],
-            tool_version=tool_version,
-            routing=routing,
-            number_of_jobs=len(variants),
-            brand=brand,
-            customer_group=customer_group,
-            working_mode=working_mode,
-        )
-        if not created:
-            raise RuntimeError("WebFlow job creation failed.")
-        job_ids = self.creation.get_new_jobs_ids()
-        self.logger.info("New job ids: %s", job_ids)
-        if len(job_ids) != len(variants):
-            raise RuntimeError("WebFlow returned an unexpected number of job IDs.")
-
-        results = []
+        done = {item["JobId"] for item in state["results"]}
         for number, (job_id, variant) in enumerate(zip(job_ids, variants), start=1):
+            if job_id in done:
+                self.logger.info("Job %s for %s was already completed; skipping", job_id, variant["part_number"])
+                continue
             progress(f"Filling job {job_id} for {variant['part_number']} ({number}/{len(variants)})...")
             self.logger.info("Job %s (%d/%d): filling variant %s", job_id, number, len(variants), variant["part_number"])
             if not run_step(self.logger, f"Open job {job_id}", self.open_job, job_id):
@@ -98,7 +98,52 @@ class JobBatch:
                 result["SoftwarePartNumber"] = variant["imported_software_part_number"]
             if variant.get("imported_ecr_number"):
                 result["ECRNumber"] = variant["imported_ecr_number"]
-            results.append(result)
+            state["results"].append(result)
+            checkpoint()
+        order = {job_id: index for index, job_id in enumerate(job_ids)}
+        results = sorted(state["results"], key=lambda item: order.get(item["JobId"], len(order)))
         self.logger.info("WebFlow creation finished: %d job(s); closing the browser", len(results))
         self.close()
         return results
+
+    def _create_jobs(
+        self, variants: list, tool_version: str, routing: str, brand: str, customer_group: str,
+        working_mode: str, progress: ProgressCallback, state: dict, checkpoint: Callable[[], None],
+    ) -> list[str]:
+        first_variant = variants[0]
+        progress("Opening the WebFlow dashboard...")
+        if not run_step(self.logger, "Open the WebFlow dashboard", self.open_dashboard):
+            raise RuntimeError("Could not open the WebFlow dashboard.")
+        progress("Opening the new job page...")
+        if not run_step(self.logger, "Open the new job page from the side menu", self.open_creation):
+            raise RuntimeError("Could not open WebFlow job creation.")
+
+        progress(f"Creating {len(variants)} job(s)...")
+        self.logger.info("Creating %d job(s) for ECU %s / %s", len(variants), first_variant["ecu_generation"], first_variant["ecu_type"])
+        def before_submit() -> None:
+            # Recorded before Confirm is clicked: a retry must never create the batch twice.
+            state["creation_submitted"] = True
+            checkpoint()
+
+        created = self.creation.jobs_creation(
+            ecu_generation=first_variant["ecu_generation"],
+            ecu_type=first_variant["ecu_type"],
+            tool_version=tool_version,
+            routing=routing,
+            number_of_jobs=len(variants),
+            brand=brand,
+            customer_group=customer_group,
+            working_mode=working_mode,
+            before_submit=before_submit,
+        )
+        if not created:
+            if state["creation_submitted"]:
+                raise NonRetryableError("WebFlow job creation failed after it was submitted. Check WebFlow before trying again.")
+            raise RuntimeError("WebFlow job creation failed.")
+        job_ids = self.creation.get_new_jobs_ids()
+        self.logger.info("New job ids: %s", job_ids)
+        if len(job_ids) != len(variants):
+            raise NonRetryableError("WebFlow returned an unexpected number of job IDs.")
+        state["job_ids"] = list(job_ids)
+        checkpoint()
+        return job_ids

@@ -1,4 +1,5 @@
 import logging
+from typing import Callable
 
 from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -51,7 +52,8 @@ class JobCreation:
                            number_of_jobs: int,
                            brand: str = "Honda",
                            customer_group: str = "JAP", 
-                           working_mode: str = "Honda_PreRun",) -> bool:
+                           working_mode: str = "Honda_PreRun",
+                           before_submit: Callable[[], None] | None = None) -> bool:
         self.number_of_jobs = 0
         self.new_jobs_ids = []
 
@@ -70,6 +72,8 @@ class JobCreation:
                     _logger.error("WebFlow job creation stopped: could not select %s = %s", label, value)
                     return False
 
+        if before_submit is not None:
+            before_submit()
         if not run_step(_logger, "Confirm the job creation", self._confirm_creation):
             return False
 

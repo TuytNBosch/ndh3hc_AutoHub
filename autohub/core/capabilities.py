@@ -52,6 +52,13 @@ class Closable(Protocol):
 
 
 @runtime_checkable
+class StartupTask(Protocol):
+    """Page with work to offer once the main window is shown (e.g. resume interrupted work)."""
+
+    def on_startup(self) -> None: ...
+
+
+@runtime_checkable
 class LeaveGuard(Protocol):
     """Page that may hold unsaved changes; asked before the user leaves it or closes the app."""
 

@@ -8,7 +8,8 @@ from typing import Protocol
 
 from autohub.config import APP_NAME
 
-_SETTINGS_PATH = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME / "settings.json"
+APP_DATA_DIR = Path(os.environ.get("APPDATA", Path.home())) / APP_NAME
+_SETTINGS_PATH = APP_DATA_DIR / "settings.json"
 
 
 class SettingsStore(Protocol):

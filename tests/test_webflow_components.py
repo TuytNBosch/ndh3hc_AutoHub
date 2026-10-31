@@ -230,6 +230,12 @@ VARIANT = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _fresh_variant():
+    yield
+    VARIANT.pop("attempted_imports", None)  # fill() records number imports on the variant
+
+
 def test_job_filler_plans_the_legacy_steps_in_order():
     job_filler, _, _ = filler()
     names = [step[0] for step in job_filler.steps(VARIANT)]

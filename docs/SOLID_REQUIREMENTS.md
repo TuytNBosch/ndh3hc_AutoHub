@@ -171,6 +171,15 @@ Their internals were not reviewed for this document.
   All Python modules live directly in `services/WebFlow/`; page classes and workflow components
   use sibling imports rather than nested Body/Tab packages.
 
+- **WF-8 (retry and resume):** `WebFlowJobService` retries a batch up to `MAX_ATTEMPTS` (5) with a
+  fresh browser per attempt and persists progress through the injected `core.batch_journal.BatchJournal`
+  (`JsonBatchJournal` is built only in `bootstrap.py`). `JobBatch.run(state=, checkpoint=)` records
+  `creation_submitted` (via `JobCreation.jobs_creation(before_submit=)`), `job_ids` and completed
+  `results`, and `JobFiller` records `attempted_imports` before each number import, so no retry or
+  resume repeats a server-side effect. `NonRetryableError` and `ValueError` stop retrying. Pages
+  implementing the `StartupTask` capability run after the main window is shown; Creation uses it to
+  offer resuming an unfinished batch. Tested with fakes in `tests/test_webflow_retry.py`.
+
 ## 9. Order of work
 
 Each step ends with a green test run.

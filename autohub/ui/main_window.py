@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from autohub.config import APP_NAME, APP_VERSION, LOGO_PATH
 from autohub.core.capabilities import (
-    Closable, LeaveGuard, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
+    Closable, LeaveGuard, StartupTask, VariantSink, VariantSource, WebFlowLinkSink, WebFlowLinkSource,
     WebFlowNumberSink, WebFlowNumberSource,
 )
 from autohub.core.module_base import AutoHubModule
@@ -68,6 +68,12 @@ class MainWindow(QMainWindow):
         for source in (w for w in widgets if isinstance(w, WebFlowNumberSource)):
             for sink in (w for w in widgets if isinstance(w, WebFlowNumberSink)):
                 source.webflowNumbersUpdated.connect(sink.set_webflow_numbers)
+
+    def run_startup_tasks(self) -> None:
+        for i in range(self._pages.count()):
+            page = self._pages.widget(i)
+            if isinstance(page, StartupTask):
+                page.on_startup()
 
     def closeEvent(self, event) -> None:
         if not self._may_leave_current_page():

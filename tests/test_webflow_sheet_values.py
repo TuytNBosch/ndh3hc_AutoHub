@@ -223,7 +223,7 @@ def test_creation_service_retains_allocated_ecr_on_original_variant(fails_later)
             raise RuntimeError("later tab failed")
         return [{"PartNumber": "PN", "ECRNumber": "ECR123"}]
     factory.return_value.create_and_fill_jobs.side_effect = create
-    service = WebFlowJobService(factory)
+    service = WebFlowJobService(factory, sleep=lambda _seconds: None)
     variants = [{"part_number": "PN", "imported_ecr_number": "previous run"}]
     config = WebFlowConfig(
         "", "", "", "", change_engineer="Engineer", cost_allocation="Allocation",
