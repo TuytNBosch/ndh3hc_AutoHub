@@ -156,6 +156,19 @@ Their internals were not reviewed for this document.
   both page tables without importing concrete modules or clearing unrelated edits. Write-back errors
   keep the numbers visible and enable Home's Update Master Sheet retry.
 
+- **WF-7 (workflow separation):** `WebFlow` remains the compatible Selenium session facade, owning
+  browser construction, navigation, tracing and shutdown. It composes `JobBatch`, which validates
+  requests, creates and fills the batch and returns job results using injected actions and the narrow
+  `JobCreationPage` protocol. `JobPlan` builds the ordered steps without executing them; `JobFiller`
+  executes an injected `StepPlan`, preserving legacy continue-on-failure behavior, PST picker aborts,
+  ECR fail-fast behavior and allocated-number retention. These workflow modules import no Selenium
+  or concrete page classes. `PstLibPicker` owns the recorded selection dialog; `NumberImport` owns
+  single-submit imports and their known confirmation. `HardwareFields` delegates to them while
+  retaining its existing public methods and sheet-backed controls. Field tables and formatting
+  helpers remain importable from `job_filler` for compatibility. Regression tests enforce step order,
+  one-click allocation and session cleanup only after all jobs succeed; failure cleanup remains the
+  creation service's responsibility. Real browser verification is still required.
+
 ## 9. Order of work
 
 Each step ends with a green test run.

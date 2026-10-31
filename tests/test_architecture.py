@@ -58,6 +58,14 @@ def test_parsers_only_parse(parser):
     assert _violations([parser], ("win32com", "PySide6", "logging", "msoffcrypto", "openpyxl", "olefile", "pptx")) == []
 
 
+def test_webflow_workflows_do_not_depend_on_browser_or_page_implementations():
+    files = [
+        ROOT / "services" / "WebFlow" / name
+        for name in ("job_batch.py", "job_plan.py", "job_filler.py")
+    ]
+    assert _violations(files, ("selenium", "PySide6", "Body", "browser")) == []
+
+
 def test_only_the_settings_store_knows_where_settings_live():
     # DIP-5
     offenders = [p for p in _files("") if "APPDATA" in p.read_text(encoding="utf-8") and p.name != "settings.py"]

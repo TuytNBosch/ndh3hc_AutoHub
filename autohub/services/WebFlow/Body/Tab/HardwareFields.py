@@ -2,7 +2,6 @@
 import logging
 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,6 +10,8 @@ from autohub.core.webflow_fields import HARDWARE_FIELDS
 
 from ... import Constants
 from ...components import Section, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
+from ...number_import import NumberImport
+from .pst_lib_picker import PstLibPicker
 
 _logger = logging.getLogger(__name__)
 _FIELDS = {key: (label, kind) for _, key, label, kind in HARDWARE_FIELDS}
@@ -147,98 +148,7 @@ class HardwareFields:
 
     def pick_pst_lib(self, pver: str) -> bool:
         """Selects the unique Program Identification matching the sheet PVER, excluding its revision."""
-        pver = pver.strip()
-        if not pver:
-            _logger.error("Cannot select PST_Lib without a PVER")
-            return False
-        parts = pver.split("_", 2)
-        search_value = f"{parts[0]}_{parts[1]}/{parts[2]}" if "/" not in pver and len(parts) == 3 else pver
-        expected = pver.partition(";")[0].replace("/", "_").casefold()
-        section = self.sections["Ident Numbers"]
-        if not section.expand():
-            return False
-        try:
-            button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(
-                lambda _driver: section.body().find_element(
-                    By.XPATH, './/button[.//span[normalize-space(.)="Pick PST_Lib"]]'
-                )
-            )
-            if not button.is_displayed() or not button.is_enabled():
-                _logger.error("Pick PST_Lib is not available")
-                return False
-            button.click()
-
-            def selection_dialog(_driver):
-                for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"]'):
-                    if dialog.is_displayed() and "PST_Lib and PVER selection" in dialog.text:
-                        return dialog
-                return False
-
-            dialog = WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(selection_dialog)
-            search = dialog.find_element(
-                By.CSS_SELECTOR, 'input[placeholder^="Search for Program identification"]'
-            )
-            search.clear()
-            search.send_keys(search_value)
-            search.send_keys(Keys.ENTER)
-
-            def matching_rows(_driver):
-                rows = []
-                for row in dialog.find_elements(By.CSS_SELECTOR, "table tbody tr"):
-                    cells = row.find_elements(By.TAG_NAME, "td")
-                    if (
-                        cells and row.is_displayed()
-                        and cells[0].text.strip().partition(";")[0].replace("/", "_").casefold() == expected
-                    ):
-                        rows.append(row)
-                return rows or False
-
-            rows = WebDriverWait(
-                self.driver, Constants.WEBFLOW_TIMEOUT,
-                ignored_exceptions=(StaleElementReferenceException,),
-            ).until(matching_rows)
-            if len(rows) != 1:
-                _logger.error(
-                    "Expected one PST_Lib Program Identification matching PVER %r, found %d",
-                    pver,
-                    len(rows),
-                )
-                return False
-            rows[0].click()
-
-            def enabled_pick(_driver):
-                for current_dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"]'):
-                    if "PST_Lib and PVER selection" not in current_dialog.text:
-                        continue
-                    pick_button = current_dialog.find_element(
-                        By.XPATH, './/button[.//span[normalize-space(.)="Pick PST"]]'
-                    )
-                    if pick_button.is_displayed() and pick_button.is_enabled():
-                        return pick_button
-                return False
-
-            pick = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(enabled_pick)
-            identification = rows[0].find_elements(By.TAG_NAME, "td")[0].text.strip()
-            pick.click()
-
-            def dialog_closed(_driver):
-                try:
-                    return not dialog.is_displayed()
-                except StaleElementReferenceException:
-                    return True
-
-            WebDriverWait(self.driver, Constants.WEBFLOW_TIMEOUT).until(
-                dialog_closed
-            )
-            _logger.info(
-                "Selected PST_Lib Program Identification %r for PVER %s",
-                identification,
-                pver,
-            )
-            return True
-        except Exception:
-            _logger.exception("Could not select PST_Lib for PVER %r", pver)
-            return False
+        return PstLibPicker(self.driver, self.sections["Ident Numbers"]).select(pver)
 
     def fill(self, key: str, value: str) -> bool:
         label, kind = _FIELDS[key]
@@ -280,50 +190,7 @@ class HardwareFields:
             return False
 
     def _import_number(self, panel: str, button_label: str, field_label: str) -> str:
-        section = self.sections[panel]
-
-        def available_button(_driver):
-            button = section.body().find_element(
-                By.XPATH, f'.//button[.//span[normalize-space(.)="{button_label}"]]'
-            )
-            return button if button.is_displayed() and button.is_enabled() else False
-
-        button = WebDriverWait(self.driver, Constants.BODY_TIMEOUT).until(available_button)
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
-        # Allocating a number may have server-side effects: never retry the click.
-        button.click()
-        confirmed = False
-
-        def imported(_driver):
-            nonlocal confirmed
-            for dialog in self.driver.find_elements(By.CSS_SELECTOR, '[role="dialog"], [role="alertdialog"]'):
-                if not dialog.is_displayed():
-                    continue
-                if "Data filled in by you will be saved before import." not in dialog.text:
-                    continue
-                if not confirmed:
-                    yes = dialog.find_element(
-                        By.XPATH, './/button[normalize-space(.)="Yes" or .//span[normalize-space(.)="Yes"]]'
-                    )
-                    if not yes.is_displayed() or not yes.is_enabled():
-                        return False
-                    # Do not repeat confirmation after a stale DOM refresh.
-                    confirmed = True
-                    yes.click()
-                    _logger.info("Confirmed saving changes before %s: Yes", button_label)
-                return False
-            field = section.body().find_element(
-                By.XPATH,
-                './/div[contains(@class,"form-group") and '
-                f'./div[contains(@class,"control-label") and normalize-space(.)="{field_label}"]]//input',
-            )
-            value = (field.get_attribute("value") or "").strip()
-            return value if value and value not in ("0", "---") else False
-
-        return WebDriverWait(
-            self.driver, Constants.WEBFLOW_TIMEOUT,
-            ignored_exceptions=(StaleElementReferenceException,),
-        ).until(imported)
+        return NumberImport(self.driver, self.sections[panel]).run(button_label, field_label)
 
     def _select_multiple(self, form, value: str) -> bool:
         control = form.find_element(By.CSS_SELECTOR, "p-multiselect")
