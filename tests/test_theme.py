@@ -43,6 +43,11 @@ def test_pinned_module_sits_in_the_bottom_list_and_selection_is_exclusive():
 
     QApplication.instance() or QApplication([])
     sidebar = Sidebar([(None, "Home"), (None, "Creation"), (None, "Settings")], pinned_bottom=[2])
+    assert sidebar.width() == 170
+    sidebar.toggle_collapsed()
+    assert sidebar.width() == 56
+    sidebar.toggle_collapsed()
+    assert sidebar.width() == 170
     chosen = []
     sidebar.moduleSelected.connect(chosen.append)
     assert sidebar._list.count() == 2 and sidebar._bottom_list.count() == 1

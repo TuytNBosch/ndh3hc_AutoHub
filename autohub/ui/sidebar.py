@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
 from autohub.config import APP_NAME, ICONS_DIR, LOGO_PATH
 from autohub.ui.hover_cursor import HoverCursor
 
-_EXPANDED_WIDTH = 220
+_EXPANDED_WIDTH = 170
 _COLLAPSED_WIDTH = 56
 _ICON_SIZE = QSize(20, 20)
 _ROW_HEIGHT = 40  # 36 px item + 2 * 2 px margin, as in the theme
