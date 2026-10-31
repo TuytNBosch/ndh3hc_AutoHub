@@ -34,9 +34,29 @@ class CreationTable(QTableWidget):
     def __init__(self):
         super().__init__(0, len(_HEADERS))
         self.setHorizontalHeaderLabels(_HEADERS)
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.horizontalHeader().setMinimumSectionSize(1)
         self.horizontalHeader().setResizeContentsPrecision(-1)
         self.horizontalHeader().setStretchLastSection(False)
+
+    def fit_columns(self) -> None:
+        header = self.horizontalHeader()
+        widths = [
+            max(header.sectionSizeHint(column), self.sizeHintForColumn(column))
+            for column in range(self.columnCount())
+        ]
+        widths[1] = max(widths[1], max(widths[:1] + widths[2:]) + 24)
+        available = self.viewport().width()
+        total = sum(widths)
+        if total > available:
+            widths = [int(width * available / total) for width in widths]
+        widths[1] += available - sum(widths)
+        for column, width in enumerate(widths):
+            self.setColumnWidth(column, width)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.fit_columns()
 
 
 class VariantChecklist(QWidget):
@@ -156,6 +176,7 @@ class VariantChecklist(QWidget):
                     item = QTableWidgetItem(str(variant.get("hardware", {}).get(key) or ""))
                     item.setTextAlignment(Qt.AlignCenter)
                     self._table.setItem(row, column, item)
+        self._table.fit_columns()
 
     def set_numbers(self, numbers: dict[str, dict[str, str]]) -> None:
         for variant in self._variants:
