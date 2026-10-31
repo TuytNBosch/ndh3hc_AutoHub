@@ -162,9 +162,13 @@ class WebFlowJobService:
             driver_path=config.driver_path, base_url=config.base_url, trace_dir=config.trace_dir
         )
         try:
-            return self._webflow.create_and_fill_jobs(
+            results = self._webflow.create_and_fill_jobs(
                 job_variants, tool_version=config.tool_version, routing=config.routing, progress=progress
             )
+            # The batch has finished with the browser; release it now so app
+            # close does not quit an already-stopped driver again.
+            self.shutdown()
+            return results
         finally:
             # Keep allocated numbers even if a later tab or job fails.
             for variant, job_variant in zip(variants, job_variants):
