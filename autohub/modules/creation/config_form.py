@@ -5,8 +5,8 @@ from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView, QDialog, QDialogButtonBox, QFormLayout, QLineEdit,
-    QListWidget, QListWidgetItem, QPlainTextEdit, QWidget,
+    QAbstractItemView, QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QLineEdit,
+    QListWidget, QListWidgetItem, QPlainTextEdit, QToolButton, QVBoxLayout, QWidget,
 )
 
 from autohub.config import LOG_DIR
@@ -56,6 +56,11 @@ class WebFlowSettingsDialog(QDialog):
         self._routing = QLineEdit(config.routing)
         self._change_engineer = QLineEdit(config.change_engineer)
         self._cost_allocation = QLineEdit(config.cost_allocation)
+        self._reason_popup = QDialog(self, Qt.Popup)
+        self._reason_search = QLineEdit()
+        self._reason_search.setPlaceholderText("Search Change Reason")
+        self._reason_search.setClearButtonEnabled(True)
+        self._reason_all = QCheckBox("Select all")
         self._change_reason = QListWidget()
         self._change_reason.setSelectionMode(QAbstractItemView.NoSelection)
         selected = {
@@ -75,7 +80,25 @@ class WebFlowSettingsDialog(QDialog):
         self._change_reason.setMinimumWidth(
             self._change_reason.sizeHintForColumn(0) + 2 * self._change_reason.frameWidth() + 16
         )
+        self._change_reason.setFixedHeight(
+            sum(self._change_reason.sizeHintForRow(index) for index in range(self._change_reason.count()))
+            + 2 * self._change_reason.frameWidth()
+        )
+        popup_layout = QVBoxLayout(self._reason_popup)
+        popup_layout.addWidget(self._reason_search)
+        popup_layout.addWidget(self._reason_all)
+        popup_layout.addWidget(self._change_reason)
+        self._reason_button = QToolButton()
+        self._reason_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self._reason_button.setArrowType(Qt.DownArrow)
+        self._reason_button.setMinimumWidth(self._change_reason.minimumWidth())
+        self._reason_button.clicked.connect(self._show_reasons)
+        self._reason_search.textChanged.connect(self._filter_reasons)
+        self._reason_all.clicked.connect(self._select_all_reasons)
+        self._change_reason.itemChanged.connect(self._update_reason_summary)
+        self._update_reason_summary()
         self._ecr_notes = QPlainTextEdit(config.ecr_notes)
+        self._ecr_notes.setFixedHeight(self._ecr_notes.sizeHint().height() // 2)
         for field in (
             self._base_url, self._tool_version, self._routing,
             self._change_engineer, self._cost_allocation,
@@ -91,10 +114,44 @@ class WebFlowSettingsDialog(QDialog):
         form.addRow("Routing:", self._routing)
         form.addRow("Change engineer:", self._change_engineer)
         form.addRow("Cost allocation:", self._cost_allocation)
-        form.addRow("Change Reason:", self._change_reason)
+        form.addRow("Change Reason:", self._reason_button)
         form.addRow("ECR notes:", self._ecr_notes)
         form.addRow(buttons)
         self.adjustSize()
+
+    def _show_reasons(self) -> None:
+        self._reason_search.clear()
+        self._reason_popup.adjustSize()
+        self._reason_popup.move(self._reason_button.mapToGlobal(self._reason_button.rect().bottomLeft()))
+        self._reason_popup.show()
+        self._reason_search.setFocus()
+
+    def _filter_reasons(self, text: str) -> None:
+        for index in range(self._change_reason.count()):
+            item = self._change_reason.item(index)
+            item.setHidden(text.casefold() not in item.text().casefold())
+
+    def _select_all_reasons(self, checked: bool) -> None:
+        for index in range(self._change_reason.count()):
+            item = self._change_reason.item(index)
+            if not item.isHidden():
+                item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+
+    def _update_reason_summary(self) -> None:
+        selected = [
+            self._change_reason.item(index).text()
+            for index in range(self._change_reason.count())
+            if self._change_reason.item(index).checkState() == Qt.Checked
+        ]
+        summary = "; ".join(selected) or "---"
+        display = selected[0] if selected else "---"
+        if len(selected) > 1:
+            display += f" (+{len(selected) - 1})"
+        self._reason_button.setText(display)
+        self._reason_button.setToolTip(summary)
+        blocked = self._reason_all.blockSignals(True)
+        self._reason_all.setChecked(len(selected) == self._change_reason.count())
+        self._reason_all.blockSignals(blocked)
 
     def values(self) -> dict:
         return {

@@ -34,26 +34,9 @@ class CreationTable(QTableWidget):
     def __init__(self):
         super().__init__(0, len(_HEADERS))
         self.setHorizontalHeaderLabels(_HEADERS)
-        self.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.horizontalHeader().setResizeContentsPrecision(-1)
         self.horizontalHeader().setStretchLastSection(False)
-        self._size_columns()
-
-    def _size_columns(self) -> None:
-        metrics = self.fontMetrics()
-        select_width = metrics.horizontalAdvance(_HEADERS[0]) + 24
-        available = self.viewport().width() - select_width
-        detail_width = max(
-            max(metrics.horizontalAdvance(title) + 24 for title in _HEADERS[2:]),
-            available // 8,
-        )
-        self.setColumnWidth(0, select_width)
-        self.setColumnWidth(1, max(detail_width + 40, available - (len(_HEADERS) - 2) * detail_width))
-        for column in range(2, len(_HEADERS)):
-            self.setColumnWidth(column, detail_width)
-
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        self._size_columns()
 
 
 class VariantChecklist(QWidget):
