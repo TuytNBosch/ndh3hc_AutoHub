@@ -102,7 +102,7 @@ def test_ecr_settings_are_loaded_and_editable(qapp):
     values = {
         "change_engineer": "Configured engineer",
         "cost_allocation": "Configured allocation",
-        "change_reason": "Correction",
+        "change_reason": "Customer requirement (Target: Customer covers costs)",
         "ecr_notes": "Release notes\nSecond line",
     }
     config = load_config(MemorySettings(values))
@@ -110,6 +110,37 @@ def test_ecr_settings_are_loaded_and_editable(qapp):
     assert {key: dialog.values()[key] for key in values} == values
     dialog._ecr_notes.setPlainText("New notes")
     assert dialog.values()["ecr_notes"] == "New notes"
+
+
+def test_change_reason_list_matches_webflow_options_and_saves_multiple_selections(qapp):
+    from PySide6.QtCore import Qt
+    from autohub.modules.creation.config_form import WebFlowSettingsDialog
+
+    expected = [
+        "Correction of a situation (e.g. out of audits, legal requirements, specification)",
+        "Customer requirement (Target: Customer covers costs)",
+        "New supplier / increase of capacity / relocation / standards / others",
+        "Q-Problem (in the plant, at supplier or customer site)",
+    ]
+    dialog = WebFlowSettingsDialog(WebFlowConfig("", "", "", "", change_reason=expected[1]))
+    widget = dialog._change_reason
+    assert [widget.item(index).text() for index in range(widget.count())] == expected
+    assert widget.item(1).checkState() == Qt.Checked
+    widget.item(3).setCheckState(Qt.Checked)
+    assert dialog.values()["change_reason"] == f"{expected[1]}|{expected[3]}"
+    restored = WebFlowSettingsDialog(WebFlowConfig("", "", "", "", change_reason=dialog.values()["change_reason"]))
+    assert restored.values()["change_reason"] == dialog.values()["change_reason"]
+    for index in range(widget.count()):
+        widget.item(index).setCheckState(Qt.Unchecked)
+    assert dialog.values()["change_reason"] == ""
+
+
+def test_change_reason_list_preserves_unrecognized_previous_setting(qapp):
+    from autohub.modules.creation.config_form import WebFlowSettingsDialog
+
+    dialog = WebFlowSettingsDialog(WebFlowConfig("", "", "", "", change_reason="Previously saved reason"))
+    assert dialog.values()["change_reason"] == "Previously saved reason"
+    assert dialog._change_reason.item(4).toolTip()
 
 
 def test_creation_service_passes_ecr_settings_without_mutating_sheet_variants():

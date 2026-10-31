@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QPlainTextEdit, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractItemView, QDialog, QDialogButtonBox, QFormLayout, QLineEdit,
+    QListWidget, QListWidgetItem, QPlainTextEdit, QWidget,
+)
 
 from autohub.config import LOG_DIR
 from autohub.core.settings import SettingsStore
@@ -15,6 +19,13 @@ _DEFAULTS = {
     "tool_version": "PD W0002 (Productive)",
     "routing": "Honda_MG1CS022",
 }
+
+CHANGE_REASON_OPTIONS = (
+    "Correction of a situation (e.g. out of audits, legal requirements, specification)",
+    "Customer requirement (Target: Customer covers costs)",
+    "New supplier / increase of capacity / relocation / standards / others",
+    "Q-Problem (in the plant, at supplier or customer site)",
+)
 
 
 def _trace_dir() -> str:
@@ -40,14 +51,28 @@ class WebFlowSettingsDialog(QDialog):
     def __init__(self, config: WebFlowConfig, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Creation settings")
-        self.setMinimumWidth(460)
+        self.setMinimumWidth(760)
         self._base_url = QLineEdit(config.base_url)
         self._tool_version = QLineEdit(config.tool_version)
         self._routing = QLineEdit(config.routing)
         self._change_engineer = QLineEdit(config.change_engineer)
         self._cost_allocation = QLineEdit(config.cost_allocation)
-        self._change_reason = QLineEdit(config.change_reason)
-        self._change_reason.setPlaceholderText("Exact WebFlow options, separated by |")
+        self._change_reason = QListWidget()
+        self._change_reason.setSelectionMode(QAbstractItemView.NoSelection)
+        selected = {
+            value.strip().casefold(): value.strip()
+            for value in config.change_reason.replace("\n", "|").split("|") if value.strip()
+        }
+        known = {value.casefold() for value in CHANGE_REASON_OPTIONS}
+        previous = [value for key, value in selected.items() if key not in known]
+        for value in (*CHANGE_REASON_OPTIONS, *previous):
+            item = QListWidgetItem(value)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if value.casefold() in selected else Qt.Unchecked)
+            if value in previous:
+                item.setToolTip("Previously saved value; not one of the recorded WebFlow options.")
+            self._change_reason.addItem(item)
+        self._change_reason.setMinimumHeight(110)
         self._ecr_notes = QPlainTextEdit(config.ecr_notes)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -70,6 +95,10 @@ class WebFlowSettingsDialog(QDialog):
             "routing": self._routing.text().strip(),
             "change_engineer": self._change_engineer.text().strip(),
             "cost_allocation": self._cost_allocation.text().strip(),
-            "change_reason": self._change_reason.text().strip(),
+            "change_reason": "|".join(
+                self._change_reason.item(index).text()
+                for index in range(self._change_reason.count())
+                if self._change_reason.item(index).checkState() == Qt.Checked
+            ),
             "ecr_notes": self._ecr_notes.toPlainText().strip(),
         }
