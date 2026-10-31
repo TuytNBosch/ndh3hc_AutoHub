@@ -109,9 +109,15 @@ class VariantRowWriter:
             for key, value in values.items():
                 if key not in columns:
                     raise ValueError(f"Unsupported WebFlow number column: {key}")
-                cell = self._worksheet.Range(f"{columns[key]}{row}")
+                address = f"{columns[key]}{row}"
+                cell = self._worksheet.Range(address)
+                if key == "AX" and columns[key] == "AX" and cell.HasFormula:
+                    formula = str(cell.Formula).replace("$", "").strip().upper()
+                    if formula == f"=K{row}":
+                        address = f"K{row}"
+                        cell = self._worksheet.Range(address)
                 if cell.HasFormula:
-                    raise ValueError(f"Cannot overwrite formula in {columns[key]}{row}.")
+                    raise ValueError(f"Cannot overwrite formula in {address}.")
                 pending.append((cell, value))
         for cell, value in pending:
             cell.NumberFormat = "@"
