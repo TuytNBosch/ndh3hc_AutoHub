@@ -119,6 +119,7 @@ class WebFlow(webdriver.Edge):
         batch = JobBatch(
             self.body.job_creation, self.open_dashboard_page, self.side_menu_bar.click_new_job,
             self.open_job, self._fill_job, self.job_url, self.quit, _logger,
+            max_jobs_per_creation=Constants.BODY_JOBCREATION_MAX_JOBS,
         )
         return batch.run(variants, tool_version, routing, customer_group, working_mode, progress, state, checkpoint)
 
