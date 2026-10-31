@@ -66,6 +66,11 @@ def test_webflow_workflows_do_not_depend_on_browser_or_page_implementations():
     assert _violations(files, ("selenium", "PySide6", "Body", "browser")) == []
 
 
+def test_webflow_python_modules_share_one_directory():
+    package = ROOT / "services" / "WebFlow"
+    assert all(path.parent == package for path in package.rglob("*.py"))
+
+
 def test_only_the_settings_store_knows_where_settings_live():
     # DIP-5
     offenders = [p for p in _files("") if "APPDATA" in p.read_text(encoding="utf-8") and p.name != "settings.py"]

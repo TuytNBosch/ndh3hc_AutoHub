@@ -1,7 +1,7 @@
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from ... import Constants as Constants
-from ...components import Section
+from . import Constants as Constants
+from .components import Section
 
 
 class Information:

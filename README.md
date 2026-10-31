@@ -141,7 +141,7 @@ AutoHub/
 │   │   ├── SystemMatrix/         # reader + label-driven parser
 │   │   ├── HWInfo/               # reader, parser and per-file-type sources (.xlsx/.eml/.msg)
 │   │   ├── KickOff/              # Kick Off Meeting .pptx reader + rule-table parser (power, cylinders, displacement, emission, immobilizer)
-│   │   └── WebFlow/              # session facade | job_batch (workflow) | job_plan (steps) | job_filler (execution)
+│   │   └── WebFlow/              # flat Python package: page adapters, session facade, workflows and helpers
 │   │                             #   | components (shared section / drop-down / input / tab / checkbox widgets) | page objects
 │   └── resources/                # icons, logo, banner
 ├── docs/SOLID_REQUIREMENTS.md

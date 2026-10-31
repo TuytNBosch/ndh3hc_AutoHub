@@ -1,9 +1,9 @@
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from .Actions import Actions
-from .Information.Information import Information
-from .JobCreation.JobCreation import JobCreation
-from .Tab.Tab import Tab
+from .Information import Information
+from .JobCreation import JobCreation
+from .Tab import Tab
 
 
 class Body:

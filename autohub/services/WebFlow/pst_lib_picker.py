@@ -7,8 +7,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
-from ... import Constants
-from ...components import Section
+from . import Constants
+from .components import Section
 
 _logger = logging.getLogger(__name__)
 

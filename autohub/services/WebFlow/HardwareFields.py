@@ -8,9 +8,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
 
-from ... import Constants
-from ...components import Section, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
-from ...number_import import NumberImport
+from . import Constants
+from .components import Section, checkbox_value, pause, scroll_into_view_if_hidden, wait_until_idle
+from .number_import import NumberImport
 from .pst_lib_picker import PstLibPicker
 
 _logger = logging.getLogger(__name__)

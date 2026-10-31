@@ -3,9 +3,9 @@ import logging
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from ... import Constants as Constants
-from ...components import Section, TabLink, checkbox_icon_value, pause, select_dropdown, wait_for
-from ...dropdown import read_options
+from . import Constants as Constants
+from .components import Section, TabLink, checkbox_icon_value, pause, select_dropdown, wait_for
+from .dropdown import read_options
 
 _logger = logging.getLogger(__name__)
 

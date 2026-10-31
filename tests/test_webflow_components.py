@@ -4,11 +4,11 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 
 from autohub.services.WebFlow import Constants, components
-from autohub.services.WebFlow.Body.Information.Information import Information
-from autohub.services.WebFlow.Body.Tab import ECUTab as ecu_tab_module
-from autohub.services.WebFlow.Body.Tab import pst_lib_picker as picker_module
-from autohub.services.WebFlow.Body.Tab.ECUTab import ECUTab
-from autohub.services.WebFlow.Body.Tab.HardwareFields import HardwareFields
+from autohub.services.WebFlow.Information import Information
+from autohub.services.WebFlow import ECUTab as ecu_tab_module
+from autohub.services.WebFlow import pst_lib_picker as picker_module
+from autohub.services.WebFlow.ECUTab import ECUTab
+from autohub.services.WebFlow.HardwareFields import HardwareFields
 from autohub.services.WebFlow.components import Section, TabLink, select_dropdown
 from autohub.services.WebFlow.job_filler import JobFiller
 

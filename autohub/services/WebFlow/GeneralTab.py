@@ -6,8 +6,8 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from ... import Constants as Constants
-from ...components import (
+from . import Constants as Constants
+from .components import (
     Section,
     TabLink,
     checkbox_is_disabled,
@@ -15,7 +15,7 @@ from ...components import (
     click_count,
     select_dropdown,
 )
-from ...dropdown import read_options
+from .dropdown import read_options
 from .HardwareFields import HardwareFields
 
 _logger = logging.getLogger(__name__)

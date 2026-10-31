@@ -5,9 +5,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
-from .. import Constants as Constants
-from ..components import scroll_into_view_if_hidden, wait_for, wait_until_idle
-from ..toast import toast_severity
+from . import Constants as Constants
+from .components import scroll_into_view_if_hidden, wait_for, wait_until_idle
+from .toast import toast_severity
 
 _logger = logging.getLogger(__name__)
 

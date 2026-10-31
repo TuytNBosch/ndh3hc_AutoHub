@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 from autohub.core.webflow_fields import HARDWARE_FIELDS
-from autohub.services.WebFlow.Body.Tab.HardwareFields import _FIELD_PANELS, _FIELDS
+from autohub.services.WebFlow.HardwareFields import _FIELD_PANELS, _FIELDS
 
 _ROOT = Path(__file__).resolve().parents[1]
 _VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
